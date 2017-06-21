@@ -23,6 +23,10 @@
 %include <arrays_csharp.i>
 #endif
 
+#ifdef SWIGJAVA
+%include <arrays_java.i>
+#endif
+
 %{
     #include "CNTKLibrary.h"
     #pragma warning(disable : 4100) //unreferenced formal parameter
@@ -326,7 +330,7 @@ MAKE_GETTER(CNTK::DeviceDescriptor, Id);
 MAKE_GETTER(CNTK::DeviceDescriptor, CPUDevice);
 MAKE_GETTER(CNTK::DeviceDescriptor, Type);
 RENAME_AND_MAKE_PRIVATE(CNTK::DeviceDescriptor, AllDevices);
-MAKE_GETTER(CNTK::Axis, Name);
+RENAME_AND_MAKE_PRIVATE(CNTK::DeviceDescriptor, SetExcludedDevices);
 
 // class Function
 IGNORE_FUNCTION CNTK::Function::BlockArgumentsMapping;
@@ -349,15 +353,15 @@ RENAME_AND_MAKE_PRIVATE(CNTK::Function, Inputs);
 RENAME_AND_MAKE_PRIVATE(CNTK::Function, Outputs);
 RENAME_AND_MAKE_PRIVATE(CNTK::Function, Arguments);
 RENAME_AND_MAKE_PRIVATE(CNTK::Function, FindAllWithName);
+RENAME_AND_MAKE_PRIVATE(CNTK::Function, Evaluate);
 
-%rename ("%s") CNTK::Variable::Variable(const FunctionPtr& function);
 
 MAKE_GETTER(CNTK::Variable, Shape);
 MAKE_GETTER(CNTK::Variable, Name);
 MAKE_GETTER(CNTK::Variable, Uid);
 MAKE_GETTER(CNTK::Variable, Kind);
 MAKE_GETTER(CNTK::Variable, Owner);
-MAKE_GETTER(CNTK::Variable, DynamicAxes);
+RENAME_AND_MAKE_PRIVATE(CNTK::Variable, DynamicAxes);
 
 RENAME_AND_MAKE_PRIVATE(CNTK::Variable, GetHashValue);
 
@@ -385,6 +389,8 @@ IGNORE_FUNCTION CNTK::NDMask::DataBuffer;
 MAKE_GETTER(CNTK::NDMask, MaskedCount);
 MAKE_GETTER(CNTK::NDMask, Device);
 MAKE_GETTER(CNTK::NDMask, Shape);
+RENAME_AND_MAKE_PRIVATE(CNTK::NDMask, MarkSequenceBegin);
+RENAME_AND_MAKE_PRIVATE(CNTK::NDMask, InvalidateSection);
 
 // class Value
 MAKE_GETTER(CNTK::Value, Device);
@@ -392,6 +398,25 @@ MAKE_GETTER(CNTK::Value, Shape);
 MAKE_GETTER(CNTK::Value, Data);
 MAKE_GETTER(CNTK::Value, Mask);
 MAKE_GETTER(CNTK::Value, MaskedCount);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateBatchFloat);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateBatchDouble);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateSequenceFloat);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateSequenceDouble);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateDenseFloat);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateDenseDouble);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateOneHotFloat);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateOneHotDouble);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CopyVariableValueTo);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CopyVariableValueToFloat);
+RENAME_AND_MAKE_PRIVATE(CNTK::Value, CopyVariableValueToDouble);
+
+%apply int INPUT[]  { int *colStarts }
+%apply int INPUT[]  { int *rowIndices }
+%apply float INPUT[]  { float *nonZeroValues }
+%apply double INPUT[]  { double *nonZeroValues }
+%apply int OUTPUT[]  { int *sequenceLength }
+%apply int OUTPUT[]  { int *numNonZeroValues }
+
 
 // class NDArrayView
 %ignore CNTK::NDArrayView::NDArrayView(::CNTK::DataType dataType, const NDShape& viewShape, void* dataBuffer, size_t bufferSizeInBytes, const DeviceDescriptor& device, bool readOnly = false);
@@ -560,7 +585,6 @@ IGNORE_FUNCTION CNTK::Axis::AllStaticAxes();
 IGNORE_FUNCTION CNTK::Axis::AllAxes();
 IGNORE_FUNCTION CNTK::Axis::DefaultInputVariableDynamicAxes();
 IGNORE_FUNCTION CNTK::Axis::UnknownDynamicAxes();
-%rename (setExcludedDevices) CNTK::DeviceDescriptor::SetExcludedDevices;
 %rename (isLocked) CNTK::DeviceDescriptor::IsLocked;
 %rename (getGPUDevice) CNTK::DeviceDescriptor::GPUDevice;
 %rename (useDefaultDevice) CNTK::DeviceDescriptor::UseDefaultDevice;
@@ -577,7 +601,6 @@ MAKE_GETTER(CNTK::Axis, StaticAxisIndex);
 %rename (isBlock) CNTK::Function::IsBlock;
 %rename (load) CNTK::Function::Load;
 %rename (clone) CNTK::Function::Clone;
-%rename (evaluate) CNTK::Function::Evaluate;
 %rename (findByName) CNTK::Function::FindByName;
 %rename (setName) CNTK::Function::SetName;
 %rename (combine) CNTK::Function::Combine;
@@ -601,6 +624,7 @@ MAKE_GETTER(CNTK::Axis, StaticAxisIndex);
 %typemap(freearg) (char* buffer) ""
 %ignore CNTK::Variable::Variable;
 %ignore CNTK::Variable::operator FunctionPtr;
+%rename ("%s") CNTK::Variable::Variable(const FunctionPtr& function);
 %rename (isSparse) CNTK::Variable::IsSparse;
 %rename (isInput) CNTK::Variable::IsInput;
 %rename (isOutput) CNTK::Variable::IsOutput;
@@ -620,8 +644,6 @@ MAKE_GETTER(CNTK::Axis, StaticAxisIndex);
 %rename (alias) CNTK::NDShape::Alias;
 %rename (copyFrom) CNTK::NDShape::CopyFrom;
 %rename (toString) CNTK::NDShape::AsString;
-%rename (invalidateSection) CNTK::NDMask::InvalidateSection;
-%rename (markSequenceBegin) CNTK::NDMask::MarkSequenceBegin;
 %rename (clear) CNTK::NDMask::Clear;
 %rename (deepClone) CNTK::NDMask::DeepClone;
 %rename (alias) CNTK::NDMask::Alias;
@@ -636,23 +658,7 @@ MAKE_GETTER(CNTK::Axis, StaticAxisIndex);
 %rename (deepClone) CNTK::Value::DeepClone;
 %rename (copyFrom) CNTK::Value::CopyFrom;
 %rename (erase) CNTK::Value::Erase;
-%rename (createDenseFloat) CNTK::Value::CreateDenseFloat;
-%rename (createDenseDouble) CNTK::Value::CreateDenseDouble;
-%rename (createBatchFloat) CNTK::Value::CreateBatchFloat;
-%rename (createBatchDouble) CNTK::Value::CreateBatchDouble;
-%rename (createSequenceFloat) CNTK::Value::CreateSequenceFloat;
-%rename (createSequenceDouble) CNTK::Value::CreateSequenceDouble;
-%rename (createOneHotFloat) CNTK::Value::CreateOneHotFloat;
-%rename (createOneHotDouble) CNTK::Value::CreateOneHotDouble;
-%rename (copyVariableValueTo) CNTK::Value::CopyVariableValueTo;
-%rename (copyVariableValueToFloat) CNTK::Value::CopyVariableValueToFloat;
-%rename (copyVariableValueToDouble) CNTK::Value::CopyVariableValueToDouble;
 %rename (toString) CNTK::Value::AsString;
-// TODO: make Java binding deal with double*, float * and int * correctly.
-%ignore CNTK::Value::CreateSequenceFloat(const CNTK::NDShape& sampleShape, size_t sequenceLength, const CNTK::SparseIndexType* colStarts, const CNTK::SparseIndexType* rowIndices, const float* nonZeroValues, size_t numNonZeroValues, bool sequenceStartFlag, const CNTK::DeviceDescriptor& device, bool readOnly = false);
-%ignore CNTK::Value::CreateSequenceDouble(const CNTK::NDShape& sampleShape, size_t sequenceLength, const CNTK::SparseIndexType* colStarts, const CNTK::SparseIndexType* rowIndices, const double* nonZeroValues, size_t numNonZeroValues, bool sequenceStartFlag, const CNTK::DeviceDescriptor& device, bool readOnly = false);
-%ignore CNTK::Value::CreateSequenceFloat(size_t dimension, size_t sequenceLength, const CNTK::SparseIndexType* colStarts, const CNTK::SparseIndexType* rowIndices, const float* nonZeroValues, size_t numNonZeroValues, bool sequenceStartFlag, const CNTK::DeviceDescriptor& device, bool readOnly = false);
-%ignore CNTK::Value::CreateSequenceDouble(size_t dimension, size_t sequenceLength, const CNTK::SparseIndexType* colStarts, const CNTK::SparseIndexType* rowIndices, const double* nonZeroValues, size_t numNonZeroValues, bool sequenceStartFlag, const CNTK::DeviceDescriptor& device, bool readOnly = false);
 %rename (isSparse) CNTK::NDArrayView::IsSparse;
 %rename (isReadOnly) CNTK::NDArrayView::IsReadOnly;
 %rename (alias) CNTK::NDArrayView::Alias;
@@ -715,7 +721,6 @@ IGNORE_FUNCTION CNTK::ProgressWriter::UpdateTest;
 IGNORE_FUNCTION CNTK::ProgressWriter::UpdateDistributedSync;
 IGNORE_FUNCTION CNTK::ProgressWriter::WriteTrainingSummary;
 IGNORE_FUNCTION CNTK::ProgressWriter::WriteTestSummary;
-RENAME_AND_MAKE_PRIVATE(CNTK::DeviceDescriptor, SetExcludedDevices);
 RENAME_AND_MAKE_PRIVATE(CNTK::DeviceDescriptor, GPUDevice);
 // It cannot be a property as it has a parameter.
 RENAME_AND_MAKE_PRIVATE(CNTK::Axis, StaticAxisIndex);
@@ -729,7 +734,6 @@ RENAME_AND_MAKE_PRIVATE(CNTK::Function, IsBlock);
 RENAME_AND_MAKE_PRIVATE(CNTK::Function, Load);
 RENAME_AND_MAKE_PRIVATE(CNTK::Function, Save);
 RENAME_AND_MAKE_PRIVATE(CNTK::Function, Clone);
-RENAME_AND_MAKE_PRIVATE(CNTK::Function, Evaluate);
 RENAME_AND_MAKE_PRIVATE(CNTK::Function, FindByName);
 // Customize type mapping for modelBuffer, used by Load
 %typemap(ctype) (char* buffer) "char*"
@@ -751,8 +755,6 @@ RENAME_AND_MAKE_PRIVATE(CNTK::NDShape, HasInferredDimension);
 RENAME_AND_MAKE_PRIVATE(CNTK::NDShape, HasFreeDimension);
 RENAME_AND_MAKE_PRIVATE(CNTK::NDShape, HasUnboundDimension);
 RENAME_AND_MAKE_PRIVATE(CNTK::NDShape, SubShape);
-RENAME_AND_MAKE_PRIVATE(CNTK::NDMask, InvalidateSection);
-RENAME_AND_MAKE_PRIVATE(CNTK::NDMask, MarkSequenceBegin);
 RENAME_AND_MAKE_PRIVATE(CNTK::Value, IsValid);
 RENAME_AND_MAKE_PRIVATE(CNTK::Value, IsSparse);
 RENAME_AND_MAKE_PRIVATE(CNTK::Value, IsReadOnly);
@@ -760,25 +762,8 @@ RENAME_AND_MAKE_PRIVATE(CNTK::Value, Alias);
 RENAME_AND_MAKE_PRIVATE(CNTK::Value, Create);
 RENAME_AND_MAKE_PRIVATE(CNTK::Value, GetDataType);
 RENAME_AND_MAKE_PRIVATE(CNTK::Value, GetStorageFormat);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateDenseFloat);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateDenseDouble);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateBatchFloat);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateBatchDouble);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateSequenceFloat);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateSequenceDouble);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateOneHotFloat);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CreateOneHotDouble);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CopyVariableValueTo);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CopyVariableValueToFloat);
-RENAME_AND_MAKE_PRIVATE(CNTK::Value, CopyVariableValueToDouble);
 RENAME_AND_MAKE_PRIVATE(CNTK::Constant, ScalarFloat);
 RENAME_AND_MAKE_PRIVATE(CNTK::Constant, ScalarDouble);
-%apply int INPUT[]  { int *colStarts }
-%apply int INPUT[]  { int *rowIndices }
-%apply float INPUT[]  { float *nonZeroValues }
-%apply double INPUT[]  { double *nonZeroValues }
-%apply int OUTPUT[]  { int *sequenceLength }
-%apply int OUTPUT[]  { int *numNonZeroValues }
 RENAME_AND_MAKE_PRIVATE(CNTK::NDArrayView, IsSparse);
 RENAME_AND_MAKE_PRIVATE(CNTK::NDArrayView, IsReadOnly);
 RENAME_AND_MAKE_PRIVATE(CNTK::NDArrayView, Alias);
