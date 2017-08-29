@@ -1,17 +1,17 @@
 # Node: ResNet-18 with ImageNet -- 18 layers bottleneck ResNet for image classification
 # Reference: "Deep Residual Learning for Image Recognition" https://arxiv.org/abs/1512.03385
 
-command = TrainNetwork:BNStatistics:Eval
+command = TrainNetwork:Eval
 
 precision = "float"; traceLevel = 1 ; deviceId = "auto"
 
-rootDir = "."
-configDir = "$RootDir$"
-dataDir = "$RootDir$"
-outputDir = "$RootDir$/Output"
-modelDir = "$OutputDir$/Models"
+RootDir = "."
+ConfigDir = "$RootDir$"
+DataDir = "$RootDir$"
+OutputDir = "$RootDir$/Output"
+ModelDir = "$OutputDir$/Models"
+MeanDir = "$ConfigDir$"
 
-meanDir = "$dataDir$"
 modelPath = "$modelDir$/ResNet_18"
 stderr = "$outputDir$/ResNet_18_BS_out"
 
@@ -48,7 +48,7 @@ TrainNetwork = {
             AveragePoolingLayer {(7: 7), stride = 1} :
 
             # FC
-            LinearLayer {labelDim, init = 'uniform'}
+            LinearLayer {labelDim, init = 'normal', initValueScale=0.01}
         )
 
         # inputs
@@ -67,20 +67,21 @@ TrainNetwork = {
         featureNodes    = (features)
         labelNodes      = (labels)
         criterionNodes  = (ce)
-        evaluationNodes = (errs) # top5Errs only used in Eval
+        evaluationNodes = (errs, top5Errs)
         outputNodes     = (z)
     }
 
     SGD = {
         epochSize = 0
         minibatchSize = 256
-        maxEpochs = 125
-        learningRatesPerMB = 1*30: 0.1*30: 0.01*30: 0.001
+        maxEpochs = 90
+        learningRatesPerMB = 1*30: 0.1*30: 0.01*20: 0.001
         momentumPerMB = 0.9
+        useNAG = true               # use Nesterov Momentum
         gradUpdateType = "None"
         L2RegWeight = 0.0001
         dropoutRate = 0
-        numMBsToShowResult = 500
+        numMBsToShowResult = 100
 
         disableRegInBatchNormalization = true
 
@@ -102,12 +103,13 @@ TrainNetwork = {
             width = 224
             height = 224
             channels = 3
-            cropType = "RandomSide"
+            cropType = "RandomArea"
             jitterType = "UniRatio"
-            sideRatio = 0.46666:0.875
-            aspectRatio = 0.8:1.0
-            brightnessRadius = 0.2
-            contrastRadius = 0.2
+            areaRatio = 0.08:1.0
+            aspectRatio = 0.75:1.3333
+            interpolations = "cubic"
+            brightnessRadius = 0.4
+            contrastRadius = 0.4
             saturationRadius = 0.4
             hflip = true
             meanFile = "$meanDir$/ImageNet1K_mean.xml"
@@ -127,35 +129,7 @@ TrainNetwork = {
             channels = 3
             cropType = "Center"
             sideRatio = 0.875
-            meanFile = "$meanDir$/ImageNet1K_mean.xml"
-        }
-        labels = {
-            labelDim = 1000
-        }
-    }
-}
-
-# Re-statistics the mean and variance of batch normalization layers while other parameters frozen after training
-# more details: https://docs.microsoft.com/en-us/cognitive-toolkit/Post-Batch-Normalization-Statistics
-BNStatistics = {
-    action = "bnstat"
-    modelPath = "$modelPath$"
-    minibatchSize = 256
-    itersPerNode = 30
-    enableDistributedMBReading = true
-
-    reader = {
-        readerType = "ImageReader"
-        file = "$DataDir$/train_map.txt"
-        randomize = "Auto"
-        features = {
-            width = 224
-            height = 224
-            channels = 3
-            cropType = "RandomSide"
-            hflip = true
-            sideRatio = 0.46666:0.875
-            jitterType = "UniRatio"
+            interpolations = "cubic"
             meanFile = "$meanDir$/ImageNet1K_mean.xml"
         }
         labels = {
@@ -166,7 +140,7 @@ BNStatistics = {
 
 Eval = {
     action = "test"
-    modelPath = "$modelPath$.PBN"
+    modelPath = "$modelPath$"
     minibatchSize = 200
     evalNodeNames = errs:top5Errs
 
@@ -180,10 +154,11 @@ Eval = {
             channels = 3
             cropType = "Center"
             sideRatio = 0.875
+            interpolations = "cubic"
             meanFile = "$meanDir$/ImageNet1K_mean.xml"
         }
         labels = {
             labelDim = 1000
         }
-    } 
+    }
 }
