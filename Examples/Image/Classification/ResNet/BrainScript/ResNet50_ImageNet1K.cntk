@@ -10,7 +10,7 @@ ConfigDir = "$RootDir$"
 DataDir = "$RootDir$"
 OutputDir = "$RootDir$/Output"
 ModelDir = "$OutputDir$/Models"
-MeanDir = "$ConfigDir$"
+MeanDir = "$DataDir$"
 
 modelPath = "$modelDir$/ResNet_50"
 stderr = "$outputDir$/ResNet_50_BS_out"

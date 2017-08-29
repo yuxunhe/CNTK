@@ -29,7 +29,7 @@ TrainConvNet = {
         cMap = 16:32:64
         bnTimeConst = 4096
         numLayers = 18
-		
+
         model = Sequential (
             Normalize {featScale} :
 
