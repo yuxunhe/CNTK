@@ -78,7 +78,7 @@ TrainNetwork = {
         featureNodes    = (features)
         labelNodes      = (labels)
         criterionNodes  = (ce)
-        evaluationNodes = (errs)
+        evaluationNodes = (errs : top5Errs)
         outputNodes     = (z)
     }
 
