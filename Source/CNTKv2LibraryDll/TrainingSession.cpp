@@ -7,6 +7,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include "CNTKLibrary.h"
+#include "utils.h"
 #include "fileutil.h"
 #include "PerformanceProfiler.h"
 
@@ -206,13 +207,15 @@ namespace CNTK
                 ? 0
                 : m_maxNumSamples - Trainer()->TotalNumberOfSamplesSeen();
 
+            bool isSweepEnd = false; //Todo: figure ou a way to use this.
+
             // Note that in case of distributed training we don't want to stop if the local minibatch
             // is empty - it is possible that the other workers are still processing their minibatches.
-            GetTrainingMinibatch(minibatch, samplesLeft, computeDevice);
+            GetTrainingMinibatch(minibatch, isSweepEnd,  samplesLeft, computeDevice);
 
             // Train on the minibatch.
             OnMinibatchStart();
-            shouldTrain = Trainer()->TrainMinibatch(minibatch, computeDevice);
+            shouldTrain = Trainer()->TrainMinibatch(minibatch, isSweepEnd, computeDevice);
             earlyExit |= !OnMinibatchEnd(); // If the callback wants to have early exit - we stop training.
 
 #ifndef CNTK_UWP
@@ -329,8 +332,9 @@ namespace CNTK
         std::pair<ValuePtr, size_t> errorAndCount;
         while (shouldTest)
         {
+            bool isSweepEnd = false;
             GetNextMinibatch(m_test.m_source, minibatch, m_test.m_varToStream.empty() ? m_varToStream : m_test.m_varToStream,
-                m_test.m_mbSize[totalNumberOfSamples], m_workerRank, m_numberOfWorkers, computeDevice);
+                isSweepEnd, m_test.m_mbSize[totalNumberOfSamples], m_workerRank, m_numberOfWorkers, computeDevice);
             shouldTest = m_trainer->TestMinibatch(minibatch, errorAndCount, computeDevice, m_numberOfWorkers != 1);
             totalNumberOfSamples += errorAndCount.second;
         }
@@ -343,7 +347,7 @@ namespace CNTK
         Trainer()->SummarizeTrainingProgress();
     }
 
-    void TrainingSession::GetTrainingMinibatch(std::unordered_map<Variable, ValuePtr>& minibatch, size_t maxMbSize, const DeviceDescriptor& computeDevice)
+    void TrainingSession::GetTrainingMinibatch(std::unordered_map<Variable, ValuePtr>& minibatch, bool& isSweepEndInMinibatch, size_t maxMbSize, const DeviceDescriptor& computeDevice)
     {
         size_t workerRank = m_workerRank, numberOfWorkers = m_numberOfWorkers;
 
@@ -358,18 +362,20 @@ namespace CNTK
 
         size_t mbSize = GetMinibatchSize() * scaleFactor;
         mbSize = (std::min)(mbSize, maxMbSize);
-        GetNextMinibatch(m_source, minibatch, m_varToStream, mbSize, workerRank, numberOfWorkers, computeDevice);
+        GetNextMinibatch(m_source, minibatch, m_varToStream, isSweepEndInMinibatch, mbSize, workerRank, numberOfWorkers, computeDevice);
     }
 
     void TrainingSession::GetCrossValidationMinibatch(std::unordered_map<Variable, ValuePtr>& minibatch, size_t maxMbSize, const DeviceDescriptor& computeDevice)
     {
-        GetNextMinibatch(m_cv.m_source, minibatch, m_cv.m_varToStream.empty() ? m_varToStream : m_cv.m_varToStream, maxMbSize, m_workerRank, m_numberOfWorkers, computeDevice);
+        bool isSweepEnd = false; //TODO: to reduce sweep END?
+        GetNextMinibatch(m_cv.m_source, minibatch, m_cv.m_varToStream.empty() ? m_varToStream : m_cv.m_varToStream, isSweepEnd, maxMbSize, m_workerRank, m_numberOfWorkers, computeDevice);
     }
 
     void TrainingSession::GetNextMinibatch(
         const MinibatchSourcePtr& source,
         std::unordered_map<Variable, ValuePtr>& minibatch,
         const std::unordered_map<Variable, StreamInformation>& inputVarToStream,
+        bool& isSweepEnd,
         size_t mbSize,
         size_t workerRank,
         size_t numberOfWorkers,
@@ -384,7 +390,7 @@ namespace CNTK
         auto minibatchData = source->GetNextMinibatch(0 /*numberOfSequences*/, mbSize, numberOfWorkers, workerRank, computeDevice);
         if (minibatchData.empty())
             return;
-
+        isSweepEnd = IsAtSweepEnd(minibatchData);
         for (auto v : inputVarToStream)
         {
             auto value = minibatchData.find(v.second);
