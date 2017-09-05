@@ -244,7 +244,7 @@ namespace CNTK
         }
 
         auto currentWorkerNumSamples = m_prevMinibatchNumSamples;
-        auto prevTotalNumSamples = TotalNumberOfUnitsSeen(DataUnit::Sample);
+        auto prevTotalNumSamples = TotalNumberOfSamplesSeen();
 
         MinibatchInfo info{ arguments.empty(), sweepEnd, m_prevMinibatchNumSamples, trainingLoss, evalCriterion };
         bool updated = m_parameterLearners->Update(gradients, info);
@@ -260,7 +260,7 @@ namespace CNTK
 
         // Did we do a distributed sync?
         // We determine this by checking if the increase in total #samples is > #samples processed by local worker
-        auto currentTotalNumSamples = TotalNumberOfUnitsSeen(DataUnit::Sample);
+        auto currentTotalNumSamples = TotalNumberOfSamplesSeen();
         if ((currentTotalNumSamples - prevTotalNumSamples) > currentWorkerNumSamples)
         {
             for (auto& progressWriter : m_progressWriters)
@@ -516,7 +516,7 @@ namespace CNTK
 
     size_t Trainer::TotalNumberOfUnitsSeen(DataUnit unit) const
     {
-        switch(unit) 
+        switch (unit)
         {
         case DataUnit::Minibatch:
             return m_parameterLearners->ParameterLearners().front()->TotalNumberOfMinibatchesSeen();

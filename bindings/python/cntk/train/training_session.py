@@ -4,9 +4,31 @@
 # ==============================================================================
 
 import sys
+from enum import Enum, unique
 from .. import cntk_py
 from ..device import use_default_device
 from cntk.internal import sanitize_var_map, sanitize_function, typemap, _as_tuple
+
+class DataUnit:
+
+    '''
+    Indicates that whether the processing steps in the training data is counted by samples, minibatch or epoch.
+    '''
+
+    sample = cntk_py.DataUnit_Sample
+    '''
+    Steps on data are counted by samples.
+    '''
+
+    minibatch = cntk_py.DataUnit_Minibatch
+    '''
+    Steps on data are counted by samples.
+    '''
+
+    sweep = cntk_py.DataUnit_Sweep
+    '''
+    Steps on data are counted by sweeps of epochs.
+    '''
 
 
 def _unpack_parameter_frequency(frequency):
@@ -24,7 +46,7 @@ def _unpack_parameter_frequency(frequency):
             raise('Unsupported frequency specification: %s' % frequency)
     else:
         #default to sample unit
-        return sys.maxsize, cntk_py.DataUnit_Sample
+        return None, cntk_py.DataUnit_Sample
 
 __doc__ = '''\
 A training session encapsulates a typical training loop and binds together a minibatch source that is used for training, a :class:`~cntk.train.trainer.Trainer` and an optional cross validation minibatch source. A training session takes care of consistent checkpointing and progress printing with specified frequencies.

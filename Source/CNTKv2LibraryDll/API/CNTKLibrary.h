@@ -4629,7 +4629,8 @@ namespace CNTK
         // Method to update the parameters associated with this learner. By returning false, this method indicates that
         // learning has stopped for all of the parameters associated with this learner
         //
-        virtual bool Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t trainingSampleCount, bool sweepEnd = false) = 0;
+        //virtual bool Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t trainingSampleCount, bool sweepEnd = false) = 0;
+        virtual bool Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t trainingSampleCount, bool sweepEnd) = 0;
 
         ///
         /// Returns the set of parameters associated with this learner.
@@ -4836,7 +4837,8 @@ namespace CNTK
             return m_communicator;
         }
 
-        bool Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t minibatchSampleCount, bool sweepEnd = false) override
+//        bool Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t minibatchSampleCount, bool sweepEnd = false) override
+        bool Update(std::unordered_map<Parameter, NDArrayViewPtr>& gradientValues, size_t minibatchSampleCount, bool sweepEnd) override
         {
             MinibatchInfo info{ false, sweepEnd, minibatchSampleCount };
             return Update(gradientValues, info);
@@ -6013,6 +6015,7 @@ namespace CNTK
         const std::unordered_map<Variable, StreamInformation>& inputVarToStream,
         size_t maxNumTrainingSamples,
         size_t progressFrequency,
+        DataUnit progressFrequencyUnit,
         const CheckpointConfig& checkpointing = { L"" },
         const CrossValidationConfig& crossValidation = { nullptr },
         const TestConfig& test = { nullptr });

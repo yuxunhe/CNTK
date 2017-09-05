@@ -78,8 +78,8 @@ namespace CNTK
         m_varToStream(inputVarToStream)
     {
     }
-
-    TrainingSessionPtr CreateTrainingSession(
+  
+    CNTK_API TrainingSessionPtr CreateTrainingSession(
         const TrainerPtr& trainer,
         const MinibatchSourcePtr& trainingSource,
         const MinibatchSizeSchedule& minibatchSizeSchedule,
@@ -495,11 +495,12 @@ namespace CNTK
         this->RestoreFromCheckpoint(restoreFile);
 
         // Recalculate actions indicies.
-        size_t totalNumberOfSamples = Trainer()->TotalNumberOfSamplesSeen();
         for (auto& action : m_actions)
         {
-            action.currentIndex = totalNumberOfSamples / action.frequency;
-            action.unitCountWhenLastCalled = totalNumberOfSamples - totalNumberOfSamples % action.frequency;
+            size_t totalNumberOfUnitCounts = Trainer()->TotalNumberOfUnitsSeen(action.frequencyUnit);
+
+            action.currentIndex = totalNumberOfUnitCounts / action.frequency;
+            action.unitCountWhenLastCalled = totalNumberOfUnitCounts - totalNumberOfUnitCounts % action.frequency;
         }
     }
 }
