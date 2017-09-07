@@ -226,7 +226,7 @@ def test_clone_with_function_in_substitution_map():
     just_b = t_plus_b.clone('clone', {t : p})
     t_plus_b_clone = just_b.clone('share', {p : t})
 
-def test_clone_with_slice():
+def test_clone_with_splice():
     i1 = C.input_variable((2,2), name='i1')
     i2 = C.input_variable((2,2), name='i2')
     x = C.splice(i1, i2, axis=0)
