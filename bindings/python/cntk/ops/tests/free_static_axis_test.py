@@ -118,7 +118,7 @@ def test_inferred_static_axis_in_recurrence():
     assert np.allclose(w_grad[wx], [[-0.2, -0.2], [1.4, 1.4]])
 
 
-def test_slice_with_inferred_static_axis():
+def test_splice_with_inferred_static_axis():
     x = C.input_variable(shape=(C.InferredDimension, C.InferredDimension, 3))
     padding_shape = (3, C.InferredDimension, 3)
     y = C.splice(C.constant(value=0, shape=padding_shape), x, axis=0)
