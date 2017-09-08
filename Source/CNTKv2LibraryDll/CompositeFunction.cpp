@@ -527,6 +527,9 @@ namespace CNTK
         else
         {
             assert(variable.IsOutput());
+            auto primaryOutput = variable.Owner()->RawOutputs()[0];
+            if (primaryOutput != variable)
+                GetNode(primaryOutput, network, builder, fullyDefinedArgumentsMap, variableToNodeMap, isVariableRootMap, inputsToExcludeGradientsFor, useMangledNamesForComputationNodes);
             auto outputVariableNode = GetOutputVariableNode(variable, network, builder, fullyDefinedArgumentsMap, variableToNodeMap, isVariableRootMap, inputsToExcludeGradientsFor, useMangledNamesForComputationNodes);
             // Can be null in case of loops with f.output == f.input.
             // Such loops cannot be handled, so we leave nullptr as computational node.

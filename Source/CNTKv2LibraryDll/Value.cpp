@@ -572,9 +572,9 @@ namespace CNTK
         }
     }
 
-    std::pair<size_t, size_t> Value::GetSequenceAndBatchLength(const Variable& outputVariable)
+    std::pair<size_t, size_t> Value::GetSequenceAndBatchLength(const Variable& outputVariable, NDShape* inferredShape)
     {
-        Utils::VerifyVariableValueCompatibility(outputVariable, shared_from_this());
+        Utils::VerifyVariableValueCompatibility(outputVariable, shared_from_this(), inferredShape);
 
         size_t varRank = outputVariable.Shape().Rank();
         size_t maxSequenceLength = 1;

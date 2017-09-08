@@ -68,7 +68,7 @@ def AttentionModel(attention_dim, attention_span=None, attention_axis=None,
         attention_weights = C.softmax(u_masked, axis=attention_axis) #, name='attention_weights')
         attention_weights = Label('attention_weights')(attention_weights)
         # now take weighted sum over the encoder state vectors
-        h_att = C.reduce_sum(C.element_times(h_enc_proj, attention_weights), axis=attention_axis)
+        h_att = C.reduce_sum(C.element_times(C.sequence.broadcast_as(h_enc, attention_weights), attention_weights), axis=attention_axis)
         h_att = attn_final_stab(h_att)
         return h_att
 
