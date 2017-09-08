@@ -290,6 +290,7 @@ def training_parameter_schedule(schedule, unit=UnitType.minibatch, epoch_size=No
         ref_minibatch_size = cntk_py.training_double_parameter_schedule.unspecified_minibatch_size
 
     if isinstance(schedule, cntk_py.training_double_parameter_schedule):
+        schedule.is_minibatch_size_explicitly_specified = True #legacy learning parameter always have the specification
         return schedule
 
     if isinstance(schedule, (int, float)):
@@ -297,20 +298,22 @@ def training_parameter_schedule(schedule, unit=UnitType.minibatch, epoch_size=No
             warnings.warn('When providing the schedule as a number, epoch_size is ignored', RuntimeWarning)
         if UnitType(unit):
             schedule = cntk_py.training_double_parameter_schedule(*[schedule, ref_minibatch_size])
+            schedule.is_minibatch_size_explicitly_specified = True  # legacy learning parameter always have the specification
             return schedule
 
     epoch_size = epoch_size if epoch_size is not None else cntk_py.training_double_parameter_schedule.full_data_sweep
     if isinstance(schedule, list) and UnitType(unit):
         schedule = _prepare_training_parameter_list(schedule)
         args = [schedule, epoch_size, ref_minibatch_size]
-        res = cntk_py.training_double_parameter_schedule(*args)
-        return res
+        schedule = cntk_py.training_double_parameter_schedule(*args)
+        schedule.is_minibatch_size_explicitly_specified = True #legacy learning parameter always have the specification
+        return schedule
 
     raise ValueError(
         'schedule must be either a float or a list, not %s' % type(schedule))
 
 @typemap
-def learning_parameter_schedule(schedule, minibatch_size=0, epoch_size=None):
+def learning_parameter_schedule(schedule, minibatch_size=None, epoch_size=None):
     '''
     Create a learning parameter schedule.
 
@@ -333,10 +336,16 @@ def learning_parameter_schedule(schedule, minibatch_size=0, epoch_size=None):
     if isinstance(schedule, cntk_py.training_double_parameter_schedule):
         return schedule
 
+    is_minibatch_size_explicitly_specified = True
+    if minibatch_size == None:
+        is_minibatch_size_explicitly_specified = False
+        minibatch_size = 0
+
     if isinstance(schedule, (int, float)):
         if epoch_size is not None:
             warnings.warn('When providing the schedule as a number, epoch_size is ignored', RuntimeWarning)
         schedule = cntk_py.training_double_parameter_schedule(*[schedule, minibatch_size])
+        schedule.is_minibatch_size_explicitly_specified = is_minibatch_size_explicitly_specified
         return schedule
 
     epoch_size = epoch_size if epoch_size is not None else cntk_py.training_double_parameter_schedule.full_data_sweep
@@ -344,6 +353,7 @@ def learning_parameter_schedule(schedule, minibatch_size=0, epoch_size=None):
         schedule = _prepare_training_parameter_list(schedule)
         args = [schedule, epoch_size, minibatch_size]
         schedule = cntk_py.training_double_parameter_schedule(*args)
+        schedule.is_minibatch_size_explicitly_specified = is_minibatch_size_explicitly_specified
         return schedule
 
     raise ValueError(
@@ -378,7 +388,7 @@ def learning_rate_schedule(lr, unit=UnitType.sample, epoch_size=None):
 
 
 @typemap
-def momentum_schedule(momentum, epoch_size=None, minibatch_size = 0):
+def momentum_schedule(momentum, epoch_size=None, minibatch_size = None):
     '''
     Deprecated:: 2.2
 
@@ -468,12 +478,15 @@ def momentum_as_time_constant_schedule(momentum, epoch_size=None):
         momentum as time constant schedule
     '''
     if isinstance(momentum, (cntk_py.training_double_parameter_schedule)):
+        #the legacy momentum as time constant schedule: the ref minibatch size is always 1, so it is specified by definition
+        momentum.is_minibatch_size_explicitly_specified = True
         return momentum
 
     if isinstance(momentum, (int, float)):
         if epoch_size is not None:
             warnings.warn('When providing the schedule as a number, epoch_size is ignored', RuntimeWarning)
         momentum = cntk_py.momentum_as_time_constant_schedule(momentum)
+        momentum.is_minibatch_size_explicitly_specified = True
         return momentum
 
     epoch_size = epoch_size if epoch_size is not None else cntk_py.training_double_parameter_schedule.full_data_sweep
@@ -482,6 +495,7 @@ def momentum_as_time_constant_schedule(momentum, epoch_size=None):
         args = [momentum, epoch_size, 1] #momentum constant schedule's reference minibatch size is always per sample
         momentum = cntk_py.training_double_parameter_schedule(*args)
         momentum = cntk_py.momentum_as_time_constant_schedule(momentum)
+        momentum.is_minibatch_size_explicitly_specified = True
         return momentum
 
     raise ValueError(
@@ -491,24 +505,25 @@ def momentum_as_time_constant_schedule(momentum, epoch_size=None):
 
 
 def _infer_ref_minibatch_size_from_legacy_use_mean_gradient(ref_minibatch_size, use_mean_gradient):
-    #the legacy parameter will overrride the default None reference minibatch source
-    if use_mean_gradient == True:
-        if ref_minibatch_size is not None and ref_minibatch_size != cntk_py.Learner.unspecified_minibatch_size:
+    if ref_minibatch_size is not None:
+        if use_mean_gradient == True and ref_minibatch_size != cntk_py.Learner.unspecified_minibatch_size:
             Warning(
                 'Learner reference minibatch size is specified while use_mean_gradient (depreated option) is specified to True. Learner reference minibatch size will override the mean gradient behavior')
-            return ref_minibatch_size
-        return cntk_py.Learner.unspecified_minibatch_size
-    return ref_minibatch_size
+        #if the ref_minibatch_size is specified, it overrides the legacay use_mean_gradient specification
+        return ref_minibatch_size
+    else:
+        #if the ref_minibatch_size is NOT specified, the legacay use_mean_gradient specification take in the effect
+        return cntk_py.Learner.unspecified_minibatch_size if use_mean_gradient is True else 1 #if not use_mean_gradient, the legacy uses per sample setting
 
 def _infer_learning_parameter_schedule(number_or_schedule, ref_minibatch_size):
     #the input is a number, create a new training parameter
     if isinstance(number_or_schedule, (int, float)):
-        #default is per sample if the reference minibatch size is not specified.
-        ref_minibatch_size = 1 if ref_minibatch_size is None else ref_minibatch_size
+        #default is per minibatch if the reference minibatch size is not specified.
+        ref_minibatch_size = 0 if ref_minibatch_size is None else ref_minibatch_size
         return learning_parameter_schedule(number_or_schedule, ref_minibatch_size)
     elif isinstance(number_or_schedule,
                       cntk_py.training_double_parameter_schedule):
-        if number_or_schedule.minibatch_size == cntk_py.Learner.unspecified_minibatch_size:
+        if not number_or_schedule.is_minibatch_size_explicitly_specified:
             number_or_schedule.minibatch_size = ref_minibatch_size
         return number_or_schedule
     else:
@@ -532,7 +547,7 @@ def sgd(parameters, lr,
         l1_regularization_weight=0.0, l2_regularization_weight=0.0,
         gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
         gradient_clipping_with_truncation=True, use_mean_gradient=default_use_mean_gradient_value(),
-        minibatch_size=0):
+        minibatch_size=None):
     '''sgd(parameters, lr, l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates an SGD learner instance to learn the parameters. See [1] for more
     information on how to set the parameters.
@@ -595,7 +610,7 @@ def momentum_sgd(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
                  l1_regularization_weight=0.0, l2_regularization_weight=0.0,
                  gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
                  gradient_clipping_with_truncation=True, use_mean_gradient=default_use_mean_gradient_value(),
-                 minibatch_size=0):
+                 minibatch_size=None):
     '''momentum_sgd(parameters, lr, momentum, unit_gain=default_unit_gain_value(), l1_regularization_weight=0.0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates a Momentum SGD learner instance to learn the parameters.
 
@@ -658,7 +673,7 @@ def nesterov(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
              l1_regularization_weight=0.0, l2_regularization_weight=0.0,
              gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
              gradient_clipping_with_truncation=True, use_mean_gradient=default_use_mean_gradient_value(),
-             minibatch_size=0):
+             minibatch_size=None):
     '''nesterov(parameters, lr, momentum, unit_gain=default_unit_gain_value(), l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates a Nesterov SGD learner instance to learn the parameters. This was
     originally proposed by Nesterov [1] in 1983 and then shown to work well in
@@ -731,7 +746,7 @@ def adadelta(parameters, lr=learning_rate_schedule(1, UnitType.sample), rho=0.95
              l1_regularization_weight=0.0, l2_regularization_weight=0.0,
              gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
              gradient_clipping_with_truncation=True, use_mean_gradient=default_use_mean_gradient_value(),
-             minibatch_size=0):
+             minibatch_size=None):
     '''adadelta(parameters, lr, rho, epsilon, l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates an AdaDelta learner instance to learn the parameters. See [1] for
     more information.
@@ -797,7 +812,7 @@ def adagrad(parameters, lr, need_ave_multiplier=True,
             l1_regularization_weight=0.0, l2_regularization_weight=0.0,
             gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
             gradient_clipping_with_truncation=True, use_mean_gradient=default_use_mean_gradient_value(),
-            minibatch_size=0):
+            minibatch_size=None):
     '''adagrad(parameters, lr, need_ave_multiplier=True, l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates an AdaGrad learner instance to learn the parameters. See [1] for
     more information.
@@ -864,7 +879,7 @@ def fsadagrad(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
               l1_regularization_weight=0.0, l2_regularization_weight=0.0,
               gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
               gradient_clipping_with_truncation=True, use_mean_gradient=default_use_mean_gradient_value(),
-              minibatch_size=0):
+              minibatch_size=None):
     '''fsadagrad(parameters, lr, momentum, unit_gain=default_unit_gain_value(), variance_momentum=momentum_as_time_constant_schedule(720000), l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates an FSAdaGrad learner instance to learn the parameters.
 
@@ -935,7 +950,7 @@ def adam(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
          l1_regularization_weight=0.0, l2_regularization_weight=0.0,
          gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
          gradient_clipping_with_truncation=True, use_mean_gradient=default_use_mean_gradient_value(), epsilon=1e-8, adamax=False,
-         minibatch_size=0):
+         minibatch_size=None):
     '''adam(parameters, lr, momentum, unit_gain=default_unit_gain_value(), variance_momentum=momentum_as_time_constant_schedule(720000), l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True, epsilon=1e-8, adamax=False)
     Creates an Adam learner instance to learn the parameters. See [1] for more
     information.
@@ -1015,7 +1030,7 @@ def rmsprop(parameters, lr,
             l1_regularization_weight=0.0, l2_regularization_weight=0.0,
             gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
             gradient_clipping_with_truncation=True, use_mean_gradient=default_use_mean_gradient_value(),
-            minibatch_size=0):
+            minibatch_size=None):
     '''rmsprop(parameters, lr, gamma, inc, dec, max, min, need_ave_multiplier=True, l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates an RMSProp learner instance to learn the parameters.
 

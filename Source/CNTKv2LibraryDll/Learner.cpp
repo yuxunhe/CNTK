@@ -440,7 +440,7 @@ namespace CNTK
             stream << name;
 
             if (IsCompatibleMode())
-                stream << L" compactible model (minibatch average gradient)";
+                stream << L" compatible mode (minibatch average gradient)";
             else
                 stream << L" reference minibatch size: " << this->GetMinibatchSize();
             wstring prefix = stream.str();
