@@ -1984,9 +1984,9 @@ def swapaxes(x, axis1=0, axis2=1, name=''):
     ``axis1`` and ``axis2`` swapped.
 
     Example:
-        >>> C.swapaxes([[[0,1],[2,3],[4,5]]], 1, 2).eval()
-        array([[[ 0.,  2.,  4.],
-                [ 1.,  3.,  5.]]], dtype=float32)
+        >>> C.swapaxes([[0,1],[2,3],[4,5]], 0, 1).eval()
+        array([[ 0.,  2.,  4.],
+               [ 1.,  3.,  5.]], dtype=float32)
 
     Args:
         x: tensor to be transposed
