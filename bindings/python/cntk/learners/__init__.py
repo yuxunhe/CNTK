@@ -439,7 +439,8 @@ def momentum_as_time_constant_schedule(momentum, epoch_size=None):
 
     Deprecated:: 2.2
         This is for legacy API.
-        In this legacy API, ::
+        In this legacy API,::
+        
             #assume the desired minibatch size invariant constant momentum rate is: momentum_rate
             momentum_time_constant = -minibatch_size/np.log(momentum_rate)
             momentum = momentum_as_time_constant_schedule(momentum_time_constant)
