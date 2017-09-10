@@ -567,7 +567,8 @@ def sgd(parameters, lr,
         parameters (list of parameters): list of network parameters to tune.
          These can be obtained by the '.parameters()' method of the root
          operator.
-        lr (float, output of :func:`learning_rate_schedule`): a learning rate in float, or a learning rate schedule.
+        lr (float, list, output of :func:`learning_parameter_schedule`): a learning rate in float, or a learning rate schedule.
+         See also:  :func:`learning_parameter_schedule`
         l1_regularization_weight (float, optional): the L1 regularization weight per sample,
          defaults to 0.0
         l2_regularization_weight (float, optional): the L2 regularization weight per sample,
@@ -588,7 +589,9 @@ def sgd(parameters, lr,
          to enable efficient model parameter update implementation while approximate the behavior of pre-designed and pre-tuned parameters.
          In case that minibatch_size is not specified, CNTK will inherit the minibatch size from the learning rate schedule;
          if the learning rate schedule does not specify the minibatch_size, CNTK will set it to 1. Setting minibatch_size to 0
-         will have the parameters apply as it is preventing CNTK performing any parameter scaling.
+         will have the parameters apply as it is preventing CNTK performing any parameter scaling. See also:  :func:`learning_parameter_schedule`
+        epoch_size (optional, int): number of samples as a scheduling unit for learning rate. See also:  :func:`learning_parameter_schedule`
+
 
     Returns:
         :class:`~cntk.learners.Learner`: learner instance that can be passed to
@@ -630,8 +633,9 @@ def momentum_sgd(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
     Args:
         parameters (list of parameters): list of network parameters to tune.
          These can be obtained by the root operator's ``parameters``.
-        lr (output of :func:`learning_rate_schedule`): learning rate schedule.
-        momentum (output of :func:`momentum_schedule` or :func:`momentum_as_time_constant_schedule`): momentum schedule.
+        lr (float, list, output of :func:`learning_parameter_schedule`): a learning rate in float, or a learning rate schedule.
+         See also:  :func:`learning_parameter_schedule`
+        momentum (float, list, output of :func:`momentum_schedule`): momentum schedule.
          For additional information, please refer to the :cntkwiki:`this CNTK Wiki article <BrainScript-SGD-Block#converting-learning-rate-and-momentum-parameters-from-other-toolkits>`.
         unit_gain: when ``True``, momentum is interpreted as a unit-gain filter. Defaults
          to the value returned by :func:`default_unit_gain_value`.
@@ -656,6 +660,7 @@ def momentum_sgd(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
          In case that minibatch_size is not specified, CNTK will inherit the minibatch size from the learning rate schedule;
          if the learning rate schedule does not specify the minibatch_size, CNTK will set it to 1. Setting minibatch_size to 0
          will have the parameters apply as it is preventing CNTK performing any parameter scaling.
+        epoch_size (optional, int): number of samples as a scheduling unit for learning rate and momentum. See also:  :func:`learning_parameter_schedule`
 
     Returns:
         :class:`~cntk.learners.Learner`: learner instance that can be passed to
@@ -697,8 +702,9 @@ def nesterov(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
     Args:
         parameters (list of parameters): list of network parameters to tune.
          These can be obtained by the root operator's ``parameters``.
-        lr (output of :func:`learning_rate_schedule`): learning rate schedule.
-        momentum (output of :func:`momentum_schedule` or :func:`momentum_as_time_constant_schedule`): momentum schedule.
+        lr (float, list, output of :func:`learning_parameter_schedule`): a learning rate in float, or a learning rate schedule.
+         See also:  :func:`learning_parameter_schedule`
+        momentum (float, list, output of :func:`momentum_schedule`): momentum schedule.
          For additional information, please refer to the :cntkwiki:`this CNTK Wiki article <BrainScript-SGD-Block#converting-learning-rate-and-momentum-parameters-from-other-toolkits>`.
         unit_gain: when ``True``, momentum is interpreted as a unit-gain filter. Defaults
          to the value returned by :func:`default_unit_gain_value`.
@@ -723,6 +729,7 @@ def nesterov(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
          In case that minibatch_size is not specified, CNTK will inherit the minibatch size from the learning rate schedule;
          if the learning rate schedule does not specify the minibatch_size, CNTK will set it to 1. Setting minibatch_size to 0
          will have the parameters apply as it is preventing CNTK performing any parameter scaling.
+        epoch_size (optional, int): number of samples as a scheduling unit for learning rate and momentum. See also:  :func:`learning_parameter_schedule`
 
     Returns:
         :class:`~cntk.learners.Learner`: learner instance that can be passed to
@@ -771,7 +778,8 @@ def adadelta(parameters, lr=learning_rate_schedule(1, UnitType.sample), rho=0.95
     Args:
         parameters (list of parameters): list of network parameters to tune.
          These can be obtained by the root operator's ``parameters``.
-        lr (output of :func:`learning_rate_schedule`): learning rate schedule.
+        lr (float, list, output of :func:`learning_parameter_schedule`): a learning rate in float, or a learning rate schedule.
+         See also:  :func:`learning_parameter_schedule`
         rho (float): exponential smooth factor for each minibatch.
         epsilon (float): epsilon for sqrt.
         l1_regularization_weight (float, optional): the L1 regularization weight per sample,
@@ -796,6 +804,7 @@ def adadelta(parameters, lr=learning_rate_schedule(1, UnitType.sample), rho=0.95
          if the learning rate schedule does not specify the minibatch_size, CNTK will set it to 1. Setting minibatch_size to 0
          will have the parameters apply as it is preventing CNTK performing any parameter scaling. If the learner's learning rate 
          schedule ``lr`` has its own specification of reference minibatch size, the learning rate schedule's specification takes precedence. 
+        epoch_size (optional, int): number of samples as a scheduling unit for learning rate. See also:  :func:`learning_parameter_schedule`
 
     Returns:
         :class:`~cntk.learners.Learner`: learner instance that can be passed to
@@ -839,7 +848,8 @@ def adagrad(parameters, lr, need_ave_multiplier=True,
     Args:
         parameters (list of parameters): list of network parameters to tune.
          These can be obtained by the root operator's ``parameters``.
-        lr (output of :func:`learning_rate_schedule`): learning rate schedule.
+        lr (float, list, output of :func:`learning_parameter_schedule`): a learning rate in float, or a learning rate schedule.
+         See also:  :func:`learning_parameter_schedule`
         need_ave_multiplier (bool, default):
         l1_regularization_weight (float, optional): the L1 regularization weight per sample,
          defaults to 0.0
@@ -862,6 +872,7 @@ def adagrad(parameters, lr, need_ave_multiplier=True,
          In case that minibatch_size is not specified, CNTK will inherit the minibatch size from the learning rate schedule;
          if the learning rate schedule does not specify the minibatch_size, CNTK will set it to 1. Setting minibatch_size to 0
          will have the parameters apply as it is preventing CNTK performing any parameter scaling.
+        epoch_size (optional, int): number of samples as a scheduling unit for learning rate. See also:  :func:`learning_parameter_schedule`
 
     Returns:
         :class:`~cntk.learners.Learner`: learner instance that can be passed to
@@ -907,12 +918,13 @@ def fsadagrad(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
     Args:
         parameters (list of parameters): list of network parameters to tune.
          These can be obtained by the root operator's ``parameters``.
-        lr (output of :func:`learning_rate_schedule`): learning rate schedule.
-        momentum (output of :func:`momentum_schedule` or :func:`momentum_as_time_constant_schedule`): momentum schedule.
+        lr (float, list, output of :func:`learning_parameter_schedule`): a learning rate in float, or a learning rate schedule.
+         See also:  :func:`learning_parameter_schedule`
+        momentum (float, list, output of :func:`momentum_schedule`): momentum schedule.
          For additional information, please refer to the :cntkwiki:`this CNTK Wiki article <BrainScript-SGD-Block#converting-learning-rate-and-momentum-parameters-from-other-toolkits>`.
         unit_gain: when ``True``, momentum is interpreted as a unit-gain filter. Defaults
          to the value returned by :func:`default_unit_gain_value`.
-        variance_momentum (output of :func:`momentum_schedule` or :func:`momentum_as_time_constant_schedule`): variance momentum schedule. Defaults
+        variance_momentum (float, list, output of :func:`momentum_schedule` or :func:`momentum_as_time_constant_schedule`): variance momentum schedule. Defaults
          to ``momentum_as_time_constant_schedule(720000)``.
         l1_regularization_weight (float, optional): the L1 regularization weight per sample,
          defaults to 0.0
@@ -935,6 +947,7 @@ def fsadagrad(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
          In case that minibatch_size is not specified, CNTK will inherit the minibatch size from the learning rate schedule;
          if the learning rate schedule does not specify the minibatch_size, CNTK will set it to 1. Setting minibatch_size to 0
          will have the parameters apply as it is preventing CNTK performing any parameter scaling.
+        epoch_size (optional, int): number of samples as a scheduling unit for learning rate, momentum and variance_momentum. See also:  :func:`learning_parameter_schedule`
 
     Returns:
         :class:`~cntk.learners.Learner`: learner instance that can be passed to
@@ -981,12 +994,13 @@ def adam(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
     Args:
         parameters (list of parameters): list of network parameters to tune.
          These can be obtained by the root operator's ``parameters``.
-        lr (output of :func:`learning_rate_schedule`): learning rate schedule.
-        momentum (output of :func:`momentum_schedule` or :func:`momentum_as_time_constant_schedule`): momentum schedule.
+        lr (float, list, output of :func:`learning_parameter_schedule`): a learning rate in float, or a learning rate schedule.
+         See also:  :func:`learning_parameter_schedule`
+        momentum (float, list, output of :func:`momentum_schedule`): momentum schedule.
          For additional information, please refer to the :cntkwiki:`this CNTK Wiki article <BrainScript-SGD-Block#converting-learning-rate-and-momentum-parameters-from-other-toolkits>`.
         unit_gain: when ``True``, momentum is interpreted as a unit-gain filter. Defaults
          to the value returned by :func:`default_unit_gain_value`.
-        variance_momentum (output of :func:`momentum_schedule` or :func:`momentum_as_time_constant_schedule`): variance momentum schedule. Defaults
+        variance_momentum (float, list, output of :func:`momentum_schedule` or :func:`momentum_as_time_constant_schedule`): variance momentum schedule. Defaults
          to ``momentum_as_time_constant_schedule(720000)``.
         l1_regularization_weight (float, optional): the L1 regularization weight per sample,
          defaults to 0.0
@@ -1013,6 +1027,7 @@ def adam(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
          In case that minibatch_size is not specified, CNTK will inherit the minibatch size from the learning rate schedule;
          if the learning rate schedule does not specify the minibatch_size, CNTK will set it to 1. Setting minibatch_size to 0
          will have the parameters apply as it is preventing CNTK performing any parameter scaling.
+        epoch_size (optional, int): number of samples as a scheduling unit for learning rate, momentum and variance_momentum. See also:  :func:`learning_parameter_schedule`
 
     Returns:
         :class:`~cntk.learners.Learner`: learner instance that can be passed to
@@ -1062,7 +1077,8 @@ def rmsprop(parameters, lr,
     Args:
         parameters (list of parameters): list of network parameters to tune.
          These can be obtained by the root operator's ``parameters``.
-        lr (output of :func:`learning_rate_schedule`): learning rate schedule.
+        lr (float, list, output of :func:`learning_parameter_schedule`): a learning rate in float, or a learning rate schedule.
+         See also:  :func:`learning_parameter_schedule`
         gamma (float): Trade-off factor for current and previous gradients. Common value is 0.95. Should be in range (0.0, 1.0)
         inc (float): Increasing factor when trying to adjust current learning_rate. Should be greater than 1
         dec (float): Decreasing factor when trying to adjust current learning_rate. Should be in range (0.0, 1.0)
@@ -1090,6 +1106,7 @@ def rmsprop(parameters, lr,
          In case that minibatch_size is not specified, CNTK will inherit the minibatch size from the learning rate schedule;
          if the learning rate schedule does not specify the minibatch_size, CNTK will set it to 1. Setting minibatch_size to 0
          will have the parameters apply as it is preventing CNTK performing any parameter scaling.
+        epoch_size (optional, int): number of samples as a scheduling unit for learning rate. See also:  :func:`learning_parameter_schedule`
 
     Returns:
         :class:`~cntk.learners.Learner`: learner instance that can be passed to
