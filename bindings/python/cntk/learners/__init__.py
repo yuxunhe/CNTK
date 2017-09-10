@@ -524,12 +524,13 @@ def _infer_ref_minibatch_size_from_legacy_use_mean_gradient(ref_minibatch_size, 
         return cntk_py.Learner.unspecified_minibatch_size if use_mean_gradient is True else 1
     return None
 
-def _infer_learning_parameter_schedule(number_or_schedule, ref_minibatch_size):
+def _infer_learning_parameter_schedule(number_or_schedule, ref_minibatch_size, epoch_size):
     #the input is a number, create a new training parameter
-    if isinstance(number_or_schedule, (int, float)):
+    if isinstance(number_or_schedule, (int, float)) or \
+            (isinstance(number_or_schedule, list) and all(isinstance(r, (int, float)) for r in number_or_schedule)):
         #default is per minibatch if the reference minibatch size is not specified.
         ref_minibatch_size = 0 if ref_minibatch_size is None else ref_minibatch_size
-        schedule = learning_parameter_schedule(number_or_schedule, ref_minibatch_size)
+        schedule = learning_parameter_schedule(number_or_schedule, ref_minibatch_size, epoch_size)
         schedule.is_minibatch_size_explicitly_specified = ref_minibatch_size is not None
         return schedule
     elif isinstance(number_or_schedule,
@@ -544,11 +545,11 @@ def _infer_learning_parameter_schedule(number_or_schedule, ref_minibatch_size):
                          % type(number_or_schedule))
 
 
-def _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, ref_minibatch_size, schedule):
+def _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, ref_minibatch_size, schedule, epoch_size):
     #if non-None reference_minibatch_size will take precedence otherwise according use_mean_gradient if it is True
     ref_minibatch_size = _infer_ref_minibatch_size_from_legacy_use_mean_gradient(ref_minibatch_size, use_mean_gradient)
     #if minibatch_size is not None, any schedules that are with unspecified reference minibatch size will be overrided.
-    schedule = _infer_learning_parameter_schedule(schedule, ref_minibatch_size)
+    schedule = _infer_learning_parameter_schedule(schedule, ref_minibatch_size, epoch_size)
     _verify_learning_rate_type(schedule)
     return schedule, ref_minibatch_size
 
@@ -557,7 +558,7 @@ def sgd(parameters, lr,
         l1_regularization_weight=0.0, l2_regularization_weight=0.0,
         gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
         gradient_clipping_with_truncation=True, use_mean_gradient=None,
-        minibatch_size=None):
+        minibatch_size=None, epoch_size=None):
     '''sgd(parameters, lr, l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates an SGD learner instance to learn the parameters. See [1] for more
     information on how to set the parameters.
@@ -598,7 +599,7 @@ def sgd(parameters, lr,
         <https://www.microsoft.com/en-us/research/publication/stochastic-gradient-tricks>`_. Neural
         Networks: Tricks of the Trade: Springer, 2012.
     '''
-    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr)
+    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr, epoch_size)
     gaussian_noise_injection_std_dev = \
         training_parameter_schedule(
             gaussian_noise_injection_std_dev)
@@ -622,7 +623,7 @@ def momentum_sgd(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
                  l1_regularization_weight=0.0, l2_regularization_weight=0.0,
                  gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
                  gradient_clipping_with_truncation=True, use_mean_gradient=None,
-                 minibatch_size=None):
+                 minibatch_size=None, epoch_size=None):
     '''momentum_sgd(parameters, lr, momentum, unit_gain=default_unit_gain_value(), l1_regularization_weight=0.0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates a Momentum SGD learner instance to learn the parameters.
 
@@ -660,8 +661,8 @@ def momentum_sgd(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
         :class:`~cntk.learners.Learner`: learner instance that can be passed to
         the :class:`~cntk.train.trainer.Trainer`
     '''
-    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr)
-    momentum = _infer_learning_parameter_schedule(momentum, minibatch_size)
+    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr, epoch_size)
+    momentum = _infer_learning_parameter_schedule(momentum, minibatch_size, epoch_size)
     _verify_momentum_type(momentum)
     gaussian_noise_injection_std_dev = \
         training_parameter_schedule(
@@ -687,7 +688,7 @@ def nesterov(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
              l1_regularization_weight=0.0, l2_regularization_weight=0.0,
              gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
              gradient_clipping_with_truncation=True, use_mean_gradient=None,
-             minibatch_size=None):
+             minibatch_size=None, epoch_size=None):
     '''nesterov(parameters, lr, momentum, unit_gain=default_unit_gain_value(), l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates a Nesterov SGD learner instance to learn the parameters. This was
     originally proposed by Nesterov [1] in 1983 and then shown to work well in
@@ -736,8 +737,8 @@ def nesterov(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
         of the 30th International Conference on Machine Learning, 2013.
 
     '''
-    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr)
-    momentum = _infer_learning_parameter_schedule(momentum, minibatch_size)
+    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr, epoch_size)
+    momentum = _infer_learning_parameter_schedule(momentum, minibatch_size, epoch_size)
     _verify_momentum_type(momentum)
     gaussian_noise_injection_std_dev = \
         training_parameter_schedule(
@@ -762,7 +763,7 @@ def adadelta(parameters, lr=learning_rate_schedule(1, UnitType.sample), rho=0.95
              l1_regularization_weight=0.0, l2_regularization_weight=0.0,
              gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
              gradient_clipping_with_truncation=True, use_mean_gradient=None,
-             minibatch_size=None):
+             minibatch_size=None, epoch_size=None):
     '''adadelta(parameters, lr, rho, epsilon, l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates an AdaDelta learner instance to learn the parameters. See [1] for
     more information.
@@ -807,7 +808,7 @@ def adadelta(parameters, lr=learning_rate_schedule(1, UnitType.sample), rho=0.95
     gaussian_noise_injection_std_dev = \
         training_parameter_schedule(
             gaussian_noise_injection_std_dev)
-    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr)
+    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr, epoch_size)
 
     additional_options = cntk_py.AdditionalLearningOptions()
     additional_options.l1_regularization_weight = l1_regularization_weight
@@ -830,7 +831,7 @@ def adagrad(parameters, lr, need_ave_multiplier=True,
             l1_regularization_weight=0.0, l2_regularization_weight=0.0,
             gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
             gradient_clipping_with_truncation=True, use_mean_gradient=None,
-            minibatch_size=None):
+            minibatch_size=None, epoch_size=None):
     '''adagrad(parameters, lr, need_ave_multiplier=True, l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates an AdaGrad learner instance to learn the parameters. See [1] for
     more information.
@@ -872,7 +873,7 @@ def adagrad(parameters, lr, need_ave_multiplier=True,
         <http://www.magicbroom.info/Papers/DuchiHaSi10.pdf>`_. The Journal of
         Machine Learning Research, 2011.
     '''
-    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr)
+    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr, epoch_size)
     gaussian_noise_injection_std_dev = \
         training_parameter_schedule(
             gaussian_noise_injection_std_dev)
@@ -899,7 +900,7 @@ def fsadagrad(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
               l1_regularization_weight=0.0, l2_regularization_weight=0.0,
               gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
               gradient_clipping_with_truncation=True, use_mean_gradient=None,
-              minibatch_size=None):
+              minibatch_size=None, epoch_size=None):
     '''fsadagrad(parameters, lr, momentum, unit_gain=default_unit_gain_value(), variance_momentum=momentum_as_time_constant_schedule(720000), l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates an FSAdaGrad learner instance to learn the parameters.
 
@@ -940,11 +941,11 @@ def fsadagrad(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
         the :class:`~cntk.train.trainer.Trainer`
 
     '''
-    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr)
+    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr, epoch_size)
 
-    momentum = _infer_learning_parameter_schedule(momentum, minibatch_size)
+    momentum = _infer_learning_parameter_schedule(momentum, minibatch_size, epoch_size)
     _verify_momentum_type(momentum)
-    variance_momentum = _infer_learning_parameter_schedule(variance_momentum, minibatch_size)
+    variance_momentum = _infer_learning_parameter_schedule(variance_momentum, minibatch_size, epoch_size)
     _verify_momentum_type(variance_momentum)
     gaussian_noise_injection_std_dev = \
         training_parameter_schedule(
@@ -972,7 +973,7 @@ def adam(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
          l1_regularization_weight=0.0, l2_regularization_weight=0.0,
          gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
          gradient_clipping_with_truncation=True, use_mean_gradient=None, epsilon=1e-8, adamax=False,
-         minibatch_size=None):
+         minibatch_size=None, epoch_size=None):
     '''adam(parameters, lr, momentum, unit_gain=default_unit_gain_value(), variance_momentum=momentum_as_time_constant_schedule(720000), l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True, epsilon=1e-8, adamax=False)
     Creates an Adam learner instance to learn the parameters. See [1] for more
     information.
@@ -1022,11 +1023,11 @@ def adam(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
         <https://arxiv.org/abs/1412.6980>`_. International Conference for
         Learning Representations, 2015.
     '''
-    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr)
+    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr, epoch_size)
 
-    momentum = _infer_learning_parameter_schedule(momentum, minibatch_size)
+    momentum = _infer_learning_parameter_schedule(momentum, minibatch_size, epoch_size)
     _verify_momentum_type(momentum)
-    variance_momentum = _infer_learning_parameter_schedule(variance_momentum, minibatch_size)
+    variance_momentum = _infer_learning_parameter_schedule(variance_momentum, minibatch_size, epoch_size)
     _verify_momentum_type(variance_momentum)
     gaussian_noise_injection_std_dev = \
         training_parameter_schedule(
@@ -1054,7 +1055,7 @@ def rmsprop(parameters, lr,
             l1_regularization_weight=0.0, l2_regularization_weight=0.0,
             gaussian_noise_injection_std_dev=0.0, gradient_clipping_threshold_per_sample=np.inf,
             gradient_clipping_with_truncation=True, use_mean_gradient=None,
-            minibatch_size=None):
+            minibatch_size=None, epoch_size=None):
     '''rmsprop(parameters, lr, gamma, inc, dec, max, min, need_ave_multiplier=True, l1_regularization_weight=0, l2_regularization_weight=0, gaussian_noise_injection_std_dev=0, gradient_clipping_threshold_per_sample=np.inf, gradient_clipping_with_truncation=True)
     Creates an RMSProp learner instance to learn the parameters.
 
@@ -1094,7 +1095,7 @@ def rmsprop(parameters, lr,
         :class:`~cntk.learners.Learner`: learner instance that can be passed to
         the :class:`~cntk.train.trainer.Trainer`
     '''
-    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr)
+    lr, minibatch_size = _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, minibatch_size, lr, epoch_size)
 
     gaussian_noise_injection_std_dev = \
         training_parameter_schedule(
