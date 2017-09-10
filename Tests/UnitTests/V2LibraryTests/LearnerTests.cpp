@@ -259,6 +259,19 @@ void TestTrainingParametersSchedule()
     assert(schedule16[10999] == exp(-1.0 / 5.0));
     assert(schedule16[11000] == exp(-1.0 / 3.0));
     assert(schedule16[99999] == exp(-1.0 / 3.0));
+
+    //test equals
+    std::vector<std::pair<size_t, double>> vec1;
+    vec1.push_back({ 1, 0.5 });
+    vec1.push_back({ 1, 0.3 });
+    LearningRateSchedule schedule17{ vec1, 100, 10 };
+    LearningRateSchedule schedule18{ std::vector<std::pair<size_t, double>>{ { 1, 0.5 },{ 1, 0.3 },{ 1, 0.2 } }, 100, 10 };
+    assert(schedule17 == schedule17);
+    assert(!(schedule17 == schedule18));
+
+    vec1.push_back({ 1, 0.2 });
+    LearningRateSchedule schedule19{ vec1, 100, 10 };
+    assert(schedule18 == schedule19);
 }
 
 void TestDefaultUnitGainGetterAndSetter()

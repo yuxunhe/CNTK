@@ -1662,14 +1662,14 @@ namespace CNTK
         }
 
         template<typename T>
-        const T& GetOrElse(const std::wstring& key, const T& else_val) const
+        const T& GetOrElse(const std::wstring& key, const T& elseVal) const
         {
             if (Contains(key))
             {
                 const DictionaryValue& val = operator[](key);
                 return val.Value<T>();
             }
-            else return else_val;
+            else return elseVal;
         }
 
         CNTK_API bool Contains(const wchar_t* key) const;
@@ -4460,6 +4460,8 @@ namespace CNTK
         static const size_t UnspecifiedMinibatchSize = 0;
         ///
         /// Create a schedule with a constant parameter value.
+        /// @param value a single value to populate the schedule
+        /// @param minibatchSize a minibatch size that the @e value specifies for.
         ///
         CNTK_API TrainingParameterSchedule(T value, size_t minibatchSize = UnspecifiedMinibatchSize);
 
@@ -4467,7 +4469,8 @@ namespace CNTK
         ///
         /// Create a schedule where the parameter changes its value every 'epochSize' samples:
         /// schedule[0] is used for the first 'epochSize' samples, schedule[1] -- for the second,
-        /// and so on. The last value is then used repeatedly until the end of training.
+        /// and so on. The last value is then used repeatedly until the end of training. 
+        /// @e minibatchSize is the a minibatch size that each schedule[i] specifies for.
         ///
         CNTK_API TrainingParameterSchedule(const std::vector<T>& schedule, size_t epochSize = FullDataSweep, size_t minibatchSize = UnspecifiedMinibatchSize);
 #endif
@@ -4480,6 +4483,7 @@ namespace CNTK
         /// and epochSize = 100, corresponds to a schedule where the value of '0.05' is used for
         /// the first 100 samples, then '0.1' is used for the second 200 samples,
         /// after which the values is switched to '0.005'.
+        /// @e minibatchSize is the a minibatch size that each schedule[i] specifies for.
         ///
         CNTK_API TrainingParameterSchedule(const std::vector<std::pair<size_t, T>>& schedule, size_t epochSize = FullDataSweep, size_t minibatchSize = UnspecifiedMinibatchSize);
 
@@ -4504,13 +4508,6 @@ namespace CNTK
         virtual size_t CurrentVersion() const override { return s_serializationVersion; }
 
         CNTK_API static TrainingParameterSchedule<T> Deserialize(const Dictionary& dictionary);
-
-#ifdef SWIGPYTHON // for Python interop (adds indexer)
-        const T __getitem__(size_t count) const
-        {
-            return TrainingParameterSchedule<T>::operator[](count);
-        }
-#endif
 
         CNTK_API bool operator==(const TrainingParameterSchedule<T>& right)
         {
@@ -4568,7 +4565,7 @@ namespace CNTK
     }
 
     ///Compute the momentum from time constant.
-    ///For backward compatability only. *Should be deprecated*.
+    ///For backward compatability only. *Will be deprecated*.
     inline double MomentumFromTimeConstant(double momTC)
     {
         return momTC == 0.0 ? 0 : exp(-1.0 / momTC);
@@ -4628,7 +4625,13 @@ namespace CNTK
     class Learner
     {
     public:
+        ///
+        /// A key that is associated with MinibatchSize.
+        ///
         CNTK_API static const std::wstring MinibatchSizeKey;
+        ///
+        /// A special value that can be used for the minibatchSize to indicate that the reference minibatch size is not specified.
+        ///
         CNTK_API static const size_t UnspecifiedMinibatchSize;
 
     public:
@@ -4700,12 +4703,12 @@ namespace CNTK
         CNTK_API Dictionary& GetOptions() { return m_additionalOptions.dictOptions; }
         CNTK_API const Dictionary& GetOptions() const { return m_additionalOptions.dictOptions; }
 
-        ///In the litature, usually the learner parameters, such as the learning rates, moumentum and momentum variance,
-        ///are chosen for the specified minibatch size. However, for efficient impelmentation and for distributed training,
+        ///In the litature, usually the learner hyper-parameters, such as the learning rates and other hyper-parameters (such as those 
+        ///in momentum SGD or ADAM), are chosen for the specified minibatch size. However, for efficient implementation and for distributed training,
         ///CNTK can vary the actual minibatch sizes for better computational efficiency. Therefore CNTK allows users to set
-        ///the reference minibatch size, CNTK will try its best to adjust the learning parameters internally to match the
-        ///behavior of the learning parameters with the specified specified minibatch size while the actualy minibatch size
-        ///can vary for better computational performance. If minibatchSize is set to 0, CNTK will apply the parameters
+        ///the reference minibatch size. CNTK will try its best to adjust the learning hyper-parameters internally to match the
+        ///behavior of the learning parameters with the specified specified minibatch size while the actual minibatch size
+        ///can vary for better computational performance. If minibatchSize is set to 0, CNTK will apply the hyper-parameters
         ///over the whole minibatch as it is without any underlying scaling. 
         ///Note the underlying TrainingParameterSchedule's reference minibatch size setting can over this reference minibatch size
         ///setting and be specialized to its own reference minibatch size. However, this is only suggested for advanced
@@ -4729,15 +4732,13 @@ namespace CNTK
         ///
         CNTK_API bool IsCompatibleMode() const
         {
-            if (GetOptions().Contains(MinibatchSizeKey)) 
+            if (GetOptions().Contains(MinibatchSizeKey))
             {
                 return GetMinibatchSize() == UnspecifiedMinibatchSize;
             }
             else
-            {
-                //If the learner's minibatch size is not specified, look at learning rate schedule's specification:
-                return IsCompatibleMode(m_learningRateSchedule);
-            }
+                //if the learner minbiatch size is not set, by default it is not in compatible mode.
+                return false;
         }
 
     protected:

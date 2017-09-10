@@ -781,6 +781,12 @@ public:
     $result = NDShapeToTuple($1);
 }
 
+%extend CNTK::TrainingParameterSchedule {
+   T __getitem__(size_t count) {
+    return (*$self)[count];
+  }
+}
+
 %extend CNTK::NDShape {
     const size_t& __getitem__(int i) {
         // CNTK uses column major, thus we reverse the shape

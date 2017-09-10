@@ -33,6 +33,9 @@ using namespace std;
 namespace CNTK
 {
     CNTK_API const std::wstring Learner::MinibatchSizeKey = L"MinibatchSize";
+    ///
+    /// A special value that can be used for the minibatchSize to indicate that the reference minibatch size is not specified.
+    ///
     CNTK_API const size_t Learner::UnspecifiedMinibatchSize = TrainingParameterSchedule<double>::UnspecifiedMinibatchSize;
 
   
@@ -119,10 +122,9 @@ namespace CNTK
     {
         if (m_additionalOptions.gradientClippingThresholdPerSample != numeric_limits<double>::infinity())
         {
+            double gradientClippingThresholdPerSample = m_additionalOptions.gradientClippingThresholdPerSample;
             // when using compatible mode, no need to scale up the maxGradientPerMB as it is the mean gradient already
-            actualMBSize = (IsCompatibleMode() ? 1 : actualMBSize);
-
-            double maxGradientPerMB = m_additionalOptions.gradientClippingThresholdPerSample * actualMBSize;
+            double maxGradientPerMB = IsCompatibleMode() ? gradientClippingThresholdPerSample : gradientClippingThresholdPerSample * actualMBSize;
             if (m_additionalOptions.gradientClippingWithTruncation)
                 gradient.InplaceTruncate(ElementType(maxGradientPerMB));
             else
@@ -528,7 +530,7 @@ namespace CNTK
         */
         const auto learningRate = ElementType(LearningRate(trainingSampleCount));
         const auto momentum = ElementType(MomentumValueForMB(trainingSampleCount));
-        auto unitGainFactor = UnitGainFactor<ElementType>(trainingSampleCount);
+        const auto unitGainFactor = UnitGainFactor<ElementType>(trainingSampleCount);
         parameterMatrix->MomentumSGDUpdate(*gradientMatrix, *smoothedGradientMatrix,
                                            learningRate, momentum, unitGainFactor);
     }

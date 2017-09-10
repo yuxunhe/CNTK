@@ -152,13 +152,14 @@ class Learner(cntk_py.Learner):
         and it takes effect from the current position in the training process onwards.
 
         Args:
-            learning_rate (output of :func:`learning_rate_schedule`)
+            learning_rate (output of :func:`learning_parameter_schedule`)
              learning rate to reset to
         '''
         _verify_learning_rate_type(learning_rate)
-        if learning_rate.minibatch_size == cntk_py.training_double_parameter_schedule.unspecified_minibatch_size:
-            learning_rate.minibatch_size = self.unspecified_minibatch_size
-
+        if not learning_rate.is_minibatch_size_explicitly_specified:
+            #If the schedule minibatch size is not explicitly specified, the learner's specification will take over
+            if self.minibatch_size is not None and self.minibatch_size != self.unspecified_minibatch_size:
+                learning_rate.minibatch_size = self.minibatch_size
         return super(Learner, self).reset_learning_rate(learning_rate)
 
     def learning_rate(self):
@@ -525,10 +526,13 @@ def _infer_learning_parameter_schedule(number_or_schedule, ref_minibatch_size):
     if isinstance(number_or_schedule, (int, float)):
         #default is per minibatch if the reference minibatch size is not specified.
         ref_minibatch_size = 0 if ref_minibatch_size is None else ref_minibatch_size
-        return learning_parameter_schedule(number_or_schedule, ref_minibatch_size)
+        schedule = learning_parameter_schedule(number_or_schedule, ref_minibatch_size)
+        schedule.is_minibatch_size_explicitly_specified = ref_minibatch_size is not None
+        return schedule
     elif isinstance(number_or_schedule,
                       cntk_py.training_double_parameter_schedule):
         if not number_or_schedule.is_minibatch_size_explicitly_specified and ref_minibatch_size is not None:
+            #If the schedule minibatch size is not explicitly specified, the learner's specification will take over
             number_or_schedule.minibatch_size = ref_minibatch_size
         return number_or_schedule
     else:
@@ -537,15 +541,13 @@ def _infer_learning_parameter_schedule(number_or_schedule, ref_minibatch_size):
                          % type(number_or_schedule))
 
 
-def _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, ref_minibatch_size, lr):
+def _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, ref_minibatch_size, schedule):
     #if non-None reference_minibatch_size will take precedence otherwise according use_mean_gradient if it is True
     ref_minibatch_size = _infer_ref_minibatch_size_from_legacy_use_mean_gradient(ref_minibatch_size, use_mean_gradient)
-    #if minibatch_size is not None, any schedules with unspecified reference minibatch size will be overrided.
-    lr = _infer_learning_parameter_schedule(lr, ref_minibatch_size)
-    #if the ref_minibatch is None, use the learning rate's minibatch_size otherwise use the specified one
-    ref_minibatch_size = lr.minibatch_size if ref_minibatch_size is None and lr.is_minibatch_size_explicitly_specified else ref_minibatch_size
-    _verify_learning_rate_type(lr)
-    return lr, ref_minibatch_size
+    #if minibatch_size is not None, any schedules that are with unspecified reference minibatch size will be overrided.
+    schedule = _infer_learning_parameter_schedule(schedule, ref_minibatch_size)
+    _verify_learning_rate_type(schedule)
+    return schedule, ref_minibatch_size
 
 @typemap
 def sgd(parameters, lr,
