@@ -327,9 +327,14 @@ def learning_parameter_schedule(schedule, minibatch_size=None, epoch_size=None):
          (``epoch_size`` * num_epoch_i)-th sample (taking num_epoch_0 = 0 as a special initialization).
         minibatch_size (int): an integer to specify the reference minibatch size that schedule are designed for; 
          CNTK will scale the schedule internally so as to simulate the behavior of the schedule as much as possible
-         to match the designed effect. 
-        epoch_size (int): see parameter ``epoch_size`` in
-         :func:`training_parameter_schedule`.
+         to match the designed effect. If it is not specified, CNTK will set to the special value cntk.learners.unspecified_minibatch_size.
+        epoch_size (optional, int): number of samples as a scheduling unit.
+         Parameters in the schedule change their values every ``epoch_size``
+         samples. If no ``epoch_size`` is provided, this parameter is substituted
+         by the size of the full data sweep, in which case the scheduling unit is
+         the entire data sweep (as indicated by the MinibatchSource) and parameters
+         change their values on the sweep-by-sweep basis specified by the
+         ``schedule``.
 
     Returns:
         learning parameter schedule
@@ -391,8 +396,6 @@ def learning_rate_schedule(lr, unit, epoch_size=None):
 @typemap
 def momentum_schedule(momentum, epoch_size=None, minibatch_size = None):
     '''
-    Deprecated:: 2.2
-
     Create a per-minibatch momentum schedule (using the same semantics as
     :func:`training_parameter_schedule` with the `unit=UnitType.minibatch`).
 
