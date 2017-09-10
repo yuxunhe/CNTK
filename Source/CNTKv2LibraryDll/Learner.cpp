@@ -441,10 +441,10 @@ namespace CNTK
             wstringstream stream;
             stream << name;
 
-            if (IsCompatibleMode())
-                stream << L" compatible mode (minibatch average gradient)";
+            if (IsCompatibleMode(schedule))
+                stream << L" per minibatch";
             else
-                stream << L" reference minibatch size: " << this->GetMinibatchSize();
+                stream << L" per " << schedule.GetMinibatchSize() << " samples";
             wstring prefix = stream.str();
 
             for (auto& writer : m_progressWriters)

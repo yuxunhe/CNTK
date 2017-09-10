@@ -612,7 +612,9 @@ def sgd(parameters, lr,
     if minibatch_size is not None:
         additional_options.dict_options[cntk_py.Learner._MINIBATCH_SIZE] = cntk_py.SizeTWrapper(minibatch_size) #need this to make proper typed DictionaryValue
 
-    return cntk_py.sgd_learner(parameters, lr, additional_options)
+    opt = cntk_py.sgd_learner(parameters, lr, additional_options)
+    opt.is_minibatch_size_explicitly_specified = minibatch_size is not None
+    return opt
 
 
 @typemap
@@ -674,8 +676,10 @@ def momentum_sgd(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
     if minibatch_size is not None:
         additional_options.dict_options[cntk_py.Learner._MINIBATCH_SIZE] = cntk_py.SizeTWrapper(minibatch_size) #need this to make proper typed DictionaryValue
 
-    return cntk_py.momentum_sgd_learner(parameters, lr, momentum, unit_gain,
+    opt = cntk_py.momentum_sgd_learner(parameters, lr, momentum, unit_gain,
                                         additional_options)
+    opt.is_minibatch_size_explicitly_specified = minibatch_size is not None
+    return opt
 
 
 @typemap
@@ -748,8 +752,10 @@ def nesterov(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
     if minibatch_size is not None:
         additional_options.dict_options[cntk_py.Learner._MINIBATCH_SIZE] = cntk_py.SizeTWrapper(minibatch_size) #need this to make proper typed DictionaryValue
 
-    return cntk_py.nesterov_learner(parameters, lr, momentum, unit_gain,
+    opt=cntk_py.nesterov_learner(parameters, lr, momentum, unit_gain,
                                     additional_options)
+    opt.is_minibatch_size_explicitly_specified = minibatch_size is not None
+    return opt
 
 @typemap
 def adadelta(parameters, lr=learning_rate_schedule(1, UnitType.sample), rho=0.95, epsilon=1e-8,
@@ -813,8 +819,10 @@ def adadelta(parameters, lr=learning_rate_schedule(1, UnitType.sample), rho=0.95
     if minibatch_size is not None:
         additional_options.dict_options[cntk_py.Learner._MINIBATCH_SIZE] = cntk_py.SizeTWrapper(minibatch_size) #need this to make proper typed DictionaryValue
 
-    return cntk_py.ada_delta_learner(parameters, lr, rho, epsilon,
+    opt = cntk_py.ada_delta_learner(parameters, lr, rho, epsilon,
                                     additional_options)
+    opt.is_minibatch_size_explicitly_specified = minibatch_size is not None
+    return opt
 
 
 @typemap
@@ -879,8 +887,10 @@ def adagrad(parameters, lr, need_ave_multiplier=True,
     if minibatch_size is not None:
         additional_options.dict_options[cntk_py.Learner._MINIBATCH_SIZE] = cntk_py.SizeTWrapper(minibatch_size) #need this to make proper typed DictionaryValue
 
-    return cntk_py.ada_grad_learner(parameters, lr, need_ave_multiplier,
+    opt = cntk_py.ada_grad_learner(parameters, lr, need_ave_multiplier,
                                     additional_options)
+    opt.is_minibatch_size_explicitly_specified = minibatch_size is not None
+    return opt
 
 
 @typemap
@@ -950,8 +960,10 @@ def fsadagrad(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
     if minibatch_size is not None:
         additional_options.dict_options[cntk_py.Learner._MINIBATCH_SIZE] = cntk_py.SizeTWrapper(minibatch_size) #need this to make proper typed DictionaryValue
 
-    return cntk_py.fsada_grad_learner(parameters, lr, momentum, unit_gain,
+    opt = cntk_py.fsada_grad_learner(parameters, lr, momentum, unit_gain,
                                       variance_momentum, additional_options)
+    opt.is_minibatch_size_explicitly_specified = minibatch_size is not None
+    return opt
 
 
 @typemap
@@ -1029,8 +1041,10 @@ def adam(parameters, lr, momentum, unit_gain=default_unit_gain_value(),
     if minibatch_size is not None:
         additional_options.dict_options[cntk_py.Learner._MINIBATCH_SIZE] = cntk_py.SizeTWrapper(minibatch_size) #need this to make proper typed DictionaryValue
 
-    return cntk_py.adam_learner(parameters, lr, momentum, unit_gain,
+    opt = cntk_py.adam_learner(parameters, lr, momentum, unit_gain,
                                 variance_momentum, epsilon, adamax, additional_options)
+    opt.is_minibatch_size_explicitly_specified = minibatch_size is not None
+    return opt
 
 
 @typemap
@@ -1096,8 +1110,10 @@ def rmsprop(parameters, lr,
     if minibatch_size is not None:
         additional_options.dict_options[cntk_py.Learner._MINIBATCH_SIZE] = cntk_py.SizeTWrapper(minibatch_size) #need this to make proper typed DictionaryValue
 
-    return cntk_py.rmsprop_learner(parameters, lr, gamma, inc, dec, max, min,
+    opt = cntk_py.rmsprop_learner(parameters, lr, gamma, inc, dec, max, min,
                                    need_ave_multiplier, additional_options)
+    opt.is_minibatch_size_explicitly_specified = minibatch_size is not None
+    return opt
 
 
 @typemap
