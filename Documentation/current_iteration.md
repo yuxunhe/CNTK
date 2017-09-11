@@ -38,13 +38,13 @@ reducing inference costs; the cost savings are only during training.
 
 ### Improved AttentionModel
 
-A bug has been fixed in the AttentionModel which was previously not faithfully implementing the paper
+A bug in our AttentionModel layer has been fixed and we now faithfully implement the paper
 
 > Neural Machine Translation by Jointly Learning to Align and Translate (Bahdanau et. al.)
 
-Furthermore, the somewhat artificial arguments `attention_span` and `attention_axis` of the AttentionModel
+Furthermore, the arguments `attention_span` and `attention_axis` of the AttentionModel
 are no longer necessary. If left to their default values, the attention is computed over the whole sequence
-and the output shape does not contain any singleton axes.
+and the output is a sequence of vectors of the same dimension as the first argument over the axis of the second argument.
 
 ### Aggregation on sparse gradient for embedded layer
 ### Gradient as an operator (stretch goal) 
