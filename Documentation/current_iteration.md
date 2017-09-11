@@ -36,9 +36,15 @@ logits = C.times(weights, C.reshape(inputs, (1,), 1)) + biases
 Note that the noise contrastive estimation loss cannot help with 
 reducing inference costs; the cost savings are only during training.
 
-### Improved Attention Layer
+### Improved AttentionModel
 
-The AttentionLayer used to have a couple 
+A bug has been fixed in the AttentionModel which was previously not faithfully implementing the paper
+
+> Neural Machine Translation by Jointly Learning to Align and Translate (Bahdanau et. al.)
+
+Furthermore, the somewhat artificial arguments `attention_span` and `attention_axis` of the AttentionModel
+are no longer necessary. If left to their default values, the attention is computed over the whole sequence
+and the output shape does not contain any singleton axes.
 
 ### Aggregation on sparse gradient for embedded layer
 ### Gradient as an operator (stretch goal) 
