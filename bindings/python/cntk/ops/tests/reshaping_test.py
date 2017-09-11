@@ -78,7 +78,6 @@ RESHAPE_SUBSHAPE_TEST_CASES = [
     ((2, 3, 5), (C.InferredDimension),    0,                      Axis(2),                  (6, 5)),
     ((2, 3, 5), (C.InferredDimension),    Axis(-3),               -1,                       (6, 5)),
     ((6, 5),    (2, C.InferredDimension), 0,                      1,                        (2, 3, 5)),
-    ((2, 3),    (1),                      0,                      0,                        (1, 2, 3)),
 ]
 
 @pytest.mark.parametrize("input_shape, replacement_shape, begin_axis, end_axis, expected_output_shape", RESHAPE_SUBSHAPE_TEST_CASES)
