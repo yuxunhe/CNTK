@@ -13,7 +13,58 @@ We have added HTML versions of the tutorials and manuals with the Python documen
 ## System 
 
 ### 16bit support for training on Volta GPU (limited functionality)
-### Update learner interface to simplify parameter setting and adding new learners (**Potential breaking change**) 
+### Update learner interface to simplify parameter setting and adding new learners
+
+This update simplifies the learner APIs and deprecates the concepts of unitType.minibatch and UnitType.sample. The purpose of this update is to make the API more intuitive to specify the learner hyper-parameters while at the same time preserving the unique model update techniques in CNTK --- the mean gradients of every $N$ samples contributes approximately the same to the model updates regardless of the actual data minibatch sizes. Detailed explanation can be found at the manual on [How to Use CNTK Learners](https://github.com/Microsoft/CNTK/blob/master/Manual/Manual_How_to_use_learners.ipynb).
+
+In the new API, all supporting learners, including [AdaDelta](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.adadelta),
+[AdaGrad](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.adagrad),
+ [FSAdaGrad](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.fsadagrad),
+[Adam](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.adam),
+[MomentumSGD](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.momentum_sgd),
+[Nesterov](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.nesterov),
+[RMSProp](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.rmsprop), and
+[SGD](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.sgd), can now be  specified by
+```python
+cntk.<cntk_supporting_learner>(parameters=model.parametes, lr=<float or list>, [momentum=<float or list>], [variance_momentum=<float or list>], minibatch_size=<None, int, or cntk.learners.IGNORE>, ...other learner parameters)
+```
+
+Two major changes are as follows:  
+
+- lr: the learning rate schedule can be specified in the learner as a float, a list of floats, or a list of pairs (float, int) (see parameter definition at  [learning_parameter_schedule](https://cntk.ai/pythondocs/cntk.learners.html?highlight=learning_rate_schedule#cntk.learners.learning_parameter_schedule)). The same specification applies to the momentum and variance_moment of the learners ( such as
+ [FSAdaGrad](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.fsadagrad),
+[Adam](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.adam),
+[MomentumSGD](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.momentum_sgd),
+[Nesterov](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.nesterov)) when such hyper-parameters are required.
+
+- minibatch_size: a minibatch_size can be specified to guarantee that the mean gradient of every $N$ (minibatch_size=$N$) samples will contribute to the model updates with the same learning rate even if the actual minibatch size of the data is different from $N$. This is useful when  the data minibatch size varies, especially in scenarios of training with variable length sequences, and/or uneven data partitiion in distributed training. 
+    * If we set `minibatch_size=cntk.learners.IGNORE`, then we recover the behavior in the literature: The mean gradient of the whole minibatch contributes to the model update with the same learning rate. The behavior of ignoring the data minibatch data size is the same as specifying a specific minibatch size for the learner when the data minibatch size equals to the specified minibatch size.
+
+Examples constructed in  [How to Use CNTK Learners](https://github.com/Microsoft/CNTK/blob/master/Manual/Manual_How_to_use_learners.ipynb) clearly domonstrate the purpose and the difference. A snapshot is copied here:
+```python
+sgd_learner_m = C.sgd(z.parameters, lr = 0.5, minibatch_size = C.learners.IGNORE)
+sgd_learner_s2 = C.sgd(z.parameters, lr = 0.5, minibatch_size = 2)
+```
+Two SGD learners are defined. `sgd_learner_m` is specified to apply the learning rate $0.5$ over the whole minibatch and `sgd_learner_s2` is specified to apply the same learning rate $0.5$ over every $2$ samples. Assume the model has gradients $1$ at all data points (i.e. the mean gradient is also $1$). When the data minibatch size is also $2$, both `sgd_learner_m` and `sgd_leaner_s2` will result in the same model updates:
+```
+ [array([[-0.5, -0.5],
+       [-0.5, -0.5],
+       [-0.5, -0.5],
+       [-0.5, -0.5]], dtype=float32), array([-0.5, -0.5], dtype=float32), array([[-0.5, -0.5, -0.5, -0.5],
+       [-0.5, -0.5, -0.5, -0.5],
+       [-0.5, -0.5, -0.5, -0.5]], dtype=float32), array([-0.5, -0.5, -0.5, -0.5], dtype=float32)]
+```
+When we encounter an minibatch of size $10$, the update of `sgd_learner_m` is the same as the above. However, `sgd_learner_s2` will have much more aggressive updates: 
+```
+ [array([[-2.5, -2.5],
+       [-2.5, -2.5],
+       [-2.5, -2.5],
+       [-2.5, -2.5]], dtype=float32), array([-2.5, -2.5], dtype=float32), array([[-2.5, -2.5, -2.5, -2.5],
+       [-2.5, -2.5, -2.5, -2.5],
+       [-2.5, -2.5, -2.5, -2.5]], dtype=float32), array([-2.5, -2.5, -2.5, -2.5], dtype=float32)]
+```
+In the above, `sgd_learner_s2` updates the model with $10 / 2 = 5$ times the mean gradient (which is $1$ ) with the specified learning rate $0.5$. This results in an aggressive update in the magnitute of $2.5= 5 \times 0.5$. Such a property is useful to update a model function whose loss function, when being evaluated at the current parameters, is locally linear within ball of a diameter of $r\frac{M}{N}$ (where $r$ and $N$ is the learning rate and the minibatch size specified for the learner respectively, and $M$ is the actual minibatch size). If we have an actually minibath size $M > N$, this property allows us to increase the speed of updates aggressively; if $M < N$, this property requires us to scale down the learning rate to increase the chance of convergence. This property is particularly useful in the application scenarios of variable data minibatch sizes. Please find more discussion at [How to Use CNTK Learners](https://github.com/Microsoft/CNTK/blob/master/Manual/Manual_How_to_use_learners.ipynb).
+
 ### A C#/.NET API that enables people to build and train networks. 
 ##### Basic training support is added to C#/.NET API. New training examples include:
 ##### 1. Convolution neural network for image classification of the MNIST dataset. (https://github.com/Microsoft/CNTK/tree/master/Examples/TrainingCShape/Common/MNISTClassifier.cs)
