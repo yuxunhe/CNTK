@@ -24,7 +24,7 @@ In the new API, all supporting learners, including [AdaDelta](https://cntk.ai/py
 [MomentumSGD](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.momentum_sgd),
 [Nesterov](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.nesterov),
 [RMSProp](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.rmsprop), and
-[SGD](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.sgd), can now be  specified by
+[SGD](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.sgd), can now be specified by
 ```python
 cntk.<cntk_supporting_learner>(parameters=model.parametes, lr=<float or list>, [momentum=<float or list>], [variance_momentum=<float or list>], minibatch_size=<None, int, or cntk.learners.IGNORE>, ...other learner parameters)
 ```
@@ -40,12 +40,17 @@ Two major changes are as follows:
 - minibatch_size: a minibatch_size can be specified to guarantee that the mean gradient of every $N$ (minibatch_size=$N$) samples will contribute to the model updates with the same learning rate even if the actual minibatch size of the data is different from $N$. This is useful when  the data minibatch size varies, especially in scenarios of training with variable length sequences, and/or uneven data partitiion in distributed training. 
     * If we set `minibatch_size=cntk.learners.IGNORE`, then we recover the behavior in the literature: The mean gradient of the whole minibatch contributes to the model update with the same learning rate. The behavior of ignoring the data minibatch data size is the same as specifying a specific minibatch size for the learner when the data minibatch size equals to the specified minibatch size.
 
-Examples constructed in  [How to Use CNTK Learners](https://github.com/Microsoft/CNTK/blob/master/Manual/Manual_How_to_use_learners.ipynb) clearly domonstrate the purpose and the difference. A snapshot is copied here:
+With the new API, 
+- to behave as in the classic literature, we can specify the learner by setting `minibatch_size=cntk.learners.IGNORE` to ignore the minibatch size when applying the learning hyper-parameters, e.g.
 ```python
 sgd_learner_m = C.sgd(z.parameters, lr = 0.5, minibatch_size = C.learners.IGNORE)
+```
+- to enable CNTK special techniques which apply the same learning rate to mean gradient of every $N$ samples regardless of the actual minibatch sizes, we can specify the learner by setting `minibatch_size=N`, e.g. setting `minibatch_size=2`,
+```python
 sgd_learner_s2 = C.sgd(z.parameters, lr = 0.5, minibatch_size = 2)
 ```
-Two SGD learners are defined. `sgd_learner_m` is specified to apply the learning rate $0.5$ over the whole minibatch and `sgd_learner_s2` is specified to apply the same learning rate $0.5$ over every $2$ samples. Assume the model has gradients $1$ at all data points (i.e. the mean gradient is also $1$). When the data minibatch size is also $2$, both `sgd_learner_m` and `sgd_leaner_s2` will result in the same model updates:
+
+Let's examine the update behaviors of above two exmaples in details. `sgd_learner_m` is specified to apply the learning rate $0.5$ over the whole minibatch and `sgd_learner_s2` is specified to apply the same learning rate $0.5$ over every $2$ samples. Assume the model has gradients $1$ at all data points (i.e. the mean gradient is also $1$). When the data minibatch size is also $2$, both `sgd_learner_m` and `sgd_leaner_s2` will result in the same model updates:
 ```
  [array([[-0.5, -0.5],
        [-0.5, -0.5],
@@ -54,7 +59,7 @@ Two SGD learners are defined. `sgd_learner_m` is specified to apply the learning
        [-0.5, -0.5, -0.5, -0.5],
        [-0.5, -0.5, -0.5, -0.5]], dtype=float32), array([-0.5, -0.5, -0.5, -0.5], dtype=float32)]
 ```
-When we encounter an minibatch of size $10$, the update of `sgd_learner_m` is the same as the above. However, `sgd_learner_s2` will have much more aggressive updates: 
+When we encounter a minibatch of size $10$, the update of `sgd_learner_m` is the same as the above. However, `sgd_learner_s2` will have much more aggressive updates: 
 ```
  [array([[-2.5, -2.5],
        [-2.5, -2.5],
@@ -63,7 +68,25 @@ When we encounter an minibatch of size $10$, the update of `sgd_learner_m` is th
        [-2.5, -2.5, -2.5, -2.5],
        [-2.5, -2.5, -2.5, -2.5]], dtype=float32), array([-2.5, -2.5, -2.5, -2.5], dtype=float32)]
 ```
-In the above, `sgd_learner_s2` updates the model with $10 / 2 = 5$ times the mean gradient (which is $1$ ) with the specified learning rate $0.5$. This results in an aggressive update in the magnitute of $2.5= 5 \times 0.5$. Such a property is useful to update a model function whose loss function, when being evaluated at the current parameters, is locally linear within ball of a diameter of $r\frac{M}{N}$ (where $r$ and $N$ is the learning rate and the minibatch size specified for the learner respectively, and $M$ is the actual minibatch size). If we have an actually minibath size $M > N$, this property allows us to increase the speed of updates aggressively; if $M < N$, this property requires us to scale down the learning rate to increase the chance of convergence. This property is particularly useful in the application scenarios of variable data minibatch sizes. Please find more discussion at [How to Use CNTK Learners](https://github.com/Microsoft/CNTK/blob/master/Manual/Manual_How_to_use_learners.ipynb).
+In the above, `sgd_learner_s2` updates the model with $10 / 2 = 5$ times the mean gradient (which is $1$ ) with the specified learning rate $0.5$. This results in an aggressive update in the magnitute of $2.5= 5 \times 0.5$. Such a property is useful to update a model function whose loss function, when being evaluated at the current parameters, is locally linear within a ball of a diameter of $r\frac{M}{N}$ (where $r$ and $N$ is the learning rate and the minibatch size specified for the learner respectively, and $M$ is the actual minibatch size). If we have an actual minibath size $M > N$, this property allows us to increase the speed of updates aggressively; if $M < N$, this property requires us to scale down the learning rate to increase the chance of convergence. This property is particularly useful in the application scenarios of variable data minibatch sizes. Please find more discussion at [How to Use CNTK Learners](https://github.com/Microsoft/CNTK/blob/master/Manual/Manual_How_to_use_learners.ipynb).
+
+Regarding the momentum schedule [momentum_schedule](https://cntk.ai/pythondocs/cntk.learners.html?highlight=learning_rate_schedule#cntk.learners.momentum_schedule) of the learners [FSAdaGrad](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.fsadagrad),
+[Adam](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.adam),
+[MomentumSGD](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.momentum_sgd),
+and [Nesterov](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.nesterov), it can be specified in a similar way.
+ Let's use `momentum_sgd` as an example:
+- `momentum_sgd(parameters, lr=float or list of floats, momentum=float or list of floats, minibatch_size=C.leanrers.IGNORE, epoch_size=epoch_size)`
+
+    * or simply: `momentum_sgd(parameters, lr=float or list of floats, momentum=float or list of floats, epoch_size=epoch_size)` where minibatch_size=C.leanrers.IGNORE is the default
+    
+- `momentum_sgd(parameters, lr=float or list of floats, momentum=float or list of floats, minibatch_size=minibatch_size, epoch_size=epoch_size)`
+
+Similar to `learning_rate_schedule`, the arguments are interpreted in the same way:
+
+- With minibatch_size=C.leanrers.IGNORE, the decay momentum=$\beta$ is applied to the mean gradient of the whole minibatch regardless of its size. For example, regardless of the minibatch size either be $N$ or $2N$ (or any size), the mean gradient of such a minibatch will have same decay factor $\beta$.
+
+- With minibatch_size=N, the decay $momentum=\beta$ is applied to the mean gradient of every $N$ samples. For example,  minibatches of sizes $N$, $2N$, $3N$ and $k\cdot N$ will have decays of $\beta$, $\beta^2$, $\beta^3$ and $\beta^k$ respectively --- the decay is exponetial in the proportion of the actual minibatch size to the designed minibath size. 
+ 
 
 ### A C#/.NET API that enables people to build and train networks. 
 ##### Basic training support is added to C#/.NET API. New training examples include:
