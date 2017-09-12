@@ -1,3 +1,4 @@
+
 //
 // Copyright (c) Microsoft. All rights reserved.
 // Copyright (c) 2017, NVIDIA CORPORATION. All rights reserved.
@@ -92,14 +93,15 @@ public:
         size_t dim_size = std::max(stride_size, minDimSize);
         SmallVector<int> stride(dim_size, 1);
         SmallVector<int> pad(dim_size, 0);
+        SmallVector<int> dilation(dim_size, 1);
         for (int i = 0; i < stride_size; i++)
         {
             stride[dim_size - 1 - i] = (int)geometry.GetStride(i);
             pad[dim_size - 1 - i] = geometry.GetLowerPad(i);
+            dilation[dim_size - 1 - i] = (int)geometry.GetDilation(i);
         }
-        SmallVector<int> upscale(dim_size, 1);
         CUDNN_CALL(cudnnSetConvolutionNdDescriptor(m_conv, (int)dim_size, pad.data(),
-                                                   stride.data(), upscale.data(),
+                                                   stride.data(), dilation.data(),
                                                    CUDNN_CROSS_CORRELATION, dataType));
     }
 
@@ -151,11 +153,18 @@ public:
         cudnnPoolingMode_t poolMode = CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
         if (poolIncludePad)
             poolMode = CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
-        // deterministic maxpool is not working when kernel size > stride size in cuDNN. We ignore this flag for now.
-        if (forceDeterministicAlgorithms) {}
+
+        if (kind == PoolKind::Max)
+        {
+            if (forceDeterministicAlgorithms && (cudnnGetVersion() >= 6000))
+                poolMode = CUDNN_POOLING_MAX_DETERMINISTIC;
+            else
+                poolMode = CUDNN_POOLING_MAX;
+        }
+
         // Must use CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING to get the same results as in reference engine.
         CUDNN_CALL(cudnnSetPoolingNdDescriptor(m_pool,
-                                               kind == PoolKind::Max ? CUDNN_POOLING_MAX : poolMode,
+                                               poolMode,
                                                CUDNN_PROPAGATE_NAN,
                                                (int)dim_size, dims.data(), pad.data(), stride.data()));
     }
