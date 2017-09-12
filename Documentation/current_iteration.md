@@ -59,6 +59,7 @@ A bug in our AttentionModel layer has been fixed and we now faithfully implement
 Furthermore, the arguments `attention_span` and `attention_axis` of the AttentionModel
 are no longer necessary. If left to their default values, the attention is computed over the whole sequence
 and the output is a sequence of vectors of the same dimension as the first argument over the axis of the second argument.
+As a bonus, leaving these arguments unspecified leads to substantial speed gains (our CNTK 204 Tutorial now runs 2x faster). 
 
 ### Aggregation on sparse gradient for embedded layer
 #### This change saves costly conversion from sparse to dense before gradient aggregation when embedding vocabulary size is huge.
