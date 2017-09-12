@@ -37,6 +37,30 @@
     <ClCompile Include="ProgressWriter.cpp" />
     <ClCompile Include="Evaluator.cpp" />
     <ClCompile Include="UserDefinedFunction.cpp" />
+    <ClCompile Include="proto\onnx\protobuf\Data.pb.cc.VS_wrapper.cpp">
+      <Filter>proto\onnx\protobuf</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\protobuf\graph.pb.cc.VS_wrapper.cpp">
+      <Filter>proto\onnx\protobuf</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\protobuf\TensorShape.pb.cc.VS_wrapper.cpp">
+      <Filter>proto\onnx\protobuf</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\protobuf\Type.pb.cc.VS_wrapper.cpp">
+      <Filter>proto\onnx\protobuf</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\ONNXGraph.cc">
+      <Filter>proto\onnx</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\ONNXOP.cc">
+      <Filter>proto\onnx</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\ONNXStatus.cc">
+      <Filter>proto\onnx</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\ONNXUtils.cc">
+      <Filter>proto\onnx</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
@@ -69,6 +93,18 @@
     <ClInclude Include="Variable.h" />
     <ClInclude Include="UserFunctionFactory.h" />
     <ClInclude Include="UserDefinedFunction.h" />
+    <ClInclude Include="proto\onnx\ONNXGraph.h">
+      <Filter>proto\onnx</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\ONNXOP.h">
+      <Filter>proto\onnx</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\ONNXStatus.h">
+      <Filter>proto\onnx</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\ONNXUtils.h">
+      <Filter>proto\onnx</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="API">
@@ -80,6 +116,12 @@
     <Filter Include="tensorboard">
       <UniqueIdentifier>{4242f3a9-0e06-4bf5-b2c2-85b292fe0b43}</UniqueIdentifier>
     </Filter>
+    <Filter Include="proto\onnx">
+      <UniqueIdentifier>{ca68761d-44d4-41a9-b055-4b192402ed0b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="proto\onnx\protobuf">
+      <UniqueIdentifier>{77b30c82-208d-4c0d-825c-9b0eda61caa6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Proto Include="proto\CNTK.proto">
@@ -87,6 +129,18 @@
     </Proto>
     <Proto Include="tensorboard\tensorboard.proto">
       <Filter>tensorboard</Filter>
+    </Proto>
+    <Proto Include="proto\onnx\protobuf\Data.proto">
+      <Filter>proto\onnx\protobuf</Filter>
+    </Proto>
+    <Proto Include="proto\onnx\protobuf\graph.proto">
+      <Filter>proto\onnx\protobuf</Filter>
+    </Proto>
+    <Proto Include="proto\onnx\protobuf\TensorShape.proto">
+      <Filter>proto\onnx\protobuf</Filter>
+    </Proto>
+    <Proto Include="proto\onnx\protobuf\Type.proto">
+      <Filter>proto\onnx\protobuf</Filter>
     </Proto>
   </ItemGroup>
 </Project>

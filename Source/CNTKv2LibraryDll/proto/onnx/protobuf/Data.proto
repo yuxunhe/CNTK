@@ -1,0 +1,85 @@
+syntax = "proto2";
+
+package CommonIR;
+
+import "Type.proto";
+
+message DataProto {
+  // Defines a dense tensor in its serialized format.
+  message DenseTensorProto {
+    // The dimensions in the tensor.
+    repeated int64 dims = 1;
+
+    // The type of the tensor.
+    optional TypeProto.DataType data_type = 2 [default = FLOAT16];
+
+    // For float and double
+    repeated float float_data = 3 [packed = true];
+    repeated double double_data = 4 [packed = true];
+
+    // For int32, uint8, int8, uint16, int16, bool, and float16
+    // Note about float16: in storage we will basically convert float16
+    // byte-wise to unsigned short and then store them in the int32_data
+    // field.
+    repeated int32 int32_data = 5 [packed = true];
+
+    // For strings
+    repeated bytes string_data = 6;
+
+    // For int64
+    repeated int64 int64_data = 7 [packed = true];
+
+    // Optionally, a name for the tensor.
+    optional string name = 8;
+
+    // For very large tensors, we may want to store them in chunks, in
+    // which case the following fields will specify the segment that is
+    // stored in the current TensorProto.
+    message Segment {
+      optional int64 begin = 1;
+      optional int64 end = 2;
+    }
+    optional Segment segment = 9;
+  };
+
+  // Defines a sparse tensor in its serialized format.
+  message SparseTensorProto {
+    optional DenseTensorProto values = 1;
+    optional DenseTensorProto indices = 2;
+    optional DenseTensorProto shape = 3;    
+  };
+
+  // Defines a handle in its serialized format.
+  message HandleProto {
+    optional int64 uid = 1;
+
+    // TBD: More information to be added.
+  };
+
+  // Defines a tuple in its serialized format.
+  message TupleProto {
+    repeated DataProto elems = 1;
+  };
+
+  // Defines a sequence in its serialized format.
+  message SequenceProto {
+    repeated DataProto elems = 1;
+  };
+
+  oneof value {
+    // A dense tensor.
+    DenseTensorProto dense_tensor = 1;
+
+    // A sparse tensor.
+    SparseTensorProto sparse_tensor = 2;  
+
+    // A handle.
+    HandleProto handle = 3;
+
+    // A tuple.
+    TupleProto tuple = 4;
+
+    // A sequence.
+    SequenceProto seq = 5;
+  }
+};

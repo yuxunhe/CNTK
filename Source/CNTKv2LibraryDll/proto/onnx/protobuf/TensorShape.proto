@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package CommonIR;
+
+// Defines a tensor shape.
+message TensorShapeProto {
+  message Dimension {
+    oneof value {
+      int64 dim_value = 1;
+      string dim_param = 2;
+    };
+  };
+  repeated Dimension dim = 1;
+};

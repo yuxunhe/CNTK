@@ -161,6 +161,10 @@
     <ClInclude Include="MinibatchSource.h" />
     <ClInclude Include="PrimitiveFunction.h" />
     <ClInclude Include="PrimitiveOpType.h" />
+    <ClInclude Include="proto\onnx\ONNXGraph.h" />
+    <ClInclude Include="proto\onnx\ONNXOP.h" />
+    <ClInclude Include="proto\onnx\ONNXStatus.h" />
+    <ClInclude Include="proto\onnx\ONNXUtils.h" />
     <ClInclude Include="Serialization.h" />
     <ClInclude Include="tensorboard\TensorBoardUtils.h" />
     <ClInclude Include="UserDefinedFunction.h" />
@@ -192,6 +196,14 @@
     <ClCompile Include="NDMask.cpp" />
     <ClCompile Include="PrimitiveFunction.cpp" />
     <ClCompile Include="proto\CNTK.pb.cc.VS_wrapper.cpp" />
+    <ClCompile Include="proto\onnx\ONNXGraph.cc" />
+    <ClCompile Include="proto\onnx\ONNXOP.cc" />
+    <ClCompile Include="proto\onnx\protobuf\Data.pb.cc.VS_wrapper.cpp" />
+    <ClCompile Include="proto\onnx\protobuf\graph.pb.cc.VS_wrapper.cpp" />
+    <ClCompile Include="proto\onnx\protobuf\TensorShape.pb.cc.VS_wrapper.cpp" />
+    <ClCompile Include="proto\onnx\protobuf\Type.pb.cc.VS_wrapper.cpp" />
+    <ClCompile Include="proto\onnx\ONNXStatus.cc" />
+    <ClCompile Include="proto\onnx\ONNXUtils.cc" />
     <ClCompile Include="Serialization.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
@@ -209,6 +221,10 @@
   </ItemGroup>
   <ItemGroup>
     <Proto Include="proto\CNTK.proto" />
+    <Proto Include="proto\onnx\protobuf\Data.proto" />
+    <Proto Include="proto\onnx\protobuf\graph.proto" />
+    <Proto Include="proto\onnx\protobuf\TensorShape.proto" />
+    <Proto Include="proto\onnx\protobuf\Type.proto" />
     <Proto Include="tensorboard\tensorboard.proto" />
   </ItemGroup>
   <Target Name="ProtoGen" Inputs="@(Proto)" Outputs="@(Proto->'%(RelativeDir)%(Filename).pb.cc')">

@@ -1,0 +1,153 @@
+syntax = "proto2";
+
+package CommonIR;
+
+import "Data.proto";
+import "Type.proto";
+import "TensorShape.proto";
+
+// Defines a computation graph.
+// `run(graph, fetches, feed_dict)` executes the subgraph of the graph
+// `node` defined by the feeding and fetching tensors.
+message GraphProto {
+  // The version helps us to set up version control. We should use version as
+  //     xx(major) - xx(minor) - xxxx(bugfix)
+  // and we are starting with 00000001.
+  optional int64 version = 1 [ default = 00000002];
+
+  // The computation nodes. A node is either an operator or a function call.
+  repeated NodeProto node = 2;
+
+  // The name of the graph.
+  optional string name = 3;
+
+  // Model parameters: current weights and biases for the model.
+  map<string, DataProto.DenseTensorProto> params = 4;
+
+  // The function definitions of the graph. They can only be used
+  // (i.e., called) in the graph defined by `node`.
+  repeated FunctionDefProto function = 5;
+
+  // Namespace of the graph. Required.
+  // We use reverse domain names as name space indicators. For example:
+  // `com.facebook.fair` or `com.microsoft.cognitiveservices`
+  //
+  // Together with `name` and `version`, this forms the identity of the graph
+  optional string namespace = 6;
+
+  // Version of the IR this graph targets. Required.
+  optional string ir_version = 7;
+
+  // A human-readable documentation for this graph.
+  optional string documentation = 8;
+
+  // Optional, user-defined metadata
+  map<string,string> metadata = 9;
+
+  reserved 100 to 200; // for future required metadata
+
+};
+
+// Defines a node in a computation graph. Each graph node is either an
+// operator or a function call.
+//
+// NOTE: Control flow is defined by two built-in operators:
+//
+// Cond(p, true_input, false_input) takes three inputs, where p is a
+// boolean scalar tensor, true_input is the list of inputs to the true
+// branch of cond, and false_input is the list of inputs to the false
+// branch of cond. The true and false branches are defined as 
+// functions that takes true_input and false_input as inputs respectively.
+// The two functions must have the same number of outputs, and each
+// corresponding output must have the same types, and have compatible
+// shapes.
+//
+// While(vars, consts) takes two inputs, where vars are the initial
+// values of the loop variables and consts are the values of constants
+// used inside the loop. The loop condition and loop body are defined
+// as functions. The functions take both vars and consts as inputs.
+// The loop condition function returns a boolean scalar tensor. The
+// loop body function has the form: body(vars, consts) = new_vars,
+// where new_vars are the new values of the loop variables after one
+// iteration so must match vars in terms of types and shapes.
+message NodeProto {
+  message InputOutputProto {
+    optional string name = 1;
+    optional TypeProto type = 2;    
+    optional TensorShapeProto shape = 3;
+  };  
+  message InputListProto {
+    repeated InputOutputProto input = 1;
+  };
+
+  // The name of the node.
+  optional string name = 1;
+
+  // The type of the operation invoked by the node.
+  optional string op_type = 2;
+
+  // The inputs to this node. A formal parameter of the op may take
+  // a variable number of inputs that is only known when this node
+  // is constructed. So one InputListProto per formal parameter.
+  repeated InputListProto input = 3;
+
+  // The outputs of this node. 
+  // NOTE: The outputs of a node is explicitly named.
+  repeated InputOutputProto output = 4;
+
+  // Additional named attributes.
+  repeated AttributeProto attr = 5;
+
+  // Specify a list of nodes that must be executed before this node.
+  // Frameworks may want to give users the ability to add additional
+  // execution orders for the operations.
+  repeated string control_input = 6;
+};
+
+// Defines a function.
+// InParam and OutParam are two built-in operators for function input
+// and output parameters respectively. 
+// A function is well-formed if
+//   - input_arg.name is the name of an InParam node in `node`.
+//   - output_arg.name is the name of an OutParam node in `node`.
+message FunctionDefProto {
+  message FunctionParam {
+    optional string name = 1;
+    optional TypeProto type = 2;
+    optional TensorShapeProto shape = 3;
+  };
+
+  // The name of the function.
+  optional string name = 1;
+
+  // The input parameters of the function.
+  repeated FunctionParam input_arg = 2;
+
+  // The output parameters of the function.
+  repeated FunctionParam output_arg = 3;
+
+  // The body of the function.
+  repeated NodeProto node = 4;
+
+  // The named attributes of the function.
+  repeated AttributeProto attr = 5;
+};
+
+// An AttributeProto should contain the name field, and *only one* of the
+// following content fields, effectively enforcing a C/C++ union equivalent.
+message AttributeProto {
+  optional string name = 1;
+  optional float f = 2;
+  optional int64 i = 3;
+  optional bytes s = 4;
+  repeated float fs = 5;
+  repeated int64 is = 6;
+  repeated bytes ss = 7;
+  optional GraphProto graphs = 8;
+  optional DataProto d = 9;
+  repeated DataProto ds = 10;
+  optional TypeProto type = 11;
+  repeated TypeProto types = 12;
+  optional TensorShapeProto shape = 13;
+  repeated TensorShapeProto shapes = 14;
+};
