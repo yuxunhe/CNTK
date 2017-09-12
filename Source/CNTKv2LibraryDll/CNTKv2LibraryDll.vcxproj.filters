@@ -49,17 +49,20 @@
     <ClCompile Include="proto\onnx\protobuf\Type.pb.cc.VS_wrapper.cpp">
       <Filter>proto\onnx\protobuf</Filter>
     </ClCompile>
-    <ClCompile Include="proto\onnx\ONNXGraph.cc">
+    <ClCompile Include="proto\onnx\CNTKToONNX.cpp">
       <Filter>proto\onnx</Filter>
     </ClCompile>
-    <ClCompile Include="proto\onnx\ONNXOP.cc">
-      <Filter>proto\onnx</Filter>
+    <ClCompile Include="proto\onnx\core\ONNXGraph.cc">
+      <Filter>proto\onnx\core</Filter>
     </ClCompile>
-    <ClCompile Include="proto\onnx\ONNXStatus.cc">
-      <Filter>proto\onnx</Filter>
+    <ClCompile Include="proto\onnx\core\ONNXOP.cc">
+      <Filter>proto\onnx\core</Filter>
     </ClCompile>
-    <ClCompile Include="proto\onnx\ONNXUtils.cc">
-      <Filter>proto\onnx</Filter>
+    <ClCompile Include="proto\onnx\core\ONNXStatus.cc">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\ONNXUtils.cc">
+      <Filter>proto\onnx\core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -93,17 +96,20 @@
     <ClInclude Include="Variable.h" />
     <ClInclude Include="UserFunctionFactory.h" />
     <ClInclude Include="UserDefinedFunction.h" />
-    <ClInclude Include="proto\onnx\ONNXGraph.h">
+    <ClInclude Include="proto\onnx\CNTKToONNX.h">
       <Filter>proto\onnx</Filter>
     </ClInclude>
-    <ClInclude Include="proto\onnx\ONNXOP.h">
-      <Filter>proto\onnx</Filter>
+    <ClInclude Include="proto\onnx\core\ONNXGraph.h">
+      <Filter>proto\onnx\core</Filter>
     </ClInclude>
-    <ClInclude Include="proto\onnx\ONNXStatus.h">
-      <Filter>proto\onnx</Filter>
+    <ClInclude Include="proto\onnx\core\ONNXOP.h">
+      <Filter>proto\onnx\core</Filter>
     </ClInclude>
-    <ClInclude Include="proto\onnx\ONNXUtils.h">
-      <Filter>proto\onnx</Filter>
+    <ClInclude Include="proto\onnx\core\ONNXStatus.h">
+      <Filter>proto\onnx\core</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\core\ONNXUtils.h">
+      <Filter>proto\onnx\core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -121,6 +127,9 @@
     </Filter>
     <Filter Include="proto\onnx\protobuf">
       <UniqueIdentifier>{77b30c82-208d-4c0d-825c-9b0eda61caa6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="proto\onnx\core">
+      <UniqueIdentifier>{ac45f7f4-5f65-40d4-9163-46580266ae16}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
