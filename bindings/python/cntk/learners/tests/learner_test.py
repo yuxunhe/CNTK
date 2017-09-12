@@ -212,6 +212,14 @@ def test_learner_init():
     #test new API: learning_parameter_schedule
 
     #explictly specify reference minibatch size and learning rate is in number:
+    learner = sgd(res.parameters, lr=0.1, minibatch_size = C.learners.IGNORE)
+    assert learner.is_compatible_mode() == True
+    assert learner.minibatch_size == C.learners.IGNORE #the learner's reference minibatch
+    #with direct learner learning rate number specification, the learning rate schedule get the reference minibatch size from the learner parameters:
+    assert learner._learning_rate_schedule.minibatch_size == C.learners.IGNORE
+    assert learner.learning_rate() == 0.1
+
+    #explictly specify reference minibatch size and learning rate is in number:
     learner = sgd(res.parameters, lr=0.1, minibatch_size = 25)
     assert learner.is_compatible_mode() == False
     assert learner.minibatch_size == 25 #the learner's reference minibatch
