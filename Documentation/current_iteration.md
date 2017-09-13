@@ -15,7 +15,7 @@ We have added HTML versions of the tutorials and manuals with the Python documen
 ### 16bit support for training on Volta GPU (limited functionality)
 ### Update learner interface to simplify parameter setting and adding new learners
 
-This update simplifies the learner APIs and deprecates the concepts of unitType.minibatch and UnitType.sample. The purpose of this update is to make the API intuitive to specify the learner hyper-parameters while preserving the unique model update techniques in CNTK --- the mean gradients of every $N$ samples contributes approximately the same to the model updates regardless of the actual data minibatch sizes. Detailed explanation can be found at the manual on [How to Use CNTK Learners](https://github.com/Microsoft/CNTK/blob/master/Manual/Manual_How_to_use_learners.ipynb).
+This update simplifies the learner APIs and deprecates the concepts of unitType.minibatch and UnitType.sample. The purpose of this update is to make the API intuitive to specify the learner hyper-parameters while preserving the unique model update techniques in CNTK --- the mean gradients of every N samples contributes approximately the same to the model updates regardless of the actual data minibatch sizes. Detailed explanation can be found at the manual on [How to Use CNTK Learners](https://github.com/Microsoft/CNTK/blob/master/Manual/Manual_How_to_use_learners.ipynb).
 
 In the new API, all supporting learners, including [AdaDelta](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.adadelta),
 [AdaGrad](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.adagrad),
@@ -41,7 +41,7 @@ Two major changes are as follows:
 [MomentumSGD](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.momentum_sgd),
 [Nesterov](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.nesterov),  where such hyper-parameters are required.
 
-- minibatch_size: a minibatch_size can be specified to guarantee that the mean gradient of every $N$ (minibatch_size=$N$) samples contribute to the model updates with the same learning rate even if the actual minibatch size of the data is different from $N$. This is useful when  the data minibatch size varies, especially in scenarios of training with variable length sequences, and/or uneven data partition in distributed training. 
+- minibatch_size: a minibatch_size can be specified to guarantee that the mean gradient of every N (minibatch_size=N) samples contribute to the model updates with the same learning rate even if the actual minibatch size of the data is different from N. This is useful when  the data minibatch size varies, especially in scenarios of training with variable length sequences, and/or uneven data partition in distributed training. 
     * If we set `minibatch_size=cntk.learners.IGNORE`, then we recover the behavior in the literature: The mean gradient of the whole minibatch contributes to the model update with the same learning rate. The behavior of ignoring the data minibatch data size is the same as specifying a minibatch size for the learner when the data minibatch size equals to the specified minibatch size.
 
 With the new API, 
@@ -49,7 +49,7 @@ With the new API,
 ```python
 sgd_learner_m = C.sgd(z.parameters, lr = 0.5, minibatch_size = C.learners.IGNORE)
 ```
-- to enable CNTK specific techniques which apply the same learning rate to the mean gradient of every $N$ samples regardless of the actual minibatch sizes, we can specify the learner by setting `minibatch_size=N`, e.g. setting `minibatch_size=2`,
+- to enable CNTK specific techniques which apply the same learning rate to the mean gradient of every N samples regardless of the actual minibatch sizes, we can specify the learner by setting `minibatch_size=N`, e.g. setting `minibatch_size=2`,
 ```python
 sgd_learner_s2 = C.sgd(z.parameters, lr = 0.5, minibatch_size = 2)
 ```
