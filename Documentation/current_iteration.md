@@ -45,7 +45,7 @@ Two major changes are as follows:
     * If we set `minibatch_size=cntk.learners.IGNORE`, then we recover the behavior in the literature: The mean gradient of the whole minibatch contributes to the model update with the same learning rate. The behavior of ignoring the data minibatch data size is the same as specifying a minibatch size for the learner when the data minibatch size equals to the specified minibatch size.
 
 With the new API, 
-- to have model updates in the manner as in the classic deep learning literature, we can specify the learner by setting `minibatch_size=cntk.learners.IGNORE` to ignore the minibatch size when applying the learning hyper-parameters, e.g.
+- to have model updates in the same manner as in the classic deep learning literature, we can specify the learner by setting `minibatch_size=cntk.learners.IGNORE` to ignore the minibatch size, e.g.
 ```python
 sgd_learner_m = C.sgd(z.parameters, lr = 0.5, minibatch_size = C.learners.IGNORE)
 ```
@@ -60,8 +60,6 @@ Regarding the momentum schedule [momentum_schedule](https://cntk.ai/pythondocs/c
 and [Nesterov](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.nesterov), it can be specified in a similar way.
  Let's use `momentum_sgd` as an example:
 - `momentum_sgd(parameters, lr=float or list of floats, momentum=float or list of floats, minibatch_size=C.learners.IGNORE, epoch_size=epoch_size)`
-
-    * or simply: `momentum_sgd(parameters, lr=float or list of floats, momentum=float or list of floats, epoch_size=epoch_size)` where minibatch_size=C.learners.IGNORE is the default
     
 - `momentum_sgd(parameters, lr=float or list of floats, momentum=float or list of floats, minibatch_size=minibatch_size, epoch_size=epoch_size)`
 
