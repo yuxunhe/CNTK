@@ -36,7 +36,7 @@ namespace CNTK
     ///
     /// A special value that can be used for the minibatchSize to indicate that the reference minibatch size is not specified.
     ///
-    CNTK_API const size_t Learner::UnspecifiedMinibatchSize = TrainingParameterSchedule<double>::UnspecifiedMinibatchSize;
+    CNTK_API const size_t Learner::IgnoredMinibatchSize = TrainingParameterSchedule<double>::IgnoredMinibatchSize;
 
   
     // This method completely replaces the current schedule with the new schedule. However, since
@@ -55,11 +55,6 @@ namespace CNTK
         {
             m_learningRateSchedule.m_schedule[currentCount + kv.first] = kv.second;
         }
-        if (IsCompatibleMode() && !IsCompatibleMode(m_learningRateSchedule))
-        {
-            LogicError("Invalid parameter combination: The learner is set to ignore minibatch sizes (computing mean gradients) but the learning rate schedule is not set to ignore minibatch sizes.");
-        }
-
     }
 
     template <typename ElementType>
@@ -220,11 +215,6 @@ namespace CNTK
 
         if (uniqueParameters.size() != parameters.size())
             InvalidArgument("Learner's parameters list must not contain duplicates.");
-
-        if (IsCompatibleMode() && !IsCompatibleMode(m_learningRateSchedule))
-        {
-            LogicError("Invalid parameter combination: The learner is set to ignore minibatch sizes (computing mean gradients) but the learning rate schedule is not set to ignore minibatch sizes.");
-        }
 
         if (allocateSmoothGradients)
         {
