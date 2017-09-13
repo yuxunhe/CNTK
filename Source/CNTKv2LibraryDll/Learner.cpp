@@ -55,6 +55,11 @@ namespace CNTK
         {
             m_learningRateSchedule.m_schedule[currentCount + kv.first] = kv.second;
         }
+        if (IsCompatibleMode() && !IsCompatibleMode(m_learningRateSchedule))
+        {
+            LogicError("Invalid parameter combination: The learner is set to ignore minibatch sizes (computing mean gradients) but the learning rate schedule is not set to ignore minibatch sizes.");
+        }
+
     }
 
     template <typename ElementType>
@@ -215,6 +220,11 @@ namespace CNTK
 
         if (uniqueParameters.size() != parameters.size())
             InvalidArgument("Learner's parameters list must not contain duplicates.");
+
+        if (IsCompatibleMode() && !IsCompatibleMode(m_learningRateSchedule))
+        {
+            LogicError("Invalid parameter combination: The learner is set to ignore minibatch sizes (computing mean gradients) but the learning rate schedule is not set to ignore minibatch sizes.");
+        }
 
         if (allocateSmoothGradients)
         {
