@@ -54,32 +54,6 @@ sgd_learner_m = C.sgd(z.parameters, lr = 0.5, minibatch_size = C.learners.IGNORE
 sgd_learner_s2 = C.sgd(z.parameters, lr = 0.5, minibatch_size = 2)
 ```
 
-Let's examine the update behaviors of above two examples in details. `sgd_learner_m` is specified to apply the learning rate $0.5$ over the whole minibatch and `sgd_learner_s2` is specified to apply the same learning rate $0.5$ over every $2$ samples. Assume the model has gradients $1$ at all data points (i.e. the mean gradient is also $1$). When the data minibatch size is also $2$, both `sgd_learner_m` and `sgd_leaner_s2` will result in the same model updates:
-```
- [ array([[-0.5, -0.5],
-       [-0.5, -0.5],
-       [-0.5, -0.5],
-       [-0.5, -0.5]], dtype=float32),
-   array([-0.5, -0.5], dtype=float32),
-   array([[-0.5, -0.5, -0.5, -0.5],
-       [-0.5, -0.5, -0.5, -0.5],
-       [-0.5, -0.5, -0.5, -0.5]], dtype=float32),
-   array([-0.5, -0.5, -0.5, -0.5], dtype=float32)]
-```
-When we encounter a minibatch of size $10$, the update of `sgd_learner_m` is the same as the above. However, `sgd_learner_s2` will have much more aggressive updates: 
-```
- [array([[-2.5, -2.5],
-       [-2.5, -2.5],
-       [-2.5, -2.5],
-       [-2.5, -2.5]], dtype=float32),
-  array([-2.5, -2.5], dtype=float32),
-  array([[-2.5, -2.5, -2.5, -2.5],
-       [-2.5, -2.5, -2.5, -2.5],
-       [-2.5, -2.5, -2.5, -2.5]], dtype=float32),
-  array([-2.5, -2.5, -2.5, -2.5], dtype=float32)]
-```
-In the above, `sgd_learner_s2` updates the model with $10 / 2 = 5$ times the mean gradient (which is $1$ ) with the specified learning rate $0.5$. This results in an aggressive update by a magnitude of $2.5= 5 \times 0.5$. Such a property is useful to update a model function whose loss function, when being evaluated at the current parameters, is locally linear within a ball of a diameter of $r\frac{M}{N}$ (where $r$ and $N$ is the learning rate and the minibatch size specified for the learner respectively, and $M$ is the actual minibatch size). If we have an actual minibatch size $M > N$, this property allows us to increase the speed of updates aggressively; if $M < N$, this property requires us to scale down the learning rate to increase the chance of convergence. This property is particularly useful in the application scenarios of variable data minibatch sizes. Please find more discussion at [How to Use CNTK Learners](https://github.com/Microsoft/CNTK/blob/master/Manual/Manual_How_to_use_learners.ipynb).
-
 Regarding the momentum schedule [momentum_schedule](https://cntk.ai/pythondocs/cntk.learners.html?highlight=learning_rate_schedule#cntk.learners.momentum_schedule) of the learners [FSAdaGrad](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.fsadagrad),
 [Adam](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.adam),
 [MomentumSGD](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.momentum_sgd),
@@ -93,9 +67,9 @@ and [Nesterov](https://cntk.ai/pythondocs/cntk.learners.html#cntk.learners.neste
 
 Similar to `learning_rate_schedule`, the arguments are interpreted in the same way:
 
-- With minibatch_size=C.learners.IGNORE, the decay momentum=$\beta$ is applied to the mean gradient of the whole minibatch regardless of its size. For example, regardless of the minibatch size either be $N$ or $2N$ (or any size), the mean gradient of such a minibatch will have same decay factor $\beta$.
+- With minibatch_size=C.learners.IGNORE, the decay momentum=beta is applied to the mean gradient of the whole minibatch regardless of its size. For example, regardless of the minibatch size either be N or 2N (or any size), the mean gradient of such a minibatch will have same decay factor beta.
 
-- With minibatch_size=N, the decay $momentum=\beta$ is applied to the mean gradient of every $N$ samples. For example,  minibatches of sizes $N$, $2N$, $3N$ and $k\cdot N$ will have decays of $\beta$, $\beta^2$, $\beta^3$ and $\beta^k$ respectively --- the decay is exponential in the proportion of the actual minibatch size to the designed minibatch size. 
+- With minibatch_size=N, the decay momentum=beta is applied to the mean gradient of every N samples. For example,  minibatches of sizes N, 2N, 3N and kN will have decays of beta, pow(beta, 2), pow(beta, 3) and pow(beta, k) respectively --- the decay is exponential in the proportion of the actual minibatch size to the specified minibatch size. 
  
 
 ### A C#/.NET API that enables people to build and train networks. 
