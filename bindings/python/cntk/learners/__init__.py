@@ -154,7 +154,7 @@ class Learner(cntk_py.Learner):
         _verify_learning_rate_type(learning_rate)
         if not learning_rate.is_minibatch_size_explicitly_specified:
             #If the schedule minibatch size is not explicitly specified, the learner's specification will take over
-            if self.minibatch_size is not None and self.minibatch_size != self.unspecified_minibatch_size:
+            if self.minibatch_size is not None and self.minibatch_size != self.ignored_minibatch_size:
                 learning_rate.minibatch_size = self.minibatch_size
         return super(Learner, self).reset_learning_rate(learning_rate)
 
@@ -164,7 +164,7 @@ class Learner(cntk_py.Learner):
         '''
         return super(Learner, self).learning_rate()
 
-IGNORE = Learner.unspecified_minibatch_size
+IGNORE = Learner.ignored_minibatch_size
 '''
 Indicate that the minibatch size is ignored in learning's hyper-parameter schedule.
 '''
@@ -288,7 +288,7 @@ def training_parameter_schedule(schedule, unit=UnitType.minibatch, epoch_size=No
     if unit == UnitType.sample:
         ref_minibatch_size = 1
     else: # unit == UnitType.minibatch
-        ref_minibatch_size = cntk_py.training_double_parameter_schedule.unspecified_minibatch_size
+        ref_minibatch_size = cntk_py.training_double_parameter_schedule.ignored_minibatch_size
 
     if isinstance(schedule, cntk_py.training_double_parameter_schedule):
         schedule.is_minibatch_size_explicitly_specified = True #legacy learning parameter always have the specification
@@ -327,7 +327,7 @@ def learning_parameter_schedule(schedule, minibatch_size=None, epoch_size=None):
          (``epoch_size`` * num_epoch_i)-th sample (taking num_epoch_0 = 0 as a special initialization).
         minibatch_size (int): an integer to specify the reference minibatch size that schedule are designed for; 
          CNTK will scale the schedule internally so as to simulate the behavior of the schedule as much as possible
-         to match the designed effect. If it is not specified, CNTK will set to the special value cntk.learners.unspecified_minibatch_size.
+         to match the designed effect. If it is not specified, CNTK will set to the special value cntk.learners.ignored_minibatch_size.
         epoch_size (optional, int): number of samples as a scheduling unit.
          Parameters in the schedule change their values every ``epoch_size``
          samples. If no ``epoch_size`` is provided, this parameter is substituted
@@ -514,17 +514,17 @@ def _infer_ref_minibatch_size_from_legacy_use_mean_gradient(ref_minibatch_size, 
         #if ref_minibatch_size and the legacy use_mean_gradient are neither specified
         return None
     if ref_minibatch_size is not None:
-        if use_mean_gradient == True and ref_minibatch_size != cntk_py.Learner.unspecified_minibatch_size:
+        if use_mean_gradient == True and ref_minibatch_size != cntk_py.Learner.ignored_minibatch_size:
             Warning(
                 'Learner reference minibatch size is specified while use_mean_gradient (depreated option) is specified to True. Learner reference minibatch size will override the mean gradient behavior')
         #if the ref_minibatch_size is specified, it overrides the legacay use_mean_gradient specification
         return ref_minibatch_size
     elif use_mean_gradient is not None:
         #if the ref_minibatch_size is NOT specified, the legacay use_mean_gradient specification take in the effect
-        return cntk_py.Learner.unspecified_minibatch_size if use_mean_gradient is True else None
+        return cntk_py.Learner.ignored_minibatch_size if use_mean_gradient is True else None
     return None
 
-def _infer_learning_parameter_schedule(number_or_schedule, ref_minibatch_size, epoch_size):
+def _infer_learning_parameter_schedule(number_or_schedule, ref_minibatch_size, epoch_size, use_mean_gradient=None):
     #the input is a number, create a new training parameter
     if isinstance(number_or_schedule, (int, float)) or \
             (isinstance(number_or_schedule, list) and all(isinstance(r, (int, float, tuple)) for r in number_or_schedule)):
@@ -538,6 +538,11 @@ def _infer_learning_parameter_schedule(number_or_schedule, ref_minibatch_size, e
         if not number_or_schedule.is_minibatch_size_explicitly_specified and ref_minibatch_size is not None:
             #If the schedule minibatch size is not explicitly specified, the learner's specification will take over
             number_or_schedule.minibatch_size = ref_minibatch_size
+        #for backward compatibility: use_mean_gradient = True and lr.unit = UnitType.sample
+        #this combination was there to avoid the double-scaling of gradients when the gradients are already mean gradients
+        if use_mean_gradient and number_or_schedule.minibatch_size == 1:
+            #override the learning rate's minibatch_size to IGNORE
+            number_or_schedule.minibatch_size = IGNORE
         return number_or_schedule
     else:
         raise ValueError('training parameter schedule type (%s) not supported. '
@@ -549,7 +554,7 @@ def _infer_learning_rate_schedule_and_ref_minibatch_size(use_mean_gradient, ref_
     #if non-None reference_minibatch_size will take precedence otherwise according use_mean_gradient if it is True
     ref_minibatch_size = _infer_ref_minibatch_size_from_legacy_use_mean_gradient(ref_minibatch_size, use_mean_gradient)
     #if minibatch_size is not None, any schedules that are with unspecified reference minibatch size will be overrided.
-    schedule = _infer_learning_parameter_schedule(schedule, ref_minibatch_size, epoch_size)
+    schedule = _infer_learning_parameter_schedule(schedule, ref_minibatch_size, epoch_size, use_mean_gradient)
     _verify_learning_rate_type(schedule)
     return schedule, ref_minibatch_size
 
