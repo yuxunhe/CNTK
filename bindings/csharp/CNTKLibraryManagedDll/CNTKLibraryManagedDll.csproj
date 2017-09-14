@@ -71,6 +71,7 @@
     <Compile Include="ShimApiClasses\VariableShim.cs" />
     <Compile Include="SwigProxyClasses\AdditionalLearningOptions.cs" />
     <Compile Include="SwigProxyClasses\CNTKDictionary.cs" />
+    <Compile Include="SwigProxyClasses\DataUnit.cs" />
     <Compile Include="SwigProxyClasses\DictionaryValue.cs" />
     <Compile Include="SwigProxyClasses\DictionaryVector.cs" />
     <Compile Include="SwigProxyClasses\IntVector.cs" />
