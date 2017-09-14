@@ -969,23 +969,13 @@ namespace CNTK
             LOGPRINTF(stderr, "\t\tMath lib: %s\n", _MATHLIB_);
 #endif
 #ifdef _CUDA_PATH_
-            LOGPRINTF(stderr, "\t\tCUDA_PATH: %s\n", _CUDA_PATH_);
-#endif
-#ifdef _CUB_PATH_
-            LOGPRINTF(stderr, "\t\tCUB_PATH: %s\n", _CUB_PATH_);
-#endif
-#ifdef _CUDNN_PATH_
-            LOGPRINTF(stderr, "\t\tCUDNN_PATH: %s\n", _CUDNN_PATH_);
+            int cuda_version = 0;
+            if (cudaDriverGetVersion(&cuda_version) == cudaSuccess)
+                LOGPRINTF(stderr, "\t\tCUDA DRIVER VERSION: %d\n", cuda_version);
 #endif
 #ifdef _GIT_EXIST
             LOGPRINTF(stderr, "\t\tBuild Branch: %s\n", _BUILDBRANCH_);
             LOGPRINTF(stderr, "\t\tBuild SHA1: %s\n", _BUILDSHA1_);
-#endif
-#ifdef _BUILDER_
-            LOGPRINTF(stderr, "\t\tBuilt by %s on %s\n", _BUILDER_, _BUILDMACHINE_);
-#endif
-#ifdef _BUILDPATH_
-            LOGPRINTF(stderr, "\t\tBuild Path: %s\n", _BUILDPATH_);
 #endif
 #ifdef _MPI_NAME_
             LOGPRINTF(stderr, "\t\tMPI distribution: %s\n", _MPI_NAME_);
