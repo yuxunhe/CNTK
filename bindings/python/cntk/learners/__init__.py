@@ -543,6 +543,8 @@ def _infer_learning_parameter_schedule(number_or_schedule, ref_minibatch_size, e
         if use_mean_gradient and number_or_schedule.minibatch_size == 1:
             #override the learning rate's minibatch_size to IGNORE
             number_or_schedule.minibatch_size = IGNORE
+            Warning('use_mean_gradient=True and learning_rate_schedule.unit=UnitType.sample is a deprecated combination. '
+                    'Please use the new learner APIs: see https://www.cntk.ai/pythondocs/cntk.learners.html for details.')
         return number_or_schedule
     else:
         raise ValueError('training parameter schedule type (%s) not supported. '
