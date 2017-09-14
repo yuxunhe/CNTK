@@ -69,6 +69,7 @@ namespace
             { { classifier.features, featureStreamInfo }, { classifier.labels, labelStreamInfo } },
             std::numeric_limits<size_t>::max(),
             std::numeric_limits<size_t>::max(),
+            DataUnit::Sample,
             CheckpointConfig(L"test", checkpointFrequency, DataUnit::Sample, false));
 
         session->Train(device);
