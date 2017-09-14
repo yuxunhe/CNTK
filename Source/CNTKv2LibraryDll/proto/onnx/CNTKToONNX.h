@@ -17,6 +17,7 @@ namespace CNTK
 {
     class CNTKToONNX
     {
+    public:
         static std::unique_ptr<CommonIR::Graph> CreateGraph(const FunctionPtr& src);
     };
 }
