@@ -1,74 +1,117 @@
 syntax = "proto2";
 
-package CommonIR;
+package LotusIR;
 
-import "Type.proto";
+// A message defined to store a dense tensor in its serialized format.
+message TensorProto {
+  // The primitive data type.
+  enum DataType {
+    UNDEFINED = 0;
+    // Basic types.
+    FLOAT = 1;   // float
+    UINT8 = 2;   // uint8_t
+    INT8 = 3;    // int8_t
+    UINT16 = 4;  // uint16_t
+    INT16 = 5;   // int16_t
+    INT32 = 6;   // int32_t
+    INT64 = 7;   // int64_t
+    STRING = 8;  // string
+    BOOL = 9;    // bool
+
+    // Advanced types
+    FLOAT16 = 10; // float_16
+    DOUBLE = 11;  // double
+
+    // Future extensions go here.
+  }
+
+  // The shape of the tensor.
+  repeated int64 dims = 1;
+
+  // The data type of the tensor.
+  optional DataType data_type = 2;
+
+  // For very large tensors, we may want to store them in chunks, in which
+  // case the following fields will specify the segment that is stored in
+  // the current TensorProto. Begin and end specify a chunk in terms of byte
+  // offsets (inclusive) into the complete tensor. 
+  message Segment {
+    optional int64 begin = 1;
+    optional int64 end = 2;
+  }
+  optional Segment segment = 3;
+
+  // Tensor content must be in the row major order.
+  // For float
+  repeated float float_data = 4 [packed = true];
+
+  // For int32, uint8, int8, uint16, int16, bool, and float16
+  // Note about float16: in storage we will basically convert float16 byte-wise
+  // to unsigned short and then store them in the int32_data field.
+  repeated int32 int32_data = 5 [packed = true];
+
+  // For strings.
+  repeated bytes string_data = 6;
+
+  // For int64.
+  repeated int64 int64_data = 7 [packed = true];
+
+  // Optionally, a name for the tensor.
+  optional string name = 8; // namespace Tensor
+
+  // Serializations can either use one of the fields above, or use this
+  // raw bytes field. The only exception is the string case, where one is
+  // required to store the content in the repeated bytes string_data field.
+  //
+  // When this raw_data field is used to store tensor value, it is expected
+  // to use the little-endian order. For floating data types, they should
+  // be of the IEEE 754 format. Boolean type is stored as bytes.
+  //
+  // Note: the advantage of specific field rather than the raw_data field is
+  // that in some cases (e.g. int data), protobuf does a better packing via
+  // variable length storage, and may lead to smaller binary footprint.
+  optional bytes raw_data = 9;
+
+  // For double
+  repeated double double_data = 10 [packed = true];
+
+  // Future extensions go here.
+}
+
+// Defines a sparse tensor in its serialized format.
+// A sparse tensor must be stored as three dense tensors:
+//  1. dims: The shape of the original dense tensor.
+//  2. indices: A 2-D tensor specifying the indices of the nonzero elements.
+//  3. values: A 1-D tensor containing the values of the nonzero elements.
+message SparseTensorProto {
+  // The dimensions in the tensor.
+  repeated int64 dims = 1;
+  optional TensorProto indices = 2;
+  optional TensorProto values = 3;
+}
 
 message DataProto {
-  // Defines a dense tensor in its serialized format.
-  message DenseTensorProto {
-    // The dimensions in the tensor.
-    repeated int64 dims = 1;
-
-    // The type of the tensor.
-    optional TypeProto.DataType data_type = 2 [default = FLOAT16];
-
-    // For float and double
-    repeated float float_data = 3 [packed = true];
-    repeated double double_data = 4 [packed = true];
-
-    // For int32, uint8, int8, uint16, int16, bool, and float16
-    // Note about float16: in storage we will basically convert float16
-    // byte-wise to unsigned short and then store them in the int32_data
-    // field.
-    repeated int32 int32_data = 5 [packed = true];
-
-    // For strings
-    repeated bytes string_data = 6;
-
-    // For int64
-    repeated int64 int64_data = 7 [packed = true];
-
-    // Optionally, a name for the tensor.
-    optional string name = 8;
-
-    // For very large tensors, we may want to store them in chunks, in
-    // which case the following fields will specify the segment that is
-    // stored in the current TensorProto.
-    message Segment {
-      optional int64 begin = 1;
-      optional int64 end = 2;
-    }
-    optional Segment segment = 9;
-  };
-
-  // Defines a sparse tensor in its serialized format.
-  message SparseTensorProto {
-    optional DenseTensorProto values = 1;
-    optional DenseTensorProto indices = 2;
-    optional DenseTensorProto shape = 3;    
-  };
-
   // Defines a handle in its serialized format.
   message HandleProto {
     optional int64 uid = 1;
 
-    // TBD: More information to be added.
-  };
+    // More information to be added. We need to specify the device
+    // that the resource managed by the handle is on.
+  }
 
   // Defines a tuple in its serialized format.
   message TupleProto {
     repeated DataProto elems = 1;
-  };
+  }
 
   // Defines a sequence in its serialized format.
   message SequenceProto {
     repeated DataProto elems = 1;
-  };
+  }
 
   oneof value {
     // A dense tensor.
-    DenseTensorProto dense_tensor = 1;
+    TensorProto dense_tensor = 1;
 
     // A sparse tensor.
     SparseTensorProto sparse_tensor = 2;  
@@ -82,4 +125,4 @@ message DataProto {
     // A sequence.
     SequenceProto seq = 5;
   }
-};
+}

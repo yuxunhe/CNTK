@@ -1,52 +1,114 @@
 syntax = "proto2";
 
-package CommonIR;
+package LotusIR;
 
-import "Data.proto";
-import "Type.proto";
-import "TensorShape.proto";
+import "core/protobuf/Data.proto";
+import "core/protobuf/Type.proto";
+import "core/protobuf/TensorShape.proto";
 
-// Defines a computation graph.
-// `run(graph, fetches, feed_dict)` executes the subgraph of the graph
-// `node` defined by the feeding and fetching tensors.
+// Note [Protobuf compatibility]
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Based on experience working with downstream vendors, we generally can't
+// assume recent versions of protobufs. This means that we do not use any
+// protobuf features that are only available in proto3.
+
+// Note [Namespaces]
+// ~~~~~~~~~~~~~~~~~
+// LotusIR gives explicit names to graphs, intermediate values and
+// serialized tensors.  To make it easier to generate names, we organize
+// these into separate namespaces (so, e.g., a graph can have the same
+// name as a serialized tensor.)  The namespaces are as follows:
+//
+// - Node: These names identify specific nodes in the graph (but not,
+//   necessarily any particular input or output of the node.
+// - Graph: These names identify graphs in the protobuf.
+// - Attribute: These names identify attribute names for extra attributes
+//   that are passed to operators.
+// - Operator and functions: These names identify particular operators and
+//   functions.
+// - Tensor: These names identify intermediate tensor values flowing through
+//   the computation of a graph.
+// - Shape: These names represent parameters for unknown shape dimensions.
+//
+// We specify the namespace of a name in LotusIR as comments in the form
+// of "namespace {Node,Graph,Attribute,Tensor,Shape}". Framework is
+// responsible for supporting the namespaces.
+
+// Defines argument information set, except argument name.
+// The argument could be an input or an output of a graph, node or function.
+message ArgInfoProto {
+    optional TypeProto type = 1;
+    optional TensorShapeProto shape = 2;
+}
+
+// Defines a directed acyclic computation graph.
+// All the input/output tensors are explicitly named so a framework can
+// run any subgraph of the graph by feeding and fetching the named tensors.
 message GraphProto {
-  // The version helps us to set up version control. We should use version as
-  //     xx(major) - xx(minor) - xxxx(bugfix)
-  // and we are starting with 00000001.
-  optional int64 version = 1 [ default = 00000002];
-
-  // The computation nodes. A node is either an operator or a function call.
-  repeated NodeProto node = 2;
+  // The nodes in the graph.
+  repeated NodeProto node = 1;
 
   // The name of the graph.
-  optional string name = 3;
+  optional string name = 2;   // namespace Graph
 
-  // Model parameters: current weights and biases for the model.
-  map<string, DataProto.DenseTensorProto> params = 4;
+  // The inputs and outputs of the graph. The list input must be input names
+  // of some nodes in the graph. The list output must be output names of some
+  // nodes in the graph. For names in input that are not in initializer, their
+  // types and shapes are required.
+  repeated string input = 3;  // namespace Tensor
+  repeated string output = 4; // namespace Tensor
 
-  // The function definitions of the graph. They can only be used
-  // (i.e., called) in the graph defined by `node`.
-  repeated FunctionDefProto function = 5;
+  // An optional list of initial values for tensors in the list of input above.
+  // Used to pass serialized parameters for networks.
+  // Each entry specifies a value for the input whose TensorProto.name matches
+  // a name in the input. This list is a subset of input since many tensors
+  // might not have initial values.
+  repeated TensorProto initializer = 5;
 
-  // Namespace of the graph. Required.
+  // The version of the IR this graph targets. See Version enum below.
+  optional int64 ir_version = 6;
+
+  // The version of the framework runtime that generates this graph.
+  // This producer_version has the same format as ir_version. 
+  optional int64 producer_version = 7;
+
+  // The name of the framework used to generate this graph in the form
+  // "framework_name[-tag]". Tag is optional and provides additional
+  // information such as `alpha` or `beta` or `rc3`.
+  optional string producer_tag = 8;
+
+  // Domain of the graph.
   // We use reverse domain names as name space indicators. For example:
   // `com.facebook.fair` or `com.microsoft.cognitiveservices`
   //
-  // Together with `name` and `version`, this forms the identity of the graph
-  optional string namespace = 6;
-
-  // Version of the IR this graph targets. Required.
-  optional string ir_version = 7;
+  // Together with `name` and `version`, this forms the unique identity of
+  // the graph.
+  optional string domain = 9;
 
   // A human-readable documentation for this graph.
-  optional string documentation = 8;
+  optional string doc_string = 10;
 
-  // Optional, user-defined metadata
-  map<string,string> metadata = 9;
+  // The function definitions of the graph. They can only only be used
+  // (i.e., called) in this graph.
+  repeated FunctionDefProto function = 11;
 
-  reserved 100 to 200; // for future required metadata
+  // Argument information for input/output of this graph.
+  repeated ArgInfoProto input_arg_info = 12;
+  repeated ArgInfoProto output_arg_info = 13;
+  
+  reserved 100 to 200; // for future extensions.
+}
 
-};
+// To be compatible with both proto2 and proto3, we will use a version number
+// that is not defined by the default value but an explicit enum number.
+enum Version {
+  // The version field is always serialized and we will use it to store the
+  // version that the  graph is generated from. This helps us set up version
+  // control. We should use version as
+  //     xx(major) - xx(minor) - xxxx(bugfix)
+  // and we are starting with 00000001.
+  IR_VERSION = 00000001;
+}
 
 // Defines a node in a computation graph. Each graph node is either an
 // operator or a function call.
@@ -71,42 +133,42 @@ message GraphProto {
 // where new_vars are the new values of the loop variables after one
 // iteration so must match vars in terms of types and shapes.
 message NodeProto {
-  message InputOutputProto {
-    optional string name = 1;
-    optional TypeProto type = 2;    
-    optional TensorShapeProto shape = 3;
-  };  
-  message InputListProto {
-    repeated InputOutputProto input = 1;
-  };
 
-  // The name of the node.
-  optional string name = 1;
+  // The named inputs of the node.
+  repeated string input = 1;   // namespace Tensor
 
-  // The type of the operation invoked by the node.
-  optional string op_type = 2;
+  // The named outputs of the node.
+  repeated string output = 2;  // namespace Tensor
 
-  // The inputs to this node. A formal parameter of the op may take
-  // a variable number of inputs that is only known when this node
-  // is constructed. So one InputListProto per formal parameter.
-  repeated InputListProto input = 3;
+  // The name of this node.
+  optional string name = 3;    // namespace Node
 
-  // The outputs of this node. 
-  // NOTE: The outputs of a node is explicitly named.
-  repeated InputOutputProto output = 4;
+  // The name of the operator/function called by the node.
+  optional string op_type = 4; // namespace Operator
 
   // Additional named attributes.
-  repeated AttributeProto attr = 5;
+  repeated AttributeProto attribute = 5;
+
+  // A human-readable documentation for this graph.
+  optional string doc_string = 6;
+
+  // Information including type and shape for each input and output
+  // argument of the operator/function called by the node.
+  repeated ArgInfoProto input_arg_info = 7;
+  repeated ArgInfoProto output_arg_info = 8;
+
+  // The number of inputs for each argument of the operator/function.
+  // A formal parameter of the op may take a variable number of inputs
+  // that is only known when this node is constructed.
+  repeated int32 input_arg_count = 9;
 
   // Specify a list of nodes that must be executed before this node.
-  // Frameworks may want to give users the ability to add additional
+  // Framework may use this to give users the ability to impose additional
   // execution orders for the operations.
-  repeated string control_input = 6;
-};
+  repeated string control_input = 10;
+}
 
 // Defines a function.
-// InParam and OutParam are two built-in operators for function input
-// and output parameters respectively. 
 // A function is well-formed if
 //   - input_arg.name is the name of an InParam node in `node`.
 //   - output_arg.name is the name of an OutParam node in `node`.
@@ -131,23 +193,28 @@ message FunctionDefProto {
 
   // The named attributes of the function.
   repeated AttributeProto attr = 5;
-};
+}
 
+// A named attribute containing either singular float, integer, string
+// and tensor values, or repeated float, integer, string and tensor values.
 // An AttributeProto should contain the name field, and *only one* of the
 // following content fields, effectively enforcing a C/C++ union equivalent.
 message AttributeProto {
-  optional string name = 1;
-  optional float f = 2;
-  optional int64 i = 3;
-  optional bytes s = 4;
-  repeated float fs = 5;
-  repeated int64 is = 6;
-  repeated bytes ss = 7;
-  optional GraphProto graphs = 8;
-  optional DataProto d = 9;
-  repeated DataProto ds = 10;
-  optional TypeProto type = 11;
-  repeated TypeProto types = 12;
-  optional TensorShapeProto shape = 13;
-  repeated TensorShapeProto shapes = 14;
-};
+  optional string name = 1;           // namespace Attribute
+  optional float f = 2;               // float
+  optional int64 i = 3;               // int
+  optional bytes s = 4;               // UTF-8 string
+  optional TensorProto t = 5;         // tensor value
+  optional GraphProto g = 6;          // graph
+
+  repeated float floats = 7;          // list of floats 
+  repeated int64 ints = 8;            // list of ints
+  repeated bytes strings = 9;         // list of UTF-8 strings
+  repeated TensorProto tensors = 10;  // list of tensors
+  repeated GraphProto graphs = 11;    // list of graph
+
+  optional TypeProto type = 12;
+  repeated TypeProto types = 13;
+  optional TensorShapeProto shape = 14;
+  repeated TensorShapeProto shapes = 15;
+}

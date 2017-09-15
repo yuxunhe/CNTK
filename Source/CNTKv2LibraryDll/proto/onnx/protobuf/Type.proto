@@ -1,39 +1,17 @@
 syntax = "proto2";
 
-package CommonIR;
+package LotusIR;
 
+import "core/protobuf/Data.proto";
 
 // Defines the type system.
-// NOTE: As a minimal requirement, a framework must support tensor type.
 message TypeProto {
-  // The basic data type.
-  enum DataType {
-    UNDEFINED = 0;
-
-    // Basic types.
-    FLOAT = 1;  // float
-    DOUBLE = 2; // double
-    UINT8 = 3;  // uint8_t
-    INT8 = 4;  // int8_t
-    UINT16 = 5;  // uint16_t
-    INT16 = 6; // int16_t
-    INT32 = 7;  // int32_t
-    INT64 = 8;  // int64_t
-    STRING = 9;  // string
-    BOOL = 10;  // bool
-
-    // Advanced types
-    FLOAT16 = 11;
-
-    // TBD: More types to be added.
-  };
-
   message TensorTypeProto {
-    optional DataType elem_type = 1;
+    optional TensorProto.DataType elem_type = 1;
   }
 
   message SparseTensorTypeProto {
-    optional DataType elem_type = 1;
+    optional TensorProto.DataType elem_type = 1;
   }
 
   message HandleTypeProto {
@@ -54,8 +32,8 @@ message TypeProto {
     // The type of a sparse tensor.
     SparseTensorTypeProto sparse_tensor_type = 2;
 
-    // The type of a completely opaque handle. A handle typically represents
-    // a reference to a resource managed by the framework runtime.
+    // The type of an opaque handle. A handle is used to represent a
+    // reference to a resource managed by the framework runtime.
     HandleTypeProto handle_type = 3;
 
     // The type of a tuple.
@@ -64,4 +42,4 @@ message TypeProto {
     // The type of a sequence.
     SeqTypeProto seq_type = 5;
   }
-};
+}
