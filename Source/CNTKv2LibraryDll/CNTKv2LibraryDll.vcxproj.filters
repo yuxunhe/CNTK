@@ -64,6 +64,9 @@
     <ClCompile Include="proto\onnx\core\ONNXUtils.cc">
       <Filter>proto\onnx\core</Filter>
     </ClCompile>
+    <ClCompile Include="proto\onnx\ONNX.cpp">
+      <Filter>proto\onnx</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h" />
@@ -110,6 +113,9 @@
     </ClInclude>
     <ClInclude Include="proto\onnx\core\ONNXUtils.h">
       <Filter>proto\onnx\core</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\ONNX.h">
+      <Filter>proto\onnx</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -11,8 +11,7 @@
 #include "Utils.h"
 #include "UserFunctionFactory.h"
 #include "TrainingNodes.h"
-#include "./proto/onnx/core/ONNXGraph.h"
-#include "./proto/onnx/CNTKToONNX.h"
+#include "./proto/onnx/ONNX.h"
 
 using namespace Microsoft::MSR::CNTK;
 
@@ -485,7 +484,7 @@ namespace CNTK
 
             case ModelFormat::ONNX:
             {
-                std::unique_ptr<CommonIR::Graph> graph = CNTKToONNX::CreateGraph(RootFunction());
+                ONNX::Save(RootFunction(), filepath);
                 break;
             }
         }
