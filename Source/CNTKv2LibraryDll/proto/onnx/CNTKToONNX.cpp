@@ -48,8 +48,10 @@ CommonIR::TypeProto CNTKToONNXHelper::ToONNXType(DataType dataType)
     {
     case DataType::Float:
         type.mutable_tensor_type()->set_elem_type(CommonIR::TypeProto_DataType_FLOAT);
+        break;
     case DataType::Double:
         type.mutable_tensor_type()->set_elem_type(CommonIR::TypeProto_DataType_DOUBLE);
+        break;
     default:
         NOT_IMPLEMENTED;
     }
@@ -85,11 +87,15 @@ CommonIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
 
         for (const auto& input : src->Inputs())
         {
-            if (input.IsInput())
+            if (input.IsPlaceholder())
+                continue;
+
+            if (input.IsInput() || input.IsParameter() || input.IsConstant())
             {
                 CommonIR::NodeArg inputArg(ToString(input.Uid()),
                                            CNTKToONNXHelper::ToONNXType(input.GetDataType()),
                                            CNTKToONNXHelper::ToTensorShape(input.Shape()));
+
                 inputs.push_back(std::vector<CommonIR::NodeArg>({ inputArg }));
 
                 if (variableNodes.find(input) == variableNodes.end())
@@ -102,12 +108,8 @@ CommonIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                     variableNodes.emplace(input, variableNode);
                 }
             }
-
-            if (!input.IsPlaceholder())
-            {
-                if (input.IsOutput())
-                    CreateNode(input.Owner(), graph, functionNodes, variableNodes);
-            }
+            else if (input.IsOutput())
+                CreateNode(input.Owner(), graph, functionNodes, variableNodes);
         }
 
         functionNode = graph->AddNode(ToString(src->Uid()), ToString(src->OpName()), inputs, outputs);

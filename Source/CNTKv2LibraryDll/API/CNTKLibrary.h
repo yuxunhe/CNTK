@@ -2967,6 +2967,24 @@ namespace CNTK
     typedef std::shared_ptr<BackPropState> BackPropStatePtr;
 
     ///
+    /// List of supported disk formats for CNTK model.
+    ///
+    enum class ModelFormat
+    {
+        ///
+        /// Default CNTK version 2 format, support all CNTK features.
+        ///
+        CNTKv2,
+
+        ///
+        /// Open Neural Network Exchange format from https://github.com/onnx/onnx
+        /// ONNX support limited subset of CNTK.
+        ///
+        ONNX,
+    };
+
+
+    ///
     /// How are Parameters handled when cloning a Function
     ///
     enum class ParameterCloningMethod
@@ -3371,13 +3389,14 @@ namespace CNTK
         ///
         CNTK_API FunctionPtr ReplacePlaceholder(const Variable& placeholderReplacement);
 
+
         ///
         CNTK_API void Save(std::vector<char> &vectorBuf);
 
         ///
         /// Save this Function graph into a model file.
         ///
-        CNTK_API void Save(const std::wstring& filepath);
+        CNTK_API void Save(const std::wstring& filepath, ModelFormat format = ModelFormat::CNTKv2);
 
         ///
         /// Restore the models parameters (in-place) from a model file
@@ -3388,7 +3407,8 @@ namespace CNTK
         /// Load a Function from a model file
         ///
         CNTK_API static FunctionPtr Load(const std::wstring& filepath,
-                                         const DeviceDescriptor& computeDevice = DeviceDescriptor::UseDefaultDevice());
+                                         const DeviceDescriptor& computeDevice = DeviceDescriptor::UseDefaultDevice(),
+                                         ModelFormat format = ModelFormat::CNTKv2);
 
         ///
         /// Load a Function from a memory buffer

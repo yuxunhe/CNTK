@@ -11,6 +11,8 @@
 #include "Utils.h"
 #include "UserFunctionFactory.h"
 #include "TrainingNodes.h"
+#include "./proto/onnx/core/ONNXGraph.h"
+#include "./proto/onnx/CNTKToONNX.h"
 
 using namespace Microsoft::MSR::CNTK;
 
@@ -455,6 +457,7 @@ namespace CNTK
         Forward(arguments, outputs, computeDevice, {});
     }
 
+
     void Function::Save(std::vector<char> &vectorBuf)
     {
         Dictionary model = Serialize();
@@ -467,27 +470,52 @@ namespace CNTK
         vectorBuf.assign(s.begin(), s.end());
     }
 
-    void Function::Save(const std::wstring& filepath)
+    void Function::Save(const std::wstring& filepath, ModelFormat format)
     {
-        Dictionary model = Serialize();
-        auto stream = GetFstream(filepath, false);
-        *stream << model;
-        stream->flush();
+        switch (format)
+        {
+            case ModelFormat::CNTKv2:
+            {
+                Dictionary model = Serialize();
+                auto stream = GetFstream(filepath, false);
+                *stream << model;
+                stream->flush();
+                break;
+            }
+
+            case ModelFormat::ONNX:
+            {
+                std::unique_ptr<CommonIR::Graph> graph = CNTKToONNX::CreateGraph(RootFunction());
+                break;
+            }
+        }
     }
 
-    /*static*/ FunctionPtr Function::Load(const std::wstring& filepath, const DeviceDescriptor& computeDevice)
+    /*static*/ FunctionPtr Function::Load(const std::wstring& filepath, const DeviceDescriptor& computeDevice, ModelFormat format)
     {
-        auto stream = GetFstream(filepath, true);
-        if (!Internal::IsLegacyModel(*stream))
+        switch (format)
         {
-            Dictionary model;
-            *stream >> model;
-            return Function::Deserialize(model, computeDevice);
+            case ModelFormat::CNTKv2:
+            {
+                auto stream = GetFstream(filepath, true);
+                if (!Internal::IsLegacyModel(*stream))
+                {
+                    Dictionary model;
+                    *stream >> model;
+                    return Function::Deserialize(model, computeDevice);
+                }
+                else
+                {
+                    return Internal::LoadLegacyModel(filepath, computeDevice); // throw an exception if deserializer != nullptr?
+                }
+                break;
+            }
+
+            case ModelFormat::ONNX:
+                break;
         }
-        else
-        {
-            return Internal::LoadLegacyModel(filepath, computeDevice); // throw an exception if deserializer != nullptr?
-        }
+
+        return nullptr;
     }
 
     /*static*/ FunctionPtr Function::Load(const char *buffer, size_t length, const DeviceDescriptor& computeDevice)
