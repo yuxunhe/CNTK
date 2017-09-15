@@ -3,7 +3,7 @@
 
 #include <xstring>
 
-namespace CommonIR
+namespace LotusIR
 {
 
 #define RETURN_IF_ERROR(expr)           \
@@ -38,4 +38,4 @@ namespace CommonIR
     };
 }
 
-#endif // !COMMONIR_STATUS_H
+#endif // !CORE_GRAPH_STATUS_H

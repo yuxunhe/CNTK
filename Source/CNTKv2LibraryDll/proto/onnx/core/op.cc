@@ -1,16 +1,13 @@
-#pragma warning(push)
-#pragma warning(disable : 4800 4610 4512 4510 4267 4127 4125 4100 4456)
+#include "op.h"
 
-#include "ONNXOP.h"
-
-namespace CommonIR
+namespace LotusIR
 {
     InferenceContext::InferenceContext(const Node* p_node,
-        const OperatorRegistry* p_opRegistry,
+        const OperatorSchema* p_opSchema,
         const std::vector<NodeArg>* p_inputs,
         std::vector<NodeArg>* p_outputs)
         : m_node(p_node),
-        m_opRegistry(p_opRegistry),
+        m_opSchema(p_opSchema),
         m_inputs(p_inputs),
         m_outputs(p_outputs)
     {
@@ -21,9 +18,9 @@ namespace CommonIR
         return m_node;
     }
 
-    const OperatorRegistry* InferenceContext::GetOp() const
+    const OperatorSchema* InferenceContext::GetOp() const
     {
-        return m_opRegistry;
+        return m_opSchema;
     }
 
     const std::vector<NodeArg>* InferenceContext::GetInputs() const
@@ -36,95 +33,95 @@ namespace CommonIR
         return m_outputs;
     }
 
-    OperatorRegistrySetter&
-        OperatorRegistrySetter::Name(const std::string& p_opName)
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Name(const std::string& p_opName)
     {
         m_name = p_opName;
         return *this;
     }
 
-    OperatorRegistrySetter&
-        OperatorRegistrySetter::Description(const std::string& p_description)
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Description(const std::string& p_description)
     {
         m_description = p_description;
         return *this;
     }
 
-    OperatorRegistrySetter&
-        OperatorRegistrySetter::Input(const std::string& p_input)
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Input(const std::string& p_input)
     {
         m_inputs.push_back(p_input);
         return *this;
     }
 
-    OperatorRegistrySetter&
-        OperatorRegistrySetter::Output(const std::string& p_output)
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Output(const std::string& p_output)
     {
         m_outputs.push_back(p_output);
         return *this;
     }
 
-    OperatorRegistrySetter&
-        OperatorRegistrySetter::Attr(const std::string& p_attr)
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Attr(const std::string& p_attr)
     {
         m_attributes.push_back(p_attr);
         return *this;
     }
 
-    OperatorRegistrySetter&
-        OperatorRegistrySetter::SetShapeInferenceFunc(
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::SetShapeInferenceFunc(
             ShapeInferenceFunc p_shapeInferFunc)
     {
         m_shapeInferFunc = p_shapeInferFunc;
         return *this;
     }
 
-    OperatorRegistrySetter&
-        OperatorRegistrySetter::SetAttributeParser(
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::SetAttributeParser(
             AttributeParser p_attrParser)
     {
         m_parser = p_attrParser;
         return *this;
     }
 
-    OperatorRegistry::FormalParameter::FormalParameter(
+    OperatorSchema::FormalParameter::FormalParameter(
         const std::string& p_paramStr)
     {
         // TODO: add implementation.
     }
 
-    const std::string& OperatorRegistry::FormalParameter::GetName() const
+    const std::string& OperatorSchema::FormalParameter::GetName() const
     {
         return m_name;
     }
 
     const DataTypeSet&
-        OperatorRegistry::FormalParameter::GetTypes() const
+        OperatorSchema::FormalParameter::GetTypes() const
     {
         return m_types;
     }
 
-    const std::string& OperatorRegistry::FormalParameter::GetTypeStr() const
+    const std::string& OperatorSchema::FormalParameter::GetTypeStr() const
     {
         return m_typeStr;
     }
 
-    OperatorRegistry::Attribute::Attribute(const std::string& p_attributeStr)
+    OperatorSchema::Attribute::Attribute(const std::string& p_attributeStr)
     {
         // TODO: add implementation.
     }
 
-    const std::string& OperatorRegistry::Attribute::GetName() const
+    const std::string& OperatorSchema::Attribute::GetName() const
     {
         return m_name;
     }
 
-    const TypeProto& OperatorRegistry::Attribute::GetType() const
+    const TypeProto& OperatorSchema::Attribute::GetType() const
     {
         return m_type;
     }
 
-    bool OperatorRegistry::Attribute::HasDefaultValue(
+    bool OperatorSchema::Attribute::HasDefaultValue(
         const AttributeProto** p_value) const
     {
         if (m_hasDefaultValue
@@ -136,7 +133,7 @@ namespace CommonIR
         return m_hasDefaultValue;
     }
 
-    size_t OperatorRegistry::Attribute::GetAllowedValues(
+    size_t OperatorSchema::Attribute::GetAllowedValues(
         const AttributeProto** p_values) const
     {
         if (nullptr == p_values)
@@ -148,12 +145,12 @@ namespace CommonIR
         return m_allowedValues.size();
     }
 
-    bool OperatorRegistry::Attribute::IsMandatory() const
+    bool OperatorSchema::Attribute::IsMandatory() const
     {
         return m_isMandatory;
     }
 
-    OperatorRegistry::OperatorRegistry(const OperatorRegistrySetter& p_setter)
+    OperatorSchema::OperatorSchema(const OperatorSchemaSetter& p_setter)
         : m_name(p_setter.m_name),
         m_description(p_setter.m_description),
         m_shapeInferFunc(p_setter.m_shapeInferFunc),
@@ -175,52 +172,52 @@ namespace CommonIR
         }
     }
 
-    const std::string& OperatorRegistry::GetName() const
+    const std::string& OperatorSchema::GetName() const
     {
         return m_name;
     }
 
-    const std::string& OperatorRegistry::GetDescription() const
+    const std::string& OperatorSchema::GetDescription() const
     {
         return m_description;
     }
 
-    const std::vector<OperatorRegistry::FormalParameter>&
-        OperatorRegistry::GetInputs() const
+    const std::vector<OperatorSchema::FormalParameter>&
+        OperatorSchema::GetInputs() const
     {
         return m_inputs;
     }
 
-    const std::vector<OperatorRegistry::FormalParameter>&
-        OperatorRegistry::GetOutputs() const
+    const std::vector<OperatorSchema::FormalParameter>&
+        OperatorSchema::GetOutputs() const
     {
         return m_outputs;
     }
 
-    const std::vector<OperatorRegistry::Attribute>&
-        OperatorRegistry::GetAttributes() const
+    const std::vector<OperatorSchema::Attribute>&
+        OperatorSchema::GetAttributes() const
     {
         return m_attributes;
     }
 
-    ShapeInferenceFunc OperatorRegistry::GetShapeInferenceFunc() const
+    ShapeInferenceFunc OperatorSchema::GetShapeInferenceFunc() const
     {
         return m_shapeInferFunc;
     }
 
-    AttributeParser OperatorRegistry::GetAttributeParser() const
+    AttributeParser OperatorSchema::GetAttributeParser() const
     {
         return m_parser;
     }
 
-    OperatorRegistryFactory::RegisterOnce::RegisterOnce(
-        const OperatorRegistrySetter& p_opRegistry)
+    OperatorSchemaRegistry::RegisterOnce::RegisterOnce(
+        const OperatorSchemaSetter& p_opSchema)
     {
-        OperatorRegistryFactory::Get()->Register(p_opRegistry);
+        OperatorSchemaRegistry::Get()->Register(p_opSchema);
     }
 
-    bool OperatorRegistryFactory::TryGetOp(const std::string& p_name,
-        const OperatorRegistry** p_opRegistry) const
+    bool OperatorSchemaRegistry::TryGetOp(const std::string& p_name,
+        const OperatorSchema** p_opRegistry) const
     {
         if (nullptr == p_opRegistry)
         {
@@ -236,30 +233,28 @@ namespace CommonIR
         return true;
     }
 
-    Status OperatorRegistryFactory::Register(
-        const OperatorRegistry& p_opRegistry)
+    Status OperatorSchemaRegistry::Register(
+        const OperatorSchema& p_opSchema)
     {
-        auto iter = m_operatorRegistryMap.find(p_opRegistry.GetName());
+        auto iter = m_operatorRegistryMap.find(p_opSchema.GetName());
         if (m_operatorRegistryMap.end() != iter)
         {
             Status status(false,
-                "Error: operator registry with same name ("
-                + p_opRegistry.GetName() + ") exists.");
+                "Error: operator schema with same name ("
+                + p_opSchema.GetName() + ") exists.");
             return status;
         }
         else
         {
-            m_operatorRegistryMap[p_opRegistry.GetName()] = p_opRegistry;
+            m_operatorRegistryMap[p_opSchema.GetName()] = p_opSchema;
             return Status::OK();
         }
     }
 
-    OperatorRegistryFactory* OperatorRegistryFactory::Get()
+    OperatorSchemaRegistry* OperatorSchemaRegistry::Get()
     {
-        static OperatorRegistryFactory* s_factory
-            = new OperatorRegistryFactory();
-        return s_factory;
+        static OperatorSchemaRegistry* s_registry
+            = new OperatorSchemaRegistry();
+        return s_registry;
     }
 }
-
-#pragma warning(pop)

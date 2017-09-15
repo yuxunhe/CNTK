@@ -4,11 +4,11 @@
 #include <functional>
 #include <unordered_map>
 
-#include "ONNXGraph.h"
+#include "graph.h"
 
-namespace CommonIR
+namespace LotusIR
 {
-    class OperatorRegistry;
+    class OperatorSchema;
 
     // A context to contain information for shape inference function.
     // It includes the operator registry, input arguments definition,
@@ -20,13 +20,13 @@ namespace CommonIR
         // TODO: Add input tensors into constructor.
         // In some cases, node evaluation will be needed to get output shapes.
         InferenceContext(const Node* p_node,
-            const OperatorRegistry* p_opRegistry,
+            const OperatorSchema* p_opSchema,
             const std::vector<NodeArg>* p_inputs,
             std::vector<NodeArg>* p_outputs);
 
         const Node* GetNode() const;
 
-        const OperatorRegistry* GetOp() const;
+        const OperatorSchema* GetOp() const;
 
         const std::vector<NodeArg>* GetInputs() const;
 
@@ -36,7 +36,7 @@ namespace CommonIR
 
         const Node* m_node;
 
-        const OperatorRegistry* m_opRegistry;
+        const OperatorSchema* m_opSchema;
 
         const std::vector<NodeArg>* m_inputs;
 
@@ -59,36 +59,36 @@ namespace CommonIR
 
     // Operator registry setter helper.
     // This is used in "REGISTER_OP" macro, to separate setters from getters
-    // in OperatorRegistry.
-    class OperatorRegistrySetter
+    // in OperatorSchema.
+    class OperatorSchemaSetter
     {
     public:
 
-        OperatorRegistrySetter() = default;
+        OperatorSchemaSetter() = default;
 
-        OperatorRegistrySetter& Name(const std::string& p_opName);
+        OperatorSchemaSetter& Name(const std::string& p_opName);
 
-        OperatorRegistrySetter& Description(const std::string& p_description);
+        OperatorSchemaSetter& Description(const std::string& p_description);
 
-        OperatorRegistrySetter& Input(const std::string& p_input);
+        OperatorSchemaSetter& Input(const std::string& p_input);
 
-        OperatorRegistrySetter& Output(const std::string& p_output);
+        OperatorSchemaSetter& Output(const std::string& p_output);
 
-        OperatorRegistrySetter& Attr(const std::string& p_attr);
+        OperatorSchemaSetter& Attr(const std::string& p_attr);
 
         // Shape inference function will be used to infer outputs' shape with
         // inputs' shape.
-        OperatorRegistrySetter& SetShapeInferenceFunc(
+        OperatorSchemaSetter& SetShapeInferenceFunc(
             ShapeInferenceFunc p_shapeInferFunc);
 
         // Attribute parser will be used to parse Node's attributes to see
         // whether Node attributes are matching operator attributes definition.
-        OperatorRegistrySetter& SetAttributeParser(
+        OperatorSchemaSetter& SetAttributeParser(
             AttributeParser p_attrParser);
 
     private:
 
-        friend class OperatorRegistry;
+        friend class OperatorSchema;
 
         // Operator name.
         std::string m_name;
@@ -119,7 +119,7 @@ namespace CommonIR
     // It defines input formal parameter, output formal parameters and
     // attributes.
     // Once an operator registry created, it's "Read-Only".
-    class OperatorRegistry
+    class OperatorSchema
     {
     public:
 
@@ -228,10 +228,10 @@ namespace CommonIR
         };
 
         // Constructor.
-        OperatorRegistry() = default;
+        OperatorSchema() = default;
 
         // Conversion constructor.
-        OperatorRegistry(const OperatorRegistrySetter& p_setter);
+        OperatorSchema(const OperatorSchemaSetter& p_setter);
 
         // Get operator name.
         const std::string& GetName() const;
@@ -279,43 +279,44 @@ namespace CommonIR
         AttributeParser m_parser;
     };
 
-    // Operator registry factory. A singleton factory to manage all operator
-    // registries.
-    class OperatorRegistryFactory
+    // Operator schema registry. A singleton registry to manage all operator
+    // schemas.
+    class OperatorSchemaRegistry
     {
     public:
 
         // Helper function providing a way to call
-        // OperatorRegistryFactory::Register().
+        // OperatorSchemaFactory::Register().
         class RegisterOnce
         {
         public:
 
-            RegisterOnce(const OperatorRegistrySetter& p_opRegistry);
+            RegisterOnce(const OperatorSchemaSetter& p_opRegistry);
         };
 
         // Try to get operator with specified operator name.
         bool TryGetOp(const std::string& p_name,
-            const OperatorRegistry** p_opRegistry) const;
+            const OperatorSchema** p_opRegistry) const;
 
         // Register an operator.
-        Status Register(const OperatorRegistry& p_opRegistry);
+        Status Register(const OperatorSchema& p_opRegistry);
 
         // Get the global operator registry factory instance.
-        static OperatorRegistryFactory* Get();
+        static OperatorSchemaRegistry* Get();
 
     private:
 
-        OperatorRegistryFactory() = default;
+        OperatorSchemaRegistry() = default;
 
-        // An operator name to operator registry map.
-        std::unordered_map<std::string, OperatorRegistry> m_operatorRegistryMap;
+        // An operator name to operator schema map.
+        std::unordered_map<std::string, OperatorSchema> m_operatorRegistryMap;
     };
 
-#define REGISTER_OP(OpName) REGISTER_OP_UNIQ(__COUNTER__, OpName)
-#define REGISTER_OP_UNIQ(Counter, OpName)                      \
-    static OperatorRegistryFactory::RegisterOnce op_##Counter  \
-    = OperatorRegistrySetter().Name(#OpName)
+#define REGISTER_OP(OpName) REGISTER_OP_UNIQ_HELPER(__COUNTER__, OpName)
+#define REGISTER_OP_UNIQ_HELPER(Counter, OpName) REGISTER_OP_UNIQ(Counter, OpName)
+#define REGISTER_OP_UNIQ(Counter, OpName)                     \
+    static OperatorSchemaRegistry::RegisterOnce op_##Counter  \
+    = OperatorSchemaSetter().Name(#OpName)
 
     // Operator registering example.
     // REGISTER_OP("Add").Description("An operator to sum two numbers");

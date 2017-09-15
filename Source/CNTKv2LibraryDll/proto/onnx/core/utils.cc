@@ -1,9 +1,6 @@
-#pragma warning(push)
-#pragma warning(disable : 4800 4610 4512 4510 4267 4127 4125 4100 4456)
+#include "utils.h"
 
-#include "ONNXUtils.h"
-
-namespace CommonIR
+namespace LotusIR
 {
     namespace Utils
     {
@@ -14,5 +11,3 @@ namespace CommonIR
         }
     }
 }
-
-#pragma warning(pop)
