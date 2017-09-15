@@ -167,6 +167,7 @@
     <ClInclude Include="proto\onnx\core\ONNXStatus.h" />
     <ClInclude Include="proto\onnx\core\ONNXUtils.h" />
     <ClInclude Include="proto\onnx\ONNX.h" />
+    <ClInclude Include="proto\onnx\ONNXToCNTK.h" />
     <ClInclude Include="Serialization.h" />
     <ClInclude Include="tensorboard\TensorBoardUtils.h" />
     <ClInclude Include="UserDefinedFunction.h" />
@@ -204,6 +205,7 @@
     <ClCompile Include="proto\onnx\core\ONNXStatus.cc" />
     <ClCompile Include="proto\onnx\core\ONNXUtils.cc" />
     <ClCompile Include="proto\onnx\ONNX.cpp" />
+    <ClCompile Include="proto\onnx\ONNXToCNTK.cpp" />
     <ClCompile Include="proto\onnx\protobuf\Data.pb.cc.VS_wrapper.cpp" />
     <ClCompile Include="proto\onnx\protobuf\graph.pb.cc.VS_wrapper.cpp" />
     <ClCompile Include="proto\onnx\protobuf\TensorShape.pb.cc.VS_wrapper.cpp" />

@@ -8,13 +8,16 @@
 #include "stdafx.h"
 #include "CNTKLibrary.h"
 
+namespace CommonIR
+{
+    class Graph;
+}
 
 namespace CNTK
 {
-    class ONNX
+    class ONNXToCNTK
     {
     public:
-        static void Save(const FunctionPtr& src, const std::wstring& filepath);
-        static FunctionPtr Load(const std::wstring& filepath);
+        static FunctionPtr CreateGraph(const std::unique_ptr<CommonIR::Graph>& src);
     };
 }

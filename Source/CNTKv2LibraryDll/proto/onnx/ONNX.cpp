@@ -17,4 +17,10 @@ void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
     filepath;
 }
 
+FunctionPtr ONNX::Load(const std::wstring& filepath)
+{
+    filepath;
+    return nullptr;
+}
+
 }
