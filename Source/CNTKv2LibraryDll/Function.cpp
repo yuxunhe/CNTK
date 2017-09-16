@@ -1793,55 +1793,60 @@ namespace CNTK
         const std::vector<bool>& autoPadding,
         const NDShape& dilation,
         size_t reductionRank,
+        size_t groups,
         size_t maxTempMemSizeInSamples,
         const std::wstring& name)
     {
-        if ((reductionRank != 0) && (reductionRank != 1))
-            LogicError("reductionRank: must be 1 or 0.");
-
-        if (reductionRank == 1)
+        if (groups == 0)
+            LogicError("groups: Must be strictly positive, i.e. groups > 0.");
+        
+        if (groups == 1)
+        {
             return Internal::Convolution(convolutionMap,
                 operand,
                 strides,
                 sharing,
                 autoPadding,
                 dilation,
-                false,
-                { 0 },
+                reductionRank,
                 maxTempMemSizeInSamples,
                 name);
+        }
         else
         {
-            auto operandPlaceholder = PlaceholderVariable();
+            if (reductionRank == 0)
+                LogicError("groups: groups > 1 is not supported when reductionRank is 0.");
+
+            auto filterShape = convolutionMap.Shape();
+            auto filterRank = static_cast<int>(filterShape.Rank());
             auto inputRank = static_cast<int>(operand.Shape().Rank());
-            auto filterRank = static_cast<int>(convolutionMap.Shape().Rank());
-            auto padding = autoPadding;
-            auto expandedStrides = strides;
+            if (filterShape[filterRank-1] % groups)
+                LogicError("groups: number of input channels must be divisble by groups.");
+            if (filterShape[filterRank-2] % groups)
+                LogicError("groups: number of output channels must be divisble by groups.");
 
-            if ((filterRank - inputRank) == 1)
-                --filterRank;
-            else if (filterRank != inputRank)
-                LogicError("convolutionMap: Invalid shape, convolutionMap must have the same rank as the input or greater by 1.");
-
-            if (padding.size() == filterRank)
-                padding.push_back(false);
-
-            if (expandedStrides.Rank() == filterRank)
-                expandedStrides = expandedStrides.AppendShape({ 1 });
-
-            auto weights = Reshape(convolutionMap, { 1 }, Axis(filterRank), Axis(filterRank));
-            auto operandReshape = Reshape(operandPlaceholder, { 1 }, Axis(filterRank), Axis(filterRank));
-            auto result = Internal::Convolution(weights,
-                operandReshape,
-                expandedStrides,
-                sharing,
-                padding,
-                dilation,
-                false,
-                { 0 },
-                maxTempMemSizeInSamples,
-                name);
-            return AsBlock(std::move(result), { { operandPlaceholder, operand } }, L"Convolution", name);
+            auto operandPlaceholder = PlaceholderVariable();
+            std::vector<Variable> opsOutputVector(groups);
+            auto outputChannelStepSize = static_cast<int>(filterShape[filterRank - 1] / groups);
+            auto inputChannelStepSize = static_cast<int>(filterShape[filterRank - 2] / groups);
+            for (int i = 0; i < groups; ++i)
+            {
+                auto groupConvMap = Slice(convolutionMap, { Axis(filterRank - 1), Axis(filterRank - 2) }, { i*outputChannelStepSize, i*inputChannelStepSize },
+                                                                                { (i+1)*outputChannelStepSize, (i+1)*inputChannelStepSize });
+                auto groupOperand = Slice(operandPlaceholder, { Axis(inputRank - 1) }, { i*inputChannelStepSize },
+                                                                                   { (i + 1)*inputChannelStepSize });
+                opsOutputVector[i] = Internal::Convolution(groupConvMap,
+                                                        groupOperand,
+                                                        strides,
+                                                        sharing,
+                                                        autoPadding,
+                                                        dilation,
+                                                        reductionRank,
+                                                        maxTempMemSizeInSamples,
+                                                        name)->Output();
+            }
+            auto splicedConv = Splice(opsOutputVector, Axis(inputRank - 1));
+            return AsBlock(std::move(splicedConv), { { operandPlaceholder, operand } }, L"Convolution", name);
         }
     }
 
@@ -2557,6 +2562,65 @@ namespace CNTK
             additionalProperties[PrimitiveFunction::AttributeNameMaxTempMemSizeInSamples] = maxTempMemSizeInSamples;
 
             return BinaryOp(PrimitiveOpType::Convolution, convolutionMap, operand, std::move(additionalProperties), name);
+        }
+
+        FunctionPtr Convolution(const Variable& convolutionMap,
+            const Variable& operand,
+            const NDShape& strides,
+            const std::vector<bool>& sharing,
+            const std::vector<bool>& autoPadding,
+            const NDShape& dilation,
+            size_t reductionRank,
+            size_t maxTempMemSizeInSamples,
+            const std::wstring& name)
+        {
+            if ((reductionRank != 0) && (reductionRank != 1))
+                LogicError("reductionRank: must be 1 or 0.");
+
+            if (reductionRank == 1)
+                return Internal::Convolution(convolutionMap,
+                    operand,
+                    strides,
+                    sharing,
+                    autoPadding,
+                    dilation,
+                    false,
+                    { 0 },
+                    maxTempMemSizeInSamples,
+                    name);
+            else
+            {
+                auto operandPlaceholder = PlaceholderVariable();
+                auto inputRank = static_cast<int>(operand.Shape().Rank());
+                auto filterRank = static_cast<int>(convolutionMap.Shape().Rank());
+                auto padding = autoPadding;
+                auto expandedStrides = strides;
+
+                if ((filterRank - inputRank) == 1)
+                    --filterRank;
+                else if (filterRank != inputRank)
+                    LogicError("convolutionMap: Invalid shape, convolutionMap must have the same rank as the input or greater by 1.");
+
+                if (padding.size() == filterRank)
+                    padding.push_back(false);
+
+                if (expandedStrides.Rank() == filterRank)
+                    expandedStrides = expandedStrides.AppendShape({ 1 });
+
+                auto weights = Reshape(convolutionMap, { 1 }, Axis(filterRank), Axis(filterRank));
+                auto operandReshape = Reshape(operandPlaceholder, { 1 }, Axis(filterRank), Axis(filterRank));
+                auto result = Internal::Convolution(weights,
+                    operandReshape,
+                    expandedStrides,
+                    sharing,
+                    padding,
+                    dilation,
+                    false,
+                    { 0 },
+                    maxTempMemSizeInSamples,
+                    name);
+                return AsBlock(std::move(result), { { operandPlaceholder, operand } }, L"Convolution", name);
+            }
         }
     }
 }

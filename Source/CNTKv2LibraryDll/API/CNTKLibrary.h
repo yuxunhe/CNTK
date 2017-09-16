@@ -4206,6 +4206,7 @@ namespace CNTK
                                      const std::vector<bool>& autoPadding = { true },
                                      const NDShape& dilation = { 1 },
                                      size_t reductionRank = 1,
+                                     size_t groups = 1,
                                      size_t maxTempMemSizeInSamples = 0,
                                      const std::wstring& name = L"");
 
