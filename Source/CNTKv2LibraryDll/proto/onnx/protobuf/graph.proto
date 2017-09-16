@@ -2,9 +2,9 @@ syntax = "proto2";
 
 package LotusIR;
 
-import "core/protobuf/Data.proto";
-import "core/protobuf/Type.proto";
-import "core/protobuf/TensorShape.proto";
+import "Data.proto";
+import "Type.proto";
+import "TensorShape.proto";
 
 // Note [Protobuf compatibility]
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

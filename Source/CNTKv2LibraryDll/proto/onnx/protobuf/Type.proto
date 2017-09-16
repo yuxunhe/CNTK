@@ -2,7 +2,7 @@ syntax = "proto2";
 
 package LotusIR;
 
-import "core/protobuf/Data.proto";
+import "Data.proto";
 
 // Defines the type system.
 message TypeProto {

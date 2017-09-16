@@ -4,7 +4,7 @@
 //
 
 #include "CNTKToONNX.h"
-#include "./core/ONNXGraph.h"
+#include "./core/graph.h"
 #include "Utils.h"
 
 namespace CNTK
@@ -13,44 +13,44 @@ namespace CNTK
 class CNTKToONNXHelper
 {
 public:
-    static CommonIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape);
-    static CommonIR::TypeProto ToONNXType(DataType dataType);
-    static CommonIR::Node* CreateNode(const FunctionPtr& src,
-                                      std::unique_ptr<CommonIR::Graph>& graph,
-                                      std::unordered_map<FunctionPtr, CommonIR::Node*>& functionNodes,
-                                      std::unordered_map<Variable, CommonIR::Node*>& variableNodes);
+    static LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape);
+    static LotusIR::TypeProto ToONNXType(DataType dataType);
+    static LotusIR::Node* CreateNode(const FunctionPtr& src,
+                                      std::unique_ptr<LotusIR::Graph>& graph,
+                                      std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
+                                      std::unordered_map<Variable, LotusIR::Node*>& variableNodes);
 };
 
-std::unique_ptr<CommonIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
+std::unique_ptr<LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
 {
-    std::unique_ptr<CommonIR::Graph> graph(new CommonIR::Graph("CNTKGraph", 1));
-    std::unordered_map<FunctionPtr, CommonIR::Node*> functionNodes;
-    std::unordered_map<Variable, CommonIR::Node*> variableNodes;
+    std::unique_ptr<LotusIR::Graph> graph(new LotusIR::Graph("CNTKGraph", 1, 1, "CNTK"));
+    std::unordered_map<FunctionPtr, LotusIR::Node*> functionNodes;
+    std::unordered_map<Variable, LotusIR::Node*> variableNodes;
 
     CNTKToONNXHelper::CreateNode(src, graph, functionNodes, variableNodes);
 
     return graph;
 }
 
-CommonIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape)
+LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape)
 {
-    CommonIR::TensorShapeProto newShape;
+    LotusIR::TensorShapeProto newShape;
     for (auto dimension : shape.Dimensions())
         newShape.add_dim()->set_dim_value(dimension);
 
     return newShape;
 }
 
-CommonIR::TypeProto CNTKToONNXHelper::ToONNXType(DataType dataType)
+LotusIR::TypeProto CNTKToONNXHelper::ToONNXType(DataType dataType)
 {
-    CommonIR::TypeProto type;
+    LotusIR::TypeProto type;
     switch (dataType)
     {
     case DataType::Float:
-        type.mutable_tensor_type()->set_elem_type(CommonIR::TypeProto_DataType_FLOAT);
+        type.mutable_tensor_type()->set_elem_type(LotusIR::TensorProto_DataType_FLOAT);
         break;
     case DataType::Double:
-        type.mutable_tensor_type()->set_elem_type(CommonIR::TypeProto_DataType_DOUBLE);
+        type.mutable_tensor_type()->set_elem_type(LotusIR::TensorProto_DataType_DOUBLE);
         break;
     default:
         NOT_IMPLEMENTED;
@@ -59,27 +59,27 @@ CommonIR::TypeProto CNTKToONNXHelper::ToONNXType(DataType dataType)
     return type;
 }
 
-CommonIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
-                                             std::unique_ptr<CommonIR::Graph>& graph,
-                                             std::unordered_map<FunctionPtr, CommonIR::Node*>& functionNodes,
-                                             std::unordered_map<Variable, CommonIR::Node*>& variableNodes)
+LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
+                                            std::unique_ptr<LotusIR::Graph>& graph,
+                                            std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
+                                            std::unordered_map<Variable, LotusIR::Node*>& variableNodes)
 {
     auto iter = functionNodes.find(src);
     if (iter != functionNodes.end())
         return iter->second;
 
-    CommonIR::Node* functionNode = nullptr;
+    LotusIR::Node* functionNode = nullptr;
 
     if (src->IsBlock())
         functionNode = CreateNode(src->BlockRoot(), graph, functionNodes, variableNodes);
     else
     {
-        std::vector<std::vector<CommonIR::NodeArg>> inputs;
-        std::vector<CommonIR::NodeArg> outputs;
+        std::vector<LotusIR::NodeArg> inputs;
+        std::vector<LotusIR::NodeArg> outputs;
 
         for (const auto& output : src->Outputs())
         {
-            CommonIR::NodeArg outputArg(ToString(output.Uid()),
+            LotusIR::NodeArg outputArg(ToString(output.Uid()),
                                         CNTKToONNXHelper::ToONNXType(output.GetDataType()),
                                         CNTKToONNXHelper::ToTensorShape(output.Shape()));
             outputs.push_back(outputArg);
@@ -92,19 +92,19 @@ CommonIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
 
             if (input.IsInput() || input.IsParameter() || input.IsConstant())
             {
-                CommonIR::NodeArg inputArg(ToString(input.Uid()),
+                LotusIR::NodeArg inputArg(ToString(input.Uid()),
                                            CNTKToONNXHelper::ToONNXType(input.GetDataType()),
                                            CNTKToONNXHelper::ToTensorShape(input.Shape()));
 
-                inputs.push_back(std::vector<CommonIR::NodeArg>({ inputArg }));
+                inputs.push_back(inputArg);
 
                 if (variableNodes.find(input) == variableNodes.end())
                 {
-                    std::vector<std::vector<CommonIR::NodeArg>> varInputs;
-                    std::vector<CommonIR::NodeArg> varOutputs;
+                    std::vector<LotusIR::NodeArg> varInputs;
+                    std::vector<LotusIR::NodeArg> varOutputs;
 
                     varOutputs.push_back({ inputArg });
-                    CommonIR::Node* variableNode = graph->AddNode(ToString(input.Uid()), "Variable", varInputs, varOutputs);
+                    LotusIR::Node* variableNode = graph->AddNode(ToString(input.Uid()), "Variable", varInputs, varOutputs);
                     variableNodes.emplace(input, variableNode);
                 }
             }

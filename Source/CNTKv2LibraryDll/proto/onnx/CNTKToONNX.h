@@ -8,7 +8,7 @@
 #include "stdafx.h"
 #include "CNTKLibrary.h"
 
-namespace CommonIR
+namespace LotusIR
 {
     class Graph;
 }
@@ -18,6 +18,6 @@ namespace CNTK
     class CNTKToONNX
     {
     public:
-        static std::unique_ptr<CommonIR::Graph> CreateGraph(const FunctionPtr& src);
+        static std::unique_ptr<LotusIR::Graph> CreateGraph(const FunctionPtr& src);
     };
 }

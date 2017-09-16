@@ -5,7 +5,7 @@
 
 #include "ONNX.h"
 #include "CNTKToONNX.h"
-#include "./core/ONNXGraph.h"
+#include "./core/graph.h"
 #include "Utils.h"
 
 namespace CNTK
@@ -13,7 +13,7 @@ namespace CNTK
 
 void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
-    std::unique_ptr<CommonIR::Graph> graph = CNTKToONNX::CreateGraph(src);
+    std::unique_ptr<LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
     filepath;
 }
 

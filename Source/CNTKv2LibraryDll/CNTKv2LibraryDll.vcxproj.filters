@@ -52,23 +52,23 @@
     <ClCompile Include="proto\onnx\CNTKToONNX.cpp">
       <Filter>proto\onnx</Filter>
     </ClCompile>
-    <ClCompile Include="proto\onnx\core\ONNXGraph.cc">
-      <Filter>proto\onnx\core</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\core\ONNXOP.cc">
-      <Filter>proto\onnx\core</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\core\ONNXStatus.cc">
-      <Filter>proto\onnx\core</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\core\ONNXUtils.cc">
-      <Filter>proto\onnx\core</Filter>
-    </ClCompile>
     <ClCompile Include="proto\onnx\ONNX.cpp">
       <Filter>proto\onnx</Filter>
     </ClCompile>
     <ClCompile Include="proto\onnx\ONNXToCNTK.cpp">
       <Filter>proto\onnx</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\graph.cc">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\op.cc">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\status.cc">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\utils.cc">
+      <Filter>proto\onnx\core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -105,23 +105,23 @@
     <ClInclude Include="proto\onnx\CNTKToONNX.h">
       <Filter>proto\onnx</Filter>
     </ClInclude>
-    <ClInclude Include="proto\onnx\core\ONNXGraph.h">
-      <Filter>proto\onnx\core</Filter>
-    </ClInclude>
-    <ClInclude Include="proto\onnx\core\ONNXOP.h">
-      <Filter>proto\onnx\core</Filter>
-    </ClInclude>
-    <ClInclude Include="proto\onnx\core\ONNXStatus.h">
-      <Filter>proto\onnx\core</Filter>
-    </ClInclude>
-    <ClInclude Include="proto\onnx\core\ONNXUtils.h">
-      <Filter>proto\onnx\core</Filter>
-    </ClInclude>
     <ClInclude Include="proto\onnx\ONNX.h">
       <Filter>proto\onnx</Filter>
     </ClInclude>
     <ClInclude Include="proto\onnx\ONNXToCNTK.h">
       <Filter>proto\onnx</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\core\graph.h">
+      <Filter>proto\onnx\core</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\core\op.h">
+      <Filter>proto\onnx\core</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\core\status.h">
+      <Filter>proto\onnx\core</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\core\utils.h">
+      <Filter>proto\onnx\core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

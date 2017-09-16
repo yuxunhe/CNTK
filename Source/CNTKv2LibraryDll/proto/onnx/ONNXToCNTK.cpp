@@ -4,13 +4,13 @@
 //
 
 #include "ONNXToCNTK.h"
-#include "./core/ONNXGraph.h"
+#include "./core/graph.h"
 #include "Utils.h"
 
 namespace CNTK
 {
 
-FunctionPtr ONNXToCNTK::CreateGraph(const std::unique_ptr<CommonIR::Graph>& src)
+FunctionPtr ONNXToCNTK::CreateGraph(const std::unique_ptr<LotusIR::Graph>& src)
 {
     src;
     return nullptr;

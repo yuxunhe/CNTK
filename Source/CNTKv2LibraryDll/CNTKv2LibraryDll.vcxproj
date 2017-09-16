@@ -120,6 +120,8 @@
   <ItemDefinitionGroup Condition="$(CpuOnlyBuild)">
     <ClCompile>
       <PreprocessorDefinitions>CPUONLY;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release_CpuOnly|x64'">$(IntDir)\$(ProjectName)\$(ConfigurationName)\%(RelativeDir)</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug_CpuOnly|x64'">$(IntDir)\$(ProjectName)\$(ConfigurationName)\%(RelativeDir)</ObjectFileName>
     </ClCompile>
     <Link>
       <DelayLoadDLLs>Cntk.Math$(OutputSuffix)-$(CntkComponentVersion).dll; msmpi.dll;</DelayLoadDLLs>
@@ -130,6 +132,9 @@
   <ItemDefinitionGroup Condition="$(GpuBuild)">
     <ClCompile>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories);$(CudaInclude)</AdditionalIncludeDirectories>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">$(IntDir)\$(ProjectName)\$(ConfigurationName)\%(RelativeDir)</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)\$(ProjectName)\$(ConfigurationName)\%(RelativeDir)</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)\$(ProjectName)\$(ConfigurationName)\%(RelativeDir)</ObjectFileName>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories);$(CudaLibPath)</AdditionalLibraryDirectories>
@@ -146,6 +151,12 @@
         xcopy /D /I /Y "$(TargetPath)" "$(TargetDir).."
       </Command>
     </PostBuildEvent>
+    <ClCompile>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release_UWP|x64'">$(IntDir)\$(ProjectName)\$(ConfigurationName)\%(RelativeDir)</ObjectFileName>
+    </ClCompile>
+    <ClCompile>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug_UWP|x64'">$(IntDir)\$(ProjectName)\$(ConfigurationName)\%(RelativeDir)</ObjectFileName>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="API\CNTKLibrary.h" />
@@ -162,10 +173,10 @@
     <ClInclude Include="PrimitiveFunction.h" />
     <ClInclude Include="PrimitiveOpType.h" />
     <ClInclude Include="proto\onnx\CNTKToONNX.h" />
-    <ClInclude Include="proto\onnx\core\ONNXGraph.h" />
-    <ClInclude Include="proto\onnx\core\ONNXOP.h" />
-    <ClInclude Include="proto\onnx\core\ONNXStatus.h" />
-    <ClInclude Include="proto\onnx\core\ONNXUtils.h" />
+    <ClInclude Include="proto\onnx\core\graph.h" />
+    <ClInclude Include="proto\onnx\core\op.h" />
+    <ClInclude Include="proto\onnx\core\status.h" />
+    <ClInclude Include="proto\onnx\core\utils.h" />
     <ClInclude Include="proto\onnx\ONNX.h" />
     <ClInclude Include="proto\onnx\ONNXToCNTK.h" />
     <ClInclude Include="Serialization.h" />
@@ -200,10 +211,10 @@
     <ClCompile Include="PrimitiveFunction.cpp" />
     <ClCompile Include="proto\CNTK.pb.cc.VS_wrapper.cpp" />
     <ClCompile Include="proto\onnx\CNTKToONNX.cpp" />
-    <ClCompile Include="proto\onnx\core\ONNXGraph.cc" />
-    <ClCompile Include="proto\onnx\core\ONNXOP.cc" />
-    <ClCompile Include="proto\onnx\core\ONNXStatus.cc" />
-    <ClCompile Include="proto\onnx\core\ONNXUtils.cc" />
+    <ClCompile Include="proto\onnx\core\graph.cc" />
+    <ClCompile Include="proto\onnx\core\op.cc" />
+    <ClCompile Include="proto\onnx\core\status.cc" />
+    <ClCompile Include="proto\onnx\core\utils.cc" />
     <ClCompile Include="proto\onnx\ONNX.cpp" />
     <ClCompile Include="proto\onnx\ONNXToCNTK.cpp" />
     <ClCompile Include="proto\onnx\protobuf\Data.pb.cc.VS_wrapper.cpp" />
