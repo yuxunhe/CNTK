@@ -4252,6 +4252,7 @@ namespace CNTK
                                             double blendTimeConstant = 0,
                                             double epsilon = 0.00001,
                                             bool useCuDNNEngine = true,
+                                            bool disableRegularization = false,
                                             const std::wstring& name = L"");
 
     /// Create an instance of the CNTK built-in OptimizedRNNStack operation on specified input operands

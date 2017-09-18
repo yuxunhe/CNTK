@@ -1973,6 +1973,7 @@ namespace CNTK
                                    double blendTimeConstant,
                                    double epsilon,
                                    bool useCuDNNEngine,
+                                   bool disableRegularization,
                                    const std::wstring& name)
     {
         auto additionalProperties = Dictionary();
@@ -1981,6 +1982,7 @@ namespace CNTK
         additionalProperties[PrimitiveFunction::AttributeNameBlendTimeConstant] = blendTimeConstant;
         additionalProperties[PrimitiveFunction::AttributeNameEpsilon] = epsilon;
         additionalProperties[PrimitiveFunction::AttributeNameUseCuDNNEngine] = useCuDNNEngine;
+        additionalProperties[PrimitiveFunction::AttributeNameDisableRegularization] = disableRegularization;
 
         std::vector<Variable> operands = { operand, scale, bias, runningMean, runningInvStd, runningCount };
         return AsComposite(MakeSharedObject<PrimitiveFunction>(PrimitiveOpType::BatchNormalization,
