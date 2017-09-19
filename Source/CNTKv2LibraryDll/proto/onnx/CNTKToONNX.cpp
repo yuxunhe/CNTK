@@ -72,6 +72,17 @@ std::string CNTKToONNXHelper::ToOPName(const FunctionPtr& src)
 
     if (lookup.count(src->OpName()) == 1)
         opName = lookup.find(src->OpName())->second;
+    else
+    {
+        if (src->OpName() == L"Pooling")
+        {
+            PoolingType poolingType = (PoolingType)src->Attributes()[L"poolingType"].Value<size_t>();
+            if (poolingType == PoolingType::Max)
+                opName = "MaxPool";
+            else
+                opName = "AveragePool";
+        }
+    }
 
     return opName;
 }
@@ -113,14 +124,14 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             if (input.IsPlaceholder())
                 continue;
 
+            LotusIR::NodeArg inputArg(ToString(input.Uid()),
+                                      CNTKToONNXHelper::ToONNXType(input.GetDataType()),
+                                      CNTKToONNXHelper::ToTensorShape(input.Shape()));
+
+            inputs.push_back(inputArg);
+
             if (input.IsInput() || input.IsParameter() || input.IsConstant())
             {
-                LotusIR::NodeArg inputArg(ToString(input.Uid()),
-                                          CNTKToONNXHelper::ToONNXType(input.GetDataType()),
-                                          CNTKToONNXHelper::ToTensorShape(input.Shape()));
-
-                inputs.push_back(inputArg);
-
                 if (variableNodes.find(input) == variableNodes.end())
                 {
                     std::vector<LotusIR::NodeArg> varInputs;
