@@ -1444,6 +1444,28 @@ namespace CNTK
         return ElementTimes(leftOperand, Reciprocal(rightOperand), name);
     }
 
+    FunctionPtr ElementMax(const Variable& leftOperand, const Variable& rightOperand, const std::wstring& name)
+    {
+        auto leftOperandPlaceholder = PlaceholderVariable();
+        auto rightOperandPlaceholder = PlaceholderVariable();
+
+        auto result = ElementSelect(Greater(leftOperandPlaceholder, rightOperandPlaceholder),
+                                    leftOperandPlaceholder,
+                                    rightOperandPlaceholder);
+        return AsBlock(std::move(result), { { leftOperandPlaceholder, leftOperand },{ rightOperandPlaceholder, rightOperand } }, L"ElementMax", name);
+    }
+
+    FunctionPtr ElementMin(const Variable& leftOperand, const Variable& rightOperand, const std::wstring& name)
+    {
+        auto leftOperandPlaceholder = PlaceholderVariable();
+        auto rightOperandPlaceholder = PlaceholderVariable();
+
+        auto result = ElementSelect(Less(leftOperandPlaceholder, rightOperandPlaceholder),
+                                    leftOperandPlaceholder,
+                                    rightOperandPlaceholder);
+        return AsBlock(std::move(result), { { leftOperandPlaceholder, leftOperand },{ rightOperandPlaceholder, rightOperand } }, L"ElementMin", name);
+    }
+
     FunctionPtr Equal(const Variable& leftOperand, const Variable& rightOperand, const std::wstring& name)
     {
         return BinaryOp(PrimitiveOpType::Equal, leftOperand, rightOperand, Dictionary(), name);
