@@ -104,6 +104,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                     std::vector<LotusIR::NodeArg> varOutputs;
 
                     varOutputs.push_back({ inputArg });
+                    // Liqun: use name for debugging
                     LotusIR::Node* variableNode = graph->AddNode(ToString(input.Uid()), "Variable", varInputs, varOutputs);
                     variableNodes.emplace(input, variableNode);
                 }
@@ -112,6 +113,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 CreateNode(input.Owner(), graph, functionNodes, variableNodes);
         }
 
+        // Liqun: use name for debugging
         functionNode = graph->AddNode(ToString(src->Uid()), ToString(src->OpName()), inputs, outputs);
     }
 

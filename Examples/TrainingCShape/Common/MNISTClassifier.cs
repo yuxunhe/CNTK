@@ -57,7 +57,7 @@ namespace CNTK.CSTrainingExamples
             var input = CNTKLib.InputVariable(imageDim, DataType.Float, featureStreamName);
             if (useConvolution)
             {
-                var scaledInput = CNTKLib.ElementTimes(Constant.Scalar<float>(0.00390625f, device), input);
+                var scaledInput = CNTKLib.ElementTimes(Constant.Scalar<float>(0.00390625f, device), input, "ElementTimes");
                 classifierOutput = CreateConvolutionalNeuralNetwork(scaledInput, numClasses, device, classifierName);
             }
             else
@@ -146,7 +146,7 @@ namespace CNTK.CSTrainingExamples
             int poolingWindowWidth1 = 3, poolingWindowHeight1 = 3;
 
             Function pooling1 = ConvolutionWithMaxPooling(features, device, kernelWidth1, kernelHeight1,
-                numInputChannels1, outFeatureMapCount1, hStride1, vStride1, poolingWindowWidth1, poolingWindowHeight1);
+                numInputChannels1, outFeatureMapCount1, hStride1, vStride1, poolingWindowWidth1, poolingWindowHeight1, "pooling1");
 
             // 14x14x4 -> 7x7x8
             int kernelWidth2 = 3, kernelHeight2 = 3, numInputChannels2 = outFeatureMapCount1, outFeatureMapCount2 = 8;
@@ -154,7 +154,7 @@ namespace CNTK.CSTrainingExamples
             int poolingWindowWidth2 = 3, poolingWindowHeight2 = 3;
 
             Function pooling2 = ConvolutionWithMaxPooling(pooling1, device, kernelWidth2, kernelHeight2,
-                numInputChannels2, outFeatureMapCount2, hStride2, vStride2, poolingWindowWidth2, poolingWindowHeight2);
+                numInputChannels2, outFeatureMapCount2, hStride2, vStride2, poolingWindowWidth2, poolingWindowHeight2, "pooling2");
 
             Function denseLayer = TestHelper.Dense(pooling2, outDims, device, Activation.None, classifierName);
             return denseLayer;
@@ -162,16 +162,17 @@ namespace CNTK.CSTrainingExamples
 
         private static Function ConvolutionWithMaxPooling(Variable features, DeviceDescriptor device, 
             int kernelWidth, int kernelHeight, int numInputChannels, int outFeatureMapCount, 
-            int hStride, int vStride, int poolingWindowWidth, int poolingWindowHeight)
+            int hStride, int vStride, int poolingWindowWidth, int poolingWindowHeight, string scopeName)
         {
             // parameter initialization hyper parameter
             double convWScale = 0.26;
             var convParams = new Parameter(new int[] { kernelWidth, kernelHeight, numInputChannels, outFeatureMapCount }, DataType.Float,
-                CNTKLib.GlorotUniformInitializer(convWScale, -1, 2), device);
-            Function convFunction = CNTKLib.ReLU(CNTKLib.Convolution(convParams, features, new int[] { 1, 1, numInputChannels } /* strides */));
+                CNTKLib.GlorotUniformInitializer(convWScale, -1, 2), device, scopeName + "-convParam");
+            Function convFunction = CNTKLib.ReLU(CNTKLib.Convolution(convParams, features, new int[] { 1, 1, numInputChannels } /* strides */, 
+                scopeName + "-Convolution"), scopeName + "ReLU");
 
             Function pooling = CNTKLib.Pooling(convFunction, PoolingType.Max,
-                new int[] { poolingWindowWidth, poolingWindowHeight }, new int[] { hStride, vStride }, new bool[] { true });
+                new int[] { poolingWindowWidth, poolingWindowHeight }, new int[] { hStride, vStride }, new bool[] { true }, false, false, scopeName);
             return pooling;
         }
     }

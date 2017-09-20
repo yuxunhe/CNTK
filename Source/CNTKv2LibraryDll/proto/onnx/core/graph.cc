@@ -4,6 +4,7 @@
 #include "graph.h"
 #include "op.h"
 #include "utils.h"
+#include <iostream>
 
 namespace LotusIR
 {
@@ -889,6 +890,18 @@ namespace LotusIR
         const std::vector<NodeArg>& p_outputArgs)
     {
         auto node = AllocateNode();
+
+        std::cout << ">>>>>>>>>>NodeName: " << p_name << "; opType: " << p_opType << std::endl;
+        for (auto arg : p_inputArgs)
+        {
+            std::cout << "---- input ----" << "arg.Name: " << arg.Name() << std::endl;
+        }
+
+        for (auto arg : p_outputArgs)
+        {
+            std::cout << "---- output ----" << "arg.Name: " << arg.Name() << std::endl;
+        }
+
         node->Init(p_name, p_opType, p_inputArgs, p_outputArgs);
         // Set flag to indicates that the graph needs to be resolved.
         m_isGraphValid = false;

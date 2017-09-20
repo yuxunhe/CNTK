@@ -23,6 +23,24 @@ void TrainTruncatedLSTMAcousticModelClassifier();
 void TestFrameMode();
 void TestDistributedCheckpointing();
 
+// #include "../proto/onnx/onnx.h";
+// #include "../proto/onnx/CNTKToONNX.h"
+// #include "../proto/onnx/ONNXToCNTK.h"
+// #include "../proto/onnx/core/graph.h"
+
+void RunLotus(DeviceDescriptor device)
+{
+    const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolution.model";
+
+    FunctionPtr cntkModel = Function::Load(cntkModelFile, device, ModelFormat::CNTKv2);
+    
+    const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolutionONNX.model";
+
+    cntkModel->Save(savedONNXModelFile, ModelFormat::ONNX);
+
+    FunctionPtr cntkModelFromONNX = Function::Load(savedONNXModelFile, device, ModelFormat::CNTKv2);
+}
+
 int main(int argc, char *argv[])
 {
 #if defined(_MSC_VER)
@@ -32,6 +50,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 #endif
+
+    RunLotus(DeviceDescriptor::CPUDevice());
 
     // Lets disable automatic unpacking of PackedValue object to detect any accidental unpacking
     // which will have a silent performance degradation otherwise

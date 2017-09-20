@@ -12,6 +12,7 @@ namespace CNTK
 
 FunctionPtr ONNXToCNTK::CreateGraph(const std::unique_ptr<LotusIR::Graph>& src)
 {
+    FunctionPtr cntkModel;
     src;
     return nullptr;
 }

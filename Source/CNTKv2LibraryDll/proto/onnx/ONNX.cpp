@@ -8,12 +8,44 @@
 #include "./core/graph.h"
 #include "Utils.h"
 
+#include <iostream>
+
+#include "ONNXToCNTK.h"
+
 namespace CNTK
 {
+    static void PrintGraph(FunctionPtr function, int spaces)
+    {
+        if (function->Inputs().size() == 0)
+        {
+            cout << string(spaces, '.') + "(" + ToString(function->Name()) + ")" + ToString(function->AsString()) << std::endl;
+            return;
+        }
+
+        for(auto input: function->Inputs())
+        {
+            cout << string(spaces, '.') + "(" + ToString(function->Name()) + ")" + "->" +
+                "(" + ToString(input.Name()) + ")" + ToString(input.AsString()) << std::endl;
+        }
+
+        for(auto input: function->Inputs())
+        {
+            if (input.Owner() != NULL)
+            {
+                FunctionPtr f = input.Owner();
+                PrintGraph(f, spaces + 4);
+            }
+        }
+    }
 
 void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
     std::unique_ptr<LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
+
+    // Liqun: experiment Create CNTK function from ONNX graph
+    PrintGraph(src, 0);
+    FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
+
     filepath;
 }
 

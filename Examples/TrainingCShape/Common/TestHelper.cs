@@ -27,7 +27,7 @@ namespace CNTK.CSTrainingExamples
             {
                 // 
                 int newDim = input.Shape.Dimensions.Aggregate((d1, d2) => d1 * d2);
-                input = CNTKLib.Reshape(input, new int[] { newDim });
+                input = CNTKLib.Reshape(input, new int[] { newDim }, outputName + "-Reshape");
             }
 
             Function fullyConnected = FullyConnectedLinearLayer(input, outputDim, device, outputName);
@@ -58,10 +58,10 @@ namespace CNTK.CSTrainingExamples
                     CNTKLib.SentinelValueForInferParamInitRank,
                     CNTKLib.SentinelValueForInferParamInitRank, 1),
                 device, "timesParam");
-            var timesFunction = CNTKLib.Times(timesParam, input, "times");
+            var timesFunction = CNTKLib.Times(timesParam, input, outputName + "-times");
 
             int[] s2 = { outputDim };
-            var plusParam = new Parameter(s2, 0.0f, device, "plusParam");
+            var plusParam = new Parameter(s2, 0.0f, device, outputName + "-plusParam");
             return CNTKLib.Plus(plusParam, timesFunction, outputName);
         }
 
