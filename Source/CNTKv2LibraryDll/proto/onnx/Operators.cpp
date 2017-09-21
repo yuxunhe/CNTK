@@ -68,7 +68,9 @@ namespace ONNX
             { L"dropoutRate", "ratio" },
             // { L"", "is_test" },
         } } },
-        // { L"", "Flatten" },
+        { L"Flatten",{ {
+            { L"Flatten", "Flatten" },
+        } } },
 
         // From Generator
         { L"UniformRandom", { {
@@ -182,64 +184,64 @@ namespace ONNX
         // From reduction
         { L"ReduceMax", { {
             { L"ReduceMax", "ReduceMax" },
-            { L"", "axes" },
-            { L"", "keepdims" },
+            { L"axisVec", "axes" },
+            { L"reductionKeepDimensions", "keepdims" },
         } } },
         { L"ReduceMin", { {
             { L"ReduceMin", "ReduceMin" },
-            { L"", "axes" },
-            { L"", "keepdims" },
+            { L"axisVec", "axes" },
+            { L"reductionKeepDimensions", "keepdims" },
         } } },
         { L"ReduceSum", { {
             { L"ReduceSum", "ReduceSum" },
-            { L"", "axes" },
-            { L"", "keepdims" },
+            { L"axisVec", "axes" },
+            { L"reductionKeepDimensions", "keepdims" },
         } } },
         { L"ReduceMean", { {
             { L"ReduceMean", "ReduceMean" },
-            { L"", "axes" },
-            { L"", "keepdims" },
+            { L"axisVec", "axes" },
+            { L"reductionKeepDimensions", "keepdims" },
         } } },
         { L"ReduceProd", { {
             { L"ReduceProd", "ReduceProd" },
-            { L"", "axes" },
-            { L"", "keepdims" },
+            { L"axisVec", "axes" },
+            { L"reductionKeepDimensions", "keepdims" },
         } } },
         { L"ReduceLogSum", { {
             { L"ReduceLogSum", "ReduceLogSumExp" },
-            { L"", "axes" },
-            { L"", "keepdims" },
+            { L"axisVec", "axes" },
+            { L"reductionKeepDimensions", "keepdims" },
         } } },
         { L"Argmax", { {
             { L"Argmax", "ArgMax" },
-            { L"", "axes" },
-            { L"", "keepdims" },
+            { L"axis", "axes" },
+            // { L"", "keepdims" },
         } } },
         { L"Argmin", { {
             { L"Argmin", "ArgMin" },
-            { L"", "axes" },
-            { L"", "keepdims" },
+            { L"axis", "axes" },
+            // { L"", "keepdims" },
         } } },
 
         // From tensor
         // { L"", "Cast" },
         { L"Reshape", { {
             { L"Reshape", "Reshape" },
-            { L"", "shape" },
+            { L"newShape", "shape" },
         } } },
         { L"Splice", { {
             { L"Splice", "Concat" },
-            { L"", "axis" },
+            { L"axis", "axis" },
         } } },
         // { L"", "Split" },
         { L"Slice", { {
             { L"Slice", "Slice" },
-            { L"", "starts" },
-            { L"", "ends" },
+            { L"beginIndexVec", "starts" },
+            { L"endIndexVec", "ends" },
         } } },
         { L"Transpose", { {
             { L"Transpose", "Transpose" },
-            { L"", "perm" },
+            { L"axisVec", "perm" },
         } } },
         { L"GatherOp", { {
             { L"GatherOp", "Gather" },

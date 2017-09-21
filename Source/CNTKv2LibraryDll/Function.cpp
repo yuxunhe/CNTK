@@ -1408,6 +1408,14 @@ namespace CNTK
         return UnaryOp(PrimitiveOpType::Reshape, operand, std::move(additionalProperties), name);
     }
 
+    FunctionPtr Flatten(const Variable& operand, const std::wstring& name)
+    {
+        auto operandPlaceholder = PlaceholderVariable();
+        auto result = Reshape(operandPlaceholder, { NDShape::InferredDimension });
+
+        return AsBlock(std::move(result), { { operandPlaceholder, operand } }, L"Flatten", name);
+    }
+
     FunctionPtr BinaryOp(PrimitiveOpType op, const Variable& leftOperand, const Variable& rightOperand, Dictionary&& opConfig, const std::wstring& name)
     {
         std::vector<Variable> operands = { leftOperand, rightOperand };

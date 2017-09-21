@@ -3842,6 +3842,11 @@ namespace CNTK
     }
 
     ///
+    /// Flatten the input tensor to 1D while keeping the batch axis intact.
+    ///
+    CNTK_API FunctionPtr Flatten(const Variable& operand, const std::wstring& name = L"");
+
+    ///
     /// Create an instance of the CNTK built-in elementwise tensor addition operation with the specified input operands.
     ///
     CNTK_API FunctionPtr Plus(const Variable& leftOperand, const Variable& rightOperand, const std::wstring& name = L"");
