@@ -24,12 +24,12 @@ private:
                                      std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
                                      std::unordered_map<Variable, LotusIR::Node*>& variableNodes);
 
+    static void AddAttributes(const FunctionPtr& src, LotusIR::Node* node);
     static LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape);
     static LotusIR::TypeProto ToONNXType(DataType dataType);
     static std::string ToOPName(const FunctionPtr& src);
     static bool FilterInput(const FunctionPtr& src, const CNTK::Variable& input, size_t inputIndex);
 };
-
 
 std::unique_ptr<LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
 {
@@ -83,7 +83,6 @@ std::string CNTKToONNXHelper::ToOPName(const FunctionPtr& src)
     assert(lookup.count(src->OpName()) != 0);
 
     std::string opName = ToString(src->OpName());
-
     if (lookup.count(src->OpName()) == 1)
     {
         auto attributesMap = lookup.find(src->OpName())->second.map;
@@ -150,8 +149,8 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
         for (const auto& output : src->Outputs())
         {
             LotusIR::NodeArg outputArg(ToString(output.Uid()),
-                                       CNTKToONNXHelper::ToONNXType(output.GetDataType()),
-                                       CNTKToONNXHelper::ToTensorShape(output.Shape()));
+                                       ToONNXType(output.GetDataType()),
+                                       ToTensorShape(output.Shape()));
             outputs.push_back(outputArg);
         }
 
@@ -166,8 +165,8 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 continue;
 
             LotusIR::NodeArg inputArg(ToString(input.Uid()),
-                                      CNTKToONNXHelper::ToONNXType(input.GetDataType()),
-                                      CNTKToONNXHelper::ToTensorShape(input.Shape()));
+                                      ToONNXType(input.GetDataType()),
+                                      ToTensorShape(input.Shape()));
 
             inputs.push_back(inputArg);
 
@@ -199,13 +198,20 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 CreateNode(input.Owner(), graph, functionNodes, variableNodes);
         }
 
-        functionNode = graph->AddNode(ToString(src->Uid()), CNTKToONNXHelper::ToOPName(src), inputs, outputs);
+        functionNode = graph->AddNode(ToString(src->Uid()), ToOPName(src), inputs, outputs);
+        AddAttributes(src, functionNode);
     }
     else
         LogicError("Node '%S': Unsupported node.", src->AsString().c_str());
 
     functionNodes.emplace(src, functionNode);
     return functionNode;
+}
+
+void CNTKToONNXHelper::AddAttributes(const FunctionPtr& src, LotusIR::Node* node)
+{
+    src;
+    node;
 }
 
 }
