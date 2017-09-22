@@ -30,11 +30,16 @@ void TestDistributedCheckpointing();
 
 void RunLotus(DeviceDescriptor device)
 {
-    const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolution.model";
+    // const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolution.model";
+    // const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolutionONNX.model";
+
+    //const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTMLP.model";
+    //const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTMLPONNX.model";
+
+    const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/LogisticRegression.model";
+    const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/LogisticRegression.model";
 
     FunctionPtr cntkModel = Function::Load(cntkModelFile, device, ModelFormat::CNTKv2);
-    
-    const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolutionONNX.model";
 
     cntkModel->Save(savedONNXModelFile, ModelFormat::ONNX);
 

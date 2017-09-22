@@ -6,6 +6,9 @@
 #include "CNTKToONNX.h"
 #include "./core/graph.h"
 #include "Utils.h"
+#include "Operators.h"
+
+using namespace CNTK::ONNX;
 
 namespace CNTK
 {
@@ -15,6 +18,7 @@ class CNTKToONNXHelper
 public:
     static LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape);
     static LotusIR::TypeProto ToONNXType(DataType dataType);
+    static std::string ToOPName(const FunctionPtr& src);
     static LotusIR::Node* CreateNode(const FunctionPtr& src,
                                       std::unique_ptr<LotusIR::Graph>& graph,
                                       std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
@@ -59,6 +63,30 @@ LotusIR::TypeProto CNTKToONNXHelper::ToONNXType(DataType dataType)
     return type;
 }
 
+std::string CNTKToONNXHelper::ToOPName(const FunctionPtr& src)
+{
+    auto lookup = Operators::CntkToONNXLookup();
+    assert(lookup.count(src->OpName()) != 0);
+
+    std::string opName = ToString(src->OpName());
+
+    if (lookup.count(src->OpName()) == 1)
+        opName = lookup.find(src->OpName())->second;
+    else
+    {
+        if (src->OpName() == L"Pooling")
+        {
+            PoolingType poolingType = (PoolingType)src->Attributes()[L"poolingType"].Value<size_t>();
+            if (poolingType == PoolingType::Max)
+                opName = "MaxPool";
+            else
+                opName = "AveragePool";
+        }
+    }
+
+    return opName;
+}
+
 LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                                             std::unique_ptr<LotusIR::Graph>& graph,
                                             std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
@@ -70,9 +98,15 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
 
     LotusIR::Node* functionNode = nullptr;
 
-    if (src->IsBlock())
+    //
+    // If this block node equivalent to a primitive ONNX OP, then treated as such.
+    // And just maps its argument to ONNX node.
+    //
+    if (src->IsBlock() && !Operators::IsSupportedCNTKOP(src->OpName()))
+    {
         functionNode = CreateNode(src->BlockRoot(), graph, functionNodes, variableNodes);
-    else
+    }
+    else if (Operators::IsSupportedCNTKOP(src->OpName()))
     {
         std::vector<LotusIR::NodeArg> inputs;
         std::vector<LotusIR::NodeArg> outputs;
@@ -80,8 +114,8 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
         for (const auto& output : src->Outputs())
         {
             LotusIR::NodeArg outputArg(ToString(output.Uid()),
-                                        CNTKToONNXHelper::ToONNXType(output.GetDataType()),
-                                        CNTKToONNXHelper::ToTensorShape(output.Shape()));
+                                       CNTKToONNXHelper::ToONNXType(output.GetDataType()),
+                                       CNTKToONNXHelper::ToTensorShape(output.Shape()));
             outputs.push_back(outputArg);
         }
 
@@ -90,22 +124,26 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             if (input.IsPlaceholder())
                 continue;
 
+            LotusIR::NodeArg inputArg(ToString(input.Uid()),
+                                      CNTKToONNXHelper::ToONNXType(input.GetDataType()),
+                                      CNTKToONNXHelper::ToTensorShape(input.Shape()));
+
+            inputs.push_back(inputArg);
+
             if (input.IsInput() || input.IsParameter() || input.IsConstant())
             {
-                LotusIR::NodeArg inputArg(ToString(input.Uid()),
-                                           CNTKToONNXHelper::ToONNXType(input.GetDataType()),
-                                           CNTKToONNXHelper::ToTensorShape(input.Shape()));
-
-                inputs.push_back(inputArg);
-
                 if (variableNodes.find(input) == variableNodes.end())
                 {
                     std::vector<LotusIR::NodeArg> varInputs;
                     std::vector<LotusIR::NodeArg> varOutputs;
 
                     varOutputs.push_back({ inputArg });
-                    // Liqun: use name for debugging
-                    LotusIR::Node* variableNode = graph->AddNode(ToString(input.Uid()), "Variable", varInputs, varOutputs);
+                    LotusIR::Node* variableNode = nullptr;
+                    if (input.IsParameter() || input.IsConstant())
+                        variableNode = graph->AddNode(ToString(input.Uid()), "Constant", varInputs, varOutputs);
+                    else
+                        variableNode = graph->AddNode(ToString(input.Uid()), "Variable", varInputs, varOutputs);
+
                     variableNodes.emplace(input, variableNode);
                 }
             }
@@ -113,9 +151,10 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 CreateNode(input.Owner(), graph, functionNodes, variableNodes);
         }
 
-        // Liqun: use name for debugging
-        functionNode = graph->AddNode(ToString(src->Uid()), ToString(src->OpName()), inputs, outputs);
+        functionNode = graph->AddNode(ToString(src->Uid()), CNTKToONNXHelper::ToOPName(src), inputs, outputs);
     }
+    else
+        LogicError("Node '%S': Unsupported node.", src->AsString().c_str());
 
     functionNodes.emplace(src, functionNode);
     return functionNode;
