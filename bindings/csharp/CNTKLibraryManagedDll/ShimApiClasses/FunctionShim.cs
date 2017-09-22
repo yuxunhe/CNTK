@@ -6,6 +6,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace CNTK
 {
@@ -235,11 +236,14 @@ namespace CNTK
             return funcPtrList;
         }
 
-        public void Save(char[] buffer)
+        public byte[] Save()
         {
             CharVector vectorBuf = new CharVector(); 
             this._Save(vectorBuf);
+            char[] buffer = new char[vectorBuf.Count];
             vectorBuf.CopyTo(buffer);
+            byte[] byteBuffer = Encoding.Default.GetBytes(buffer);
+            return byteBuffer;
         }
 
         public void Save(string filepath)
