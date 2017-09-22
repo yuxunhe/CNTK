@@ -9,6 +9,7 @@ message TensorShapeProto {
   message Dimension {
     oneof value {
       int64 dim_value = 1;
+      //ISSUE:13807096,dbox: Underspecified. Mail thread pending
       string dim_param = 2;   // namespace Shape
     };
   };

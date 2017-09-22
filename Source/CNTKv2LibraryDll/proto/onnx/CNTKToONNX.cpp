@@ -183,9 +183,9 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                     varOutputs.push_back({ inputArg });
                     LotusIR::Node* variableNode = nullptr;
                     if (input.IsParameter() || input.IsConstant())
-                        variableNode = graph->AddNode(ToString(input.Uid()), "Constant", varInputs, varOutputs);
+                        variableNode = graph->AddNode(ToString(input.Uid()), "Constant", "", varInputs, varOutputs);
                     else
-                        variableNode = graph->AddNode(ToString(input.Uid()), "Variable", varInputs, varOutputs);
+                        variableNode = graph->AddNode(ToString(input.Uid()), "Variable", "", varInputs, varOutputs);
 
                     variableNodes.emplace(input, variableNode);
                 }
@@ -198,7 +198,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 CreateNode(input.Owner(), graph, functionNodes, variableNodes);
         }
 
-        functionNode = graph->AddNode(ToString(src->Uid()), ToOPName(src), inputs, outputs);
+        functionNode = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", inputs, outputs);
         AddAttributes(src, functionNode);
     }
     else

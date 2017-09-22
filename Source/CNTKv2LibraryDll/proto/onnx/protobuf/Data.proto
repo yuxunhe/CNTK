@@ -2,33 +2,40 @@ syntax = "proto2";
 
 package LotusIR;
 
-// A message defined to store a dense tensor in its serialized format.
+// A message defined to store a dense tensor value in its serialized format.
 message TensorProto {
-  // The primitive data type.
+  // The primitive data type of a tensor element.
   enum DataType {
-    UNDEFINED = 0;
+    UNDEFINED = 0;      // UNDEFINED 
     // Basic types.
-    FLOAT = 1;   // float
-    UINT8 = 2;   // uint8_t
-    INT8 = 3;    // int8_t
-    UINT16 = 4;  // uint16_t
-    INT16 = 5;   // int16_t
-    INT32 = 6;   // int32_t
-    INT64 = 7;   // int64_t
-    STRING = 8;  // string
-    BOOL = 9;    // bool
+    FLOAT = 1;          // float    
+    UINT8 = 2;          // uint8_t
+    INT8 = 3;           // int8_t
+    UINT16 = 4;         // uint16_t
+    INT16 = 5;          // int16_t
+    INT32 = 6;          // int32_t
+    INT64 = 7;          // int64_t
+    STRING = 8;         // string
+    BOOL = 9;           // bool
 
     // Advanced types
-    FLOAT16 = 10; // float_16
-    DOUBLE = 11;  // double
+    FLOAT16 = 10;       // float_16
+    DOUBLE = 11;        // double
+    UINT32 = 12;        // uint32_t
+    UINT64 = 13;        // uint64_t;
+    COMPLEX64 = 14;     // complex with float32 real and imaginary components
+    COMPLEX128 = 15;    // complex with float64 real and imaginary components
 
     // Future extensions go here.
   }
 
-  // The shape of the tensor.
+  // The shape of the tensor. Scalars are represented as a zero-dimensional tensor.
+  // This field MUST be present this version of the IR.  
   repeated int64 dims = 1;
 
-  // The data type of the tensor.
+  // The data type of the tensor's elements.
+  // This field MUST NOT have the value of UNDEFINED
+  // This field MUST be present for this version of the IR.
   optional DataType data_type = 2;
 
   // For very large tensors, we may want to store them in chunks, in which
@@ -39,40 +46,57 @@ message TensorProto {
     optional int64 begin = 1;
     optional int64 end = 2;
   }
+  // When this field is present, tensor data MUST be stored in the raw_bytes field.
+  // This field MAY be absent in which case all bytes of the tensor are present.
   optional Segment segment = 3;
 
   // Tensor content must be in the row major order.
-  // For float
+  // There MUST be exactly one xxx_data field present in a TensorProto value.
+
+  // For float values
+  // When this field is present, the data_type field MUST be FLOAT
   repeated float float_data = 4 [packed = true];
 
-  // For int32, uint8, int8, uint16, int16, bool, and float16
-  // Note about float16: in storage we will basically convert float16 byte-wise
-  // to unsigned short and then store them in the int32_data field.
+  // For int32, uint8, int8, uint16, int16, bool, and float16 values
+  // float16 values must be bit-wise converted to an uint16_t prior 
+  // to writing to the buffer.
+  // When this field is present, the data_type field MUST be 
+  // INT32, INT16, INT8, UINT16, INT8, BOOL, or FLOAT32
   repeated int32 int32_data = 5 [packed = true];
 
   // For strings.
+  // Each element of string_data is a UTF-8 encoded Unicode
+  // string. No trailing null, no leading BOM. The protobuf "string"
+  // scalar type is not used to match ML community conventions.
+  // When this field is present, the data_type field MUST be STRING
   repeated bytes string_data = 6;
 
   // For int64.
+  // When this field is present, the data_type field MUST be INT64 or UINT32
   repeated int64 int64_data = 7 [packed = true];
 
   // Optionally, a name for the tensor.
-  optional string name = 8; // namespace Tensor
+  optional string name = 8; // namespace Value
 
   // Serializations can either use one of the fields above, or use this
   // raw bytes field. The only exception is the string case, where one is
   // required to store the content in the repeated bytes string_data field.
   //
-  // When this raw_data field is used to store tensor value, it is expected
-  // to use the little-endian order. For floating data types, they should
-  // be of the IEEE 754 format. Boolean type is stored as bytes.
+  // When this raw_data field is used to store tensor value, elements MUST 
+  // be stored in as fixed-width, little-endian order. 
+  // Floating-point data types MUST be stored in IEEE 754 format. 
+  // Complex64 elements must be written as two consecutive FLOAT values, real component first.
+  // Complex128 elements must be written as two consecutive DOUBLE values, real component first.
+  // Boolean type MUST be written one byte per tensor element (00000001 for true, 00000000 for false).
   //
   // Note: the advantage of specific field rather than the raw_data field is
   // that in some cases (e.g. int data), protobuf does a better packing via
   // variable length storage, and may lead to smaller binary footprint.
+  // When this field is present, the data_type field MUST NOT be STRING or UNDEFINED
   optional bytes raw_data = 9;
 
   // For double
+  // When this field is present, the data_type field MUST be DOUBLE
   repeated double double_data = 10 [packed = true];
 
   // Future extensions go here.
@@ -86,13 +110,16 @@ message TensorProto {
 message SparseTensorProto {
   // The dimensions in the tensor.
   repeated int64 dims = 1;
+  // This field MUST be present this version of the IR.  
   optional TensorProto indices = 2;
+  // This field MUST be present this version of the IR.  
   optional TensorProto values = 3;
 }
 
 message DataProto {
   // Defines a handle in its serialized format.
   message HandleProto {
+  // This field MUST be present this version of the IR.  
     optional int64 uid = 1;
 
     // More information to be added. We need to specify the device
@@ -107,6 +134,22 @@ message DataProto {
   // Defines a sequence in its serialized format.
   message SequenceProto {
     repeated DataProto elems = 1;
+  }
+
+  // Defines a map in its serialized format.
+  // Maps are serialized as two single-dimensional tensors 
+  // for storage efficiency. The dimensions of each tensor MUST be identical
+  // and the key at position N corresponds to the value at position N.
+  // Keys SHOULD be unique. When a given key appears multiple times,
+  // the value that corresponds last occurance of the key is the value.
+  // This is consistent with protobuf3 encoding rules for map.
+  message MapProto {
+  // This field MUST be present for this version of the IR.
+  // The data type of the tensor MUST refer to an integral type ([U]INT{8|16|32|64}) or STRING
+    optional TensorProto keys = 1;
+
+  // This field MUST be present for this version of the IR.
+    optional TensorProto values = 2;
   }
 
   oneof value {
@@ -124,5 +167,8 @@ message DataProto {
 
     // A sequence.
     SequenceProto seq = 5;
+
+    // A map.
+    MapProto map = 6;
   }
 }

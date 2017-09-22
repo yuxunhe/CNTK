@@ -1,9 +1,15 @@
 #pragma warning(push)
 #pragma warning(disable : 4800 4610 4512 4510 4267 4127 4125 4100 4456)
 
+#include <fstream>
+#include <iostream>
+#include <numeric>
+
 #include "graph.h"
 #include "op.h"
 #include "utils.h"
+
+using namespace LotusIR::Utils;
 
 namespace LotusIR
 {
@@ -12,6 +18,10 @@ namespace LotusIR
         : m_name(p_name),
         m_nodeArgTypeAndShape(p_nodeProtoInputOutput)
     {
+        if (m_nodeArgTypeAndShape.has_type())
+        {
+            m_type = OpUtils::ToType(m_nodeArgTypeAndShape.type());
+        }
     }
 
     NodeArg::NodeArg(const std::string& p_name,
@@ -21,6 +31,7 @@ namespace LotusIR
     {
         *(m_nodeArgTypeAndShape.mutable_type()) = p_type;
         *(m_nodeArgTypeAndShape.mutable_shape()) = p_shape;
+        m_type = OpUtils::ToType(p_type);
     }
 
     const std::string& NodeArg::Name() const
@@ -28,9 +39,9 @@ namespace LotusIR
         return m_name;
     }
 
-    const TypeProto& NodeArg::Type() const
+    const PTYPE& NodeArg::Type() const
     {
-        return m_nodeArgTypeAndShape.type();
+        return m_type;
     }
 
     const TensorShapeProto& NodeArg::Shape() const
@@ -43,39 +54,17 @@ namespace LotusIR
         return m_nodeArgTypeAndShape;
     }
 
-    Function::Function(Node* p_node,
-        const FunctionDefProto& p_funcProto,
-        GRAPH_VERSION p_irVersion,
-        GRAPH_VERSION p_producerVersion,
-        const std::string& p_producerTag)
+    void NodeArg::SetType(PTYPE p_type)
     {
-        m_node = p_node;
-        m_functionDefProto = p_funcProto;
-        m_name = p_funcProto.name();
+        m_type = p_type;
+        *(m_nodeArgTypeAndShape.mutable_type())
+            = OpUtils::ToTypeProto(p_type);
+    }
 
-        if (p_node != nullptr)
-        {
-            auto inputDefs = m_node->InputDefs();
-            int i = 0;
-            for (auto& inputArg : p_funcProto.input_arg())
-            {
-                if (inputArg.has_type())
-                {
-                    continue;
-                }
-                m_name.append("_")
-                    .append(Utils::OpUtils::ToString(inputDefs[i].Type()))
-                    .append(std::to_string(i));
-                ++i;
-            }
-        }
-
-        m_body.reset(new Graph(m_node,
-            p_funcProto,
-            m_name,
-            p_irVersion,
-            p_producerVersion,
-            p_producerTag));
+    Function::Function(Node* p_node,
+        const FunctionDefProto& p_funcProto)
+    {
+        m_body.reset(new Graph(p_node, p_funcProto));
     }
 
     Graph* Function::Body()
@@ -85,14 +74,12 @@ namespace LotusIR
 
     const std::string& Function::Name()
     {
-        return m_name;
+        return m_body->Name();
     }
 
-    const FunctionDefProto& Function::Proto()
+    const FunctionDefProto& Function::ToProto()
     {
-        // TODO: <m_body> may be changed during graph optimization,
-        // keep m_functionDefProto in sync with its subgraph here.
-        return m_functionDefProto;
+        return m_body->ToFuncProto();
     }
 
     Node::EdgeEnd::EdgeEnd(const Node& p_node, const NodeArg& p_nodeArg)
@@ -139,7 +126,6 @@ namespace LotusIR
         return *m_iter;
     }
 
-
     Node::Node(const Node& p_other)
     {
         m_name = p_other.m_name;
@@ -164,10 +150,14 @@ namespace LotusIR
         return m_name;
     }
 
-
     const std::string& Node::OpType() const
     {
         return m_opType;
+    }
+
+    const std::string& Node::Description() const
+    {
+        return m_description;
     }
 
     const std::vector<NodeArg>& Node::InputDefs() const
@@ -179,6 +169,17 @@ namespace LotusIR
     {
         m_graph->m_isGraphValid = false;
         return m_inputDefs;
+    }
+
+    const std::vector<int>& Node::InputArgCount() const
+    {
+        return m_inputArgCount;
+    }
+
+    std::vector<int>& Node::Mutable_InputArgCount()
+    {
+        m_graph->m_isGraphValid = false;
+        return m_inputArgCount;
     }
 
     Node::NodeConstIterator Node::InputNodes_begin() const
@@ -248,6 +249,8 @@ namespace LotusIR
         p_proto.set_name(m_name);
         // Set op type.
         p_proto.set_op_type(m_opType);
+        // Set doc string.
+        p_proto.set_doc_string(m_description);
 
         // Set control inputs.
         p_proto.clear_control_input();
@@ -264,7 +267,7 @@ namespace LotusIR
             *attr = attribute.second;
         }
 
-        // Set inputs' defitions.
+        // Set inputs' definitions.
         p_proto.clear_input();
         for (auto& inputDef : m_inputDefs)
         {
@@ -272,10 +275,16 @@ namespace LotusIR
             *input = inputDef.Name();
             auto inputInfo = p_proto.add_input_arg_info();
             *inputInfo = inputDef.ToProto();
-            // TODO: add_input_arg_count information. 
         }
 
-        // Set outputs' definition.
+        // Set input arg count.
+        p_proto.clear_input_arg_count();
+        for (auto argCount : m_inputArgCount)
+        {
+            *(p_proto.mutable_input_arg_count()->Add()) = argCount;
+        }
+
+        // Set outputs' definitions.
         p_proto.clear_output();
         for (auto& outputDef : m_outputDefs)
         {
@@ -294,6 +303,11 @@ namespace LotusIR
         for (size_t i = 0; i < p_nodeProto.input().size(); ++i)
         {
             m_inputDefs.push_back(NodeArg(p_nodeProto.input(i), p_nodeProto.input_arg_info(i)));
+        }
+
+        for (auto argCount : p_nodeProto.input_arg_count())
+        {
+            m_inputArgCount.push_back(argCount);
         }
 
         for (size_t i = 0; i < p_nodeProto.output().size(); ++i)
@@ -315,14 +329,131 @@ namespace LotusIR
 
     void Node::Init(const std::string& p_name,
         const std::string& p_opType,
+        const std::string& p_description,
         const std::vector<NodeArg>& p_inputArgs,
         const std::vector<NodeArg>& p_outputArgs)
     {
         m_name = p_name;
         m_opType = p_opType;
+        m_description = p_description;
         m_inputDefs = p_inputArgs;
+        // It's 1:1 mapping by default.
+        m_inputArgCount.assign(m_inputDefs.size(), 1);
         m_outputDefs = p_outputArgs;
     }
+
+    void Node::Init(const std::string& p_name,
+        const std::string& p_opType,
+        const std::string& p_description,
+        const std::vector<NodeArg>& p_inputArgs,
+        const std::vector<int>& p_inputArgCount,
+        const std::vector<NodeArg>& p_outputArgs)
+    {
+        m_name = p_name;
+        m_opType = p_opType;
+        m_description = p_description;
+        m_inputDefs = p_inputArgs;
+        m_inputArgCount = p_inputArgCount;
+        m_outputDefs = p_outputArgs;
+    }
+
+    void Node::Init(const std::string& p_name,
+        const std::string& p_opType,
+        const std::string& p_description,
+        const std::vector<NodeArg>& p_outputArgs)
+    {
+        m_name = p_name;
+        m_opType = p_opType;
+        m_description = p_description;
+        m_outputDefs = p_outputArgs;
+    }
+
+    bool Node::AddAttribute(const std::string& p_attrName, const AttributeProto& p_value)
+    {
+        auto it = m_attributes.find(p_attrName);
+        if (it == m_attributes.end())
+        {
+            m_attributes.emplace(p_attrName, p_value);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+#define ADD_BASIC_ATTR_IMPL(type, field)                                         \
+    bool Node::AddAttribute(const std::string& p_attrName, const type& p_value)  \
+    {                                                                            \
+        auto it = m_attributes.find(p_attrName);                                 \
+        if (it == m_attributes.end())                                            \
+        {                                                                        \
+            AttributeProto a;                                                    \
+            a.set_name(p_attrName);                                              \
+            a.set_##field(p_value);                                              \
+            m_attributes.emplace(p_attrName, a);                                 \
+            return true;                                                         \
+        }                                                                        \
+        else                                                                     \
+        {                                                                        \
+            return false;                                                        \
+        }                                                                        \
+    };                                                                           \
+
+#define ADD_ATTR_IMPL(type, field)                                               \
+    bool Node::AddAttribute(const std::string& p_attrName, const type& p_value)  \
+    {                                                                            \
+        auto it = m_attributes.find(p_attrName);                                 \
+        if (it == m_attributes.end())                                            \
+        {                                                                        \
+            AttributeProto a;                                                    \
+            a.set_name(p_attrName);                                              \
+            *(a.mutable_##field()) = p_value;                                    \
+            m_attributes.emplace(p_attrName, a);                                 \
+            return true;                                                         \
+        }                                                                        \
+        else                                                                     \
+        {                                                                        \
+            return false;                                                        \
+        }                                                                        \
+    };                                                                           \
+
+#define ADD_LIST_ATTR_IMPL(type, field)                                          \
+    bool Node::AddAttribute(const std::string& p_attrName,                       \
+                            const std::vector<type>& p_values)                   \
+    {                                                                            \
+        auto it = m_attributes.find(p_attrName);                                 \
+        if (it == m_attributes.end())                                            \
+        {                                                                        \
+            AttributeProto a;                                                    \
+            a.set_name(p_attrName);                                              \
+            for (const auto& val : p_values)                                     \
+            {                                                                    \
+                *(a.mutable_##field()->Add()) = val;                             \
+            }                                                                    \
+            m_attributes.emplace(p_attrName, a);                                 \
+            return true;                                                         \
+        }                                                                        \
+        else                                                                     \
+        {                                                                        \
+            return false;                                                        \
+        }                                                                        \
+    };                                                                           \
+
+    ADD_BASIC_ATTR_IMPL(float, f)
+    ADD_BASIC_ATTR_IMPL(int64_t, i)
+    ADD_BASIC_ATTR_IMPL(std::string, s)
+    ADD_ATTR_IMPL(TensorProto, t)
+    ADD_ATTR_IMPL(TensorShapeProto, shape)
+    ADD_ATTR_IMPL(GraphProto, g)
+    ADD_ATTR_IMPL(TypeProto, type)
+    ADD_LIST_ATTR_IMPL(float, floats)
+    ADD_LIST_ATTR_IMPL(int64_t, ints)
+    ADD_LIST_ATTR_IMPL(std::string, strings)
+    ADD_LIST_ATTR_IMPL(TensorProto, tensors)
+    ADD_LIST_ATTR_IMPL(TensorShapeProto, shapes)
+    ADD_LIST_ATTR_IMPL(GraphProto, graphs)
+    ADD_LIST_ATTR_IMPL(TypeProto, types)
 
     bool Node::ClearAttribute(const std::string& p_attrName)
     {
@@ -368,16 +499,22 @@ namespace LotusIR
     Graph::Graph(const GraphProto& p_graphProto)
         : m_graphProto(p_graphProto)
     {
+        // This is a main graph.
+        m_graphType |= Type::Main;
+
+        // Copy function definitions to a map.
         for (auto funcDef : p_graphProto.function())
         {
             m_funcDefMap[funcDef.name()] = funcDef;
         }
 
+        // Copy initial tensors to a map.
         for (auto tensor : p_graphProto.initializer())
         {
             m_nameToInitialTensor[tensor.name()] = tensor;
         }
 
+        // Add nodes.
         AddSourceSinkNodes();
         for (auto nodeProto : p_graphProto.node())
         {
@@ -386,17 +523,13 @@ namespace LotusIR
     }
 
     Graph::Graph(Node* p_node,
-        const FunctionDefProto& p_functionProto,
-        const std::string& p_name,
-        GRAPH_VERSION p_irVersion,
-        GRAPH_VERSION p_producerVersion,
-        const std::string& p_producerTag)
+        const FunctionDefProto& p_functionProto)
     {
+        // This is a function (subgraph).
+        m_graphType |= Type::Sub;
+
         m_node = p_node;
-        m_graphProto.set_name(p_name);
-        m_graphProto.set_ir_version(p_irVersion);
-        m_graphProto.set_producer_version(p_producerVersion);
-        m_graphProto.set_producer_tag(p_producerTag);
+        m_funcDefProto = p_functionProto;
 
         AddSourceSinkNodes();
         for (auto& nodeProto : p_functionProto.node())
@@ -414,6 +547,7 @@ namespace LotusIR
         m_graphProto.set_ir_version(p_irVersion);
         m_graphProto.set_producer_version(p_producerVersion);
         m_graphProto.set_producer_tag(p_producerTag);
+        m_graphType |= Type::Main;
         AddSourceSinkNodes();
     }
 
@@ -457,151 +591,6 @@ namespace LotusIR
         return Status::OK();
     }
 
-    Status Graph::VerifyNodeAndOpMatch(
-        /*out*/ std::set<std::string>& p_funcDefNames)
-    {
-        p_funcDefNames.clear();
-
-        for (auto nodeIter = Nodes_begin();
-            nodeIter != Nodes_end();
-            ++nodeIter)
-        {
-            if (IsSourceNode((*nodeIter)->Index())
-                || IsSinkNode((*nodeIter)->Index()))
-            {
-                continue;
-            }
-
-            std::string nodeName = (*nodeIter)->Name();
-            std::string op_type = (*nodeIter)->OpType();
-            const OperatorSchema* op = nullptr;
-            bool success = OperatorSchemaRegistry::Get()->TryGetOp(op_type, &op);
-            if (success)
-            {
-                // The node refers to a primitive operator.
-
-                // Verify node inputs have same size with operator definition.
-                if (op->GetInputs().size() != (*nodeIter)->InputDefs().size())
-                {
-                    // Number of inputs do not match.
-                    Status status(false, "Error: node (" + nodeName
-                        + ")'s number of inputs do not match its operator ("
-                        + op_type + ") specification.");
-                    return status;
-                }
-
-                // Verify node outputs have same size with operator definition.
-                if (op->GetOutputs().size() != (*nodeIter)->OutputDefs().size())
-                {
-                    // Number of outputs do not match.
-                    Status status(false, "Error: node (" + nodeName
-                        + ")'s number of outputs do not match its operator ("
-                        + op_type + ") specification.");
-                    return status;
-                }
-
-                // TODO: Does input/output type/shape is able to be checked
-                // here or to be checked when doing evaluation?
-
-                // Attribute match.
-                auto attrParser = op->GetAttributeParser();
-                if (nullptr != attrParser)
-                {
-                    // Attribute parser registered.
-                    // Verifying attribute match by running attribute parser.
-                    RETURN_IF_ERROR(attrParser((*nodeIter)->GetAttributes()));
-                }
-                else
-                {
-                    // No attribute parser registered.
-                    auto nodeAttributes = (*nodeIter)->GetAttributes();
-                    for (auto attr : op->GetAttributes())
-                    {
-                        auto nodeAttrIter = nodeAttributes.find(attr.GetName());
-                        if (nodeAttributes.end() == nodeAttrIter)
-                        {
-                            if (attr.IsMandatory())
-                            {
-                                Status status(false,
-                                    "Error: the mandatory attribute ("
-                                    + attr.GetName() + ") is not specified in Node ("
-                                    + nodeName + ").");
-                                return status;
-                            }
-                            return Status::OK();
-                        }
-                        else
-                        {
-                            // TODO: Verify attribute value matching attribute type
-                            // defined in operator definition.
-                        }
-                    }
-                }
-            }
-            else
-            {
-                auto funcIter = m_funcDefMap.find(op_type);
-                if (m_funcDefMap.end() == funcIter)
-                {
-                    // A op_type refers to nothing.
-                    Status status(false,
-                        "Error: the operator or function (" + op_type
-                        + ") refered by node (" + nodeName
-                        + ") does not exist.");
-                    return status;
-                }
-
-                // The node refers to a function.
-                p_funcDefNames.insert(op_type);
-
-                // Verify node inputs have same size with function definition.
-                if (funcIter->second.input_arg_size()
-                    != (*nodeIter)->InputDefs().size())
-                {
-                    // Number of inputs do not match.
-                    Status status(false, "Error: node (" + nodeName
-                        + ")'s number of inputs do not match its function ("
-                        + op_type + ") specification.");
-                    return status;
-                }
-
-                // Verify node outputs have same size with function definition.
-                if (funcIter->second.output_arg_size()
-                    != (*nodeIter)->OutputDefs().size())
-                {
-                    // Number of outputs do not match.
-                    Status status(false, "Error: node (" + nodeName
-                        + ")'s number of outputs do not match its function ("
-                        + op_type + ") specification.");
-                    return status;
-                }
-
-                // Attribute match.
-                auto nodeAttributes = (*nodeIter)->GetAttributes();
-                for (int i = 0; i < funcIter->second.attr_size(); ++i)
-                {
-                    auto attr = funcIter->second.attr(i);
-                    auto nodeAttrIter = nodeAttributes.find(attr.name());
-                    if (nodeAttributes.end() == nodeAttrIter)
-                    {
-                        Status status(false,
-                            "Error: the mandatory attribute ("
-                            + attr.name() + ") is not specified in Node ("
-                            + nodeName + ").");
-                        return status;
-                    }
-                    else
-                    {
-                        // TODO: Verify attribute value matching attribute type
-                        // defined in operator definition.
-                    }
-                }
-            }
-        }
-
-        return Status::OK();
-    }
-
     void Graph::CleanFunctionDefMap(
         const std::set<std::string>& p_funcDefNames)
     {
@@ -641,10 +630,11 @@ namespace LotusIR
                         == outputArgIter)
                     {
                         // No such outputArg matching this inputArg.
-                        Status status(false, "The node input argument ("
-                            + inputArg.Name()
-                            + "} does not match any output argument of other nodes.");
-                        return status;
+                        // This input arg should be fed when running evaluation.
+
+                        // Add a control edge between <souce> node and this node.
+                        AddControlEdge(m_sourceNodeIndex, (*nodeIter)->Index());
+                        continue;
                     }
 
                     // Setup input/output relationship between <*nodeIter>
@@ -685,7 +675,8 @@ namespace LotusIR
                 continue;
             }
 
-            if (innerNodes.end() == innerNodes.find((*nodeIter)))
+            if (innerNodes.size() <= 0
+                || innerNodes.end() == innerNodes.find((*nodeIter)))
             {
                 // This is an ending node.
                 // Add a control edge from this node to sink node.
@@ -696,16 +687,21 @@ namespace LotusIR
         return Status::OK();
     }
 
-    Status Graph::CheckIsAcyclic()
+    Status Graph::CheckIsAcyclic(
+        std::vector<NODEINDEX>& p_nodesInToplogicalOrder)
     {
         std::unordered_set<NODEINDEX> visitedNodes;
         std::unordered_set<NODEINDEX> ancestorNodes;
-        return DepthFirstAccess(ancestorNodes, m_sourceNodeIndex, visitedNodes);
+        return DepthFirstAccess(ancestorNodes,
+            m_sinkNodeIndex,
+            visitedNodes,
+            p_nodesInToplogicalOrder);
     }
 
     Status Graph::DepthFirstAccess(std::unordered_set<NODEINDEX> p_ancestors,
         NODEINDEX p_current,
-        std::unordered_set<NODEINDEX>& p_visitedNodes)
+        std::unordered_set<NODEINDEX>& p_visitedNodes,
+        std::vector<NODEINDEX>& p_nodesInToplogicalOrder)
     {
         if (p_visitedNodes.end() != p_visitedNodes.find(p_current))
         {
@@ -714,10 +710,8 @@ namespace LotusIR
         }
 
         p_ancestors.insert(p_current);
-        p_visitedNodes.insert(p_current);
-
-        for (auto iter = m_nodes[p_current]->OutputNodes_begin();
-            iter != m_nodes[p_current]->OutputNodes_end();
+        for (auto iter = m_nodes[p_current]->InputNodes_begin();
+            iter != m_nodes[p_current]->InputNodes_end();
             ++iter)
         {
             if (p_ancestors.end() != p_ancestors.find((*iter)->Index()))
@@ -729,7 +723,360 @@ namespace LotusIR
 
             RETURN_IF_ERROR(DepthFirstAccess(p_ancestors,
                 (*iter)->Index(),
-                p_visitedNodes));
+                p_visitedNodes,
+                p_nodesInToplogicalOrder));
+        }
+        p_visitedNodes.insert(p_current);
+        p_nodesInToplogicalOrder.push_back(p_current);
+
+        return Status::OK();
+    }
+
+    Status Graph::InferAndVerifyTypeMatch(
+        const std::vector<NODEINDEX>& p_nodesInToplogicalOrder,
+        std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs,
+        /*out*/ std::set<std::string>& p_funcDefNames)
+    {
+        m_graphProto.clear_input();
+        m_graphProto.clear_input_arg_info();
+        m_graphProto.clear_output();
+        m_graphProto.clear_output_arg_info();
+
+        // Init graph output args with all node output args.
+        auto graphOutputArgs = p_outputArgs;
+
+        for (auto nodeIndex : p_nodesInToplogicalOrder)
+        {
+            if (IsSourceNode(nodeIndex)
+                || IsSinkNode(nodeIndex))
+            {
+                continue;
+            }
+
+            auto node = GetNode(nodeIndex);
+            std::string nodeName = node->Name();
+            std::string op_type = node->OpType();
+            const OperatorSchema* op = nullptr;
+            bool success
+                = OperatorSchemaRegistry::Get()->TryGetOp(op_type, &op);
+            if (success)
+            {
+                // The node refers to a primitive operator.
+
+                // Verify size of node arg count is same as input number in
+                // operator definition.
+                if (op->GetInputs().size() != node->InputArgCount().size())
+                {
+                    // Number of inputs do not match.
+                    Status status(false, "Error: node (" + nodeName
+                        + ")'s number of inputs do not match its operator ("
+                        + op_type + ") specification.");
+                    return status;
+                }
+
+                // Infer and verify node input arg type information.
+                int totalArgCount = std::accumulate(node->InputArgCount().begin(),
+                    node->InputArgCount().end(), 0);
+                if (totalArgCount != node->InputDefs().size())
+                {
+                    Status status(false,
+                        "The sum of input arg count is not equal to size of"
+                        "input defs in node (" + nodeName + ").");
+                    return status;
+                }
+
+                // <k> index used to navigate node->InputDefs().
+                int k = 0;
+                std::unordered_map<std::string, PTYPE> typeParameterToTypeMap;
+                for (size_t i = 0; i < node->InputArgCount().size(); ++i)
+                {
+                    // Number of inputs matching to the i-th argument.
+                    int argCount = node->InputArgCount()[i];
+                    // The i-th argument definition.
+                    auto opFormalParameter = op->GetInputs()[i];
+
+                    // Infer and verify all <arguCount> inputs (k-th input)
+                    // matching operator definition (i-th argument).
+                    for (int j = 0;j < argCount;++j, ++k)
+                    {
+                        auto& inputDef = node->Mutable_InputDefs()[k];
+
+                        // For each input arg.
+                        auto outputArgsIter = p_outputArgs.find(inputDef.Name());
+                        if (p_outputArgs.end() == outputArgsIter)
+                        {
+                            // This input arg should either be fed by callers,
+                            // or be in initializers.
+                            // If it's fed by callers, it's needed to have type
+                            // information defined well.
+                            auto initialTensorIter
+                                = m_nameToInitialTensor.find(inputDef.Name());
+                            if (m_nameToInitialTensor.end()
+                                == initialTensorIter)
+                            {
+                                // This input is fed by callers.
+                                if (!inputDef.m_nodeArgTypeAndShape.has_type())
+                                {
+                                    Status status(false,
+                                        "Node (" + nodeName + ") input arg ("
+                                        + inputDef.Name()
+                                        + ") does not have type information.");
+                                    return status;
+                                }
+                                *(m_graphProto.mutable_input()->Add()) = inputDef.Name();
+                                *(m_graphProto.mutable_input_arg_info()->Add()) = inputDef.ToProto();
+                            }
+                            else
+                            {
+                                // This input is fed by initializer.
+                                TypeProto initialTensorType;
+                                initialTensorType.mutable_tensor_type()->set_elem_type(
+                                    initialTensorIter->second.data_type());
+
+                                inputDef.SetType(OpUtils::ToType(initialTensorType));
+                            }
+                        }
+                        else
+                        {
+                            // Infer its type by copying from its corresponding
+                            // input node's output arg.
+                            auto outputArgOfInputNode
+                                = outputArgsIter->second.GetNodeArg();
+
+                            inputDef.SetType(outputArgOfInputNode->Type());
+                            graphOutputArgs.erase(inputDef.Name());
+                        }
+
+                        // Verify the input arg type complying with operator
+                        // definition.
+
+                        auto iter = opFormalParameter.GetTypes().find(inputDef.Type());
+                        if (opFormalParameter.GetTypes().end() == iter)
+                        {
+                            Status status(false,
+                                "Node (" + nodeName + ") input arg ("
+                                + inputDef.Name() + ") type does not match operator ("
+                                + op->GetName() + ") definition.");
+                            return status;
+                        }
+
+                        auto paramToTypeIter = typeParameterToTypeMap.find(opFormalParameter.GetTypeStr());
+                        if (typeParameterToTypeMap.end() != paramToTypeIter)
+                        {
+                            if (paramToTypeIter->second != inputDef.Type())
+                            {
+                                Status status(false,
+                                    "Node (" + nodeName + ") has different input"
+                                    " types (" + *(paramToTypeIter->second) + ","
+                                    + *(inputDef.Type()) + ") matching to same "
+                                    "type string (" + opFormalParameter.GetTypeStr()
+                                    + ").");
+                                return status;
+                            }
+                        }
+                        else
+                        {
+                            typeParameterToTypeMap[opFormalParameter.GetTypeStr()]
+                                = inputDef.Type();
+                        }
+                    }
+                }
+
+                // Verify node outputs have same size with operator definition.
+                if (op->GetOutputs().size() != node->OutputDefs().size())
+                {
+                    // Number of outputs do not match.
+                    Status status(false, "Error: node (" + nodeName
+                        + ")'s number of outputs do not match its operator ("
+                        + op_type + ") specification.");
+                    return status;
+                }
+
+                // Infer and verify node output arg type information.
+                int i = 0;
+                for (auto& outputDef : node->Mutable_OutputDefs())
+                {
+                    // For each output arg.
+
+                    auto opFormalParameter = op->GetOutputs()[i++];
+
+                    // Infer output arg type per input arg type if they share
+                    // the same type string. For example, type string is "T" 
+                    // for both input arg and output arg.
+                    auto inputTypesIter
+                        = typeParameterToTypeMap.find(opFormalParameter.GetTypeStr());
+                    if (typeParameterToTypeMap.end() != inputTypesIter)
+                    {
+                        outputDef.SetType(inputTypesIter->second);
+                        continue;
+                    }
+
+                    if (typeParameterToTypeMap.empty())
+                    {
+                        // There's no input arg.
+
+                        // The output should be read from an attribute named c_constantValue.
+                        auto nodeAttributesIter
+                            = node->GetAttributes().find(c_constantValue);
+                        if (node->GetAttributes().end() == nodeAttributesIter)
+                        {
+                            Status status(false,
+                                "Node (" + nodeName + ") output arg value should"
+                                "be specified via node attribute '" + c_constantValue + "'.");
+                            return status;
+                        }
+
+                        AttrType attrType;
+                        RETURN_IF_ERROR(TypeUtils::GetType(nodeAttributesIter->second, attrType));
+                        if (AttrType::TENSOR == attrType)
+                        {
+                            auto& tensor = nodeAttributesIter->second.t();
+                            TypeProto typeProto;
+                            typeProto.mutable_tensor_type()->set_elem_type(tensor.data_type());
+                            outputDef.SetType(OpUtils::ToType(typeProto));
+                        }
+                        else
+                        {
+                            Status status(false,
+                                "For attribute " + c_constantValue + " , only Tensor type"
+                                "is allowed. The attribute type in this model is "
+                                + LotusIR::c_attrTypeStr[(int)attrType] + ".");
+                            return status;
+                        }
+
+                        continue;
+                    }
+
+                    // For case that input arg and output arg have different types.
+                    if (outputDef.m_nodeArgTypeAndShape.has_type())
+                    {
+                        // The output arg has already had type information.
+                        // Check whether it matches operator definition.
+                        auto iter = opFormalParameter.GetTypes().find(outputDef.Type());
+                        if (opFormalParameter.GetTypes().end() == iter)
+                        {
+                            Status status(false,
+                                "Node (" + nodeName + ") output arg ("
+                                + outputDef.Name() + ") type does not match operator ("
+                                + op->GetName() + ") definition.");
+                            return status;
+                        }
+                        continue;
+                    }
+
+                    // Output arg has no type information.
+                    if (1 == opFormalParameter.GetTypes().size())
+                    {
+                        // Infer output arg type as the only one type defined
+                        // in operator definition.
+                        outputDef.SetType(*(opFormalParameter.GetTypes().begin()));
+                        continue;
+                    }
+
+                    // Output arg has no type information, and there're
+                    // multiple allowed types defined in operator definition.
+                    // Type inference fails in this case.
+                    Status status(false,
+                        "Node (" + nodeName + ") output arg ("
+                        + outputDef.Name() + ") type inference failed");
+                    return status;
+                }
+
+                // Attribute verification and fill node attribute with
+                // default value defined in operator definition if needed.
+                auto attrParser = op->GetAttributeParser();
+                if (nullptr != attrParser)
+                {
+                    // Attribute parser registered.
+                    // Verifying attribute match by running attribute parser.
+                    RETURN_IF_ERROR(attrParser(node->GetAttributes()));
+                }
+                else
+                {
+                    // No attribute parser registered.
+                    auto nodeAttributes = node->GetAttributes();
+                    for (auto attrDef : op->GetAttributes())
+                    {
+                        auto nodeAttrIter = nodeAttributes.find(attrDef.GetName());
+                        if (nodeAttributes.end() == nodeAttrIter)
+                        {
+                            const AttributeProto* defaultValue = nullptr;
+                            bool hasDefaultValue
+                                = attrDef.HasDefaultValue(&defaultValue);
+                            if (!hasDefaultValue)
+                            {
+                                Status status(false,
+                                    "Error: the mandatory attribute ("
+                                    + attrDef.GetName() + ") is not specified in Node ("
+                                    + nodeName + ").");
+                                return status;
+                            }
+
+                            node->AddAttribute(attrDef.GetName(), *defaultValue);
+                        }
+                        else
+                        {
+                            // Verify node attribute type matching type of
+                            // attribute defined in operator definition.
+                            AttrType nodeAttrType;
+                            RETURN_IF_ERROR(TypeUtils::GetType(nodeAttrIter->second, nodeAttrType));
+                            if (nodeAttrType != attrDef.GetType())
+                            {
+                                Status status(false,
+                                    "Node (" + nodeName + ") attribute ("
+                                    + nodeAttrIter->first + ") type does not match operator definition.");
+                                return status;
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                auto funcIter = m_funcDefMap.find(op_type);
+                if (m_funcDefMap.end() == funcIter)
+                {
+                    // A op_type refers to nothing.
+                    Status status(false,
+                        "Error: the operator or function (" + op_type
+                        + ") refered by node (" + nodeName
+                        + ") does not exist.");
+                    return status;
+                }
+
+                // The node refers to a function.
+                p_funcDefNames.insert(op_type);
+
+                // Verify node inputs have same size with function definition.
+                if (funcIter->second.input_params_size()
+                    != node->InputDefs().size())
+                {
+                    // Number of inputs do not match.
+                    Status status(false, "Error: node (" + nodeName
+                        + ")'s number of inputs do not match its function ("
+                        + op_type + ") specification.");
+                    return status;
+                }
+
+                // Verify node outputs have same size with function definition.
+                if (funcIter->second.output_params_size()
+                    != node->OutputDefs().size())
+                {
+                    // Number of outputs do not match.
+                    Status status(false, "Error: node (" + nodeName
+                        + ")'s number of outputs do not match its function ("
+                        + op_type + ") specification.");
+                    return status;
+                }
+            }
+        }
+
+        // Set graph outputs.
+        for (auto& outputArg : graphOutputArgs)
+        {
+            *(m_graphProto.mutable_output()->Add()) = outputArg.first;
+            *(m_graphProto.mutable_output_arg_info()->Add())
+                = outputArg.second.GetNodeArg()->ToProto();
         }
 
         return Status::OK();
@@ -743,12 +1090,16 @@ namespace LotusIR
         }
 
         std::unordered_map<std::string, Node::EdgeEnd> outputArgs;
-        std::set<std::string> funcDefNames;
         RETURN_IF_ERROR(VerifyNoDuplicateName(outputArgs));
-        RETURN_IF_ERROR(VerifyNodeAndOpMatch(funcDefNames));
         RETURN_IF_ERROR(BuildConnections(outputArgs));
-        RETURN_IF_ERROR(CheckIsAcyclic());
 
+        std::vector<NODEINDEX> nodesInToplogicalOrder;
+        RETURN_IF_ERROR(CheckIsAcyclic(nodesInToplogicalOrder));
+
+        std::set<std::string> funcDefNames;
+        RETURN_IF_ERROR(InferAndVerifyTypeMatch(nodesInToplogicalOrder,
+            outputArgs,
+            funcDefNames));
         CleanFunctionDefMap(funcDefNames);
 
         m_isGraphValid = true;
@@ -758,8 +1109,16 @@ namespace LotusIR
     void Graph::AddSourceSinkNodes()
     {
         std::vector<NodeArg> emptyArgs;
-        m_sourceNodeIndex = AddNode("_Graph_Source", "NoOp", emptyArgs, emptyArgs)->Index();
-        m_sinkNodeIndex = AddNode("_Graph_Sink", "NoOp", emptyArgs, emptyArgs)->Index();
+        m_sourceNodeIndex = AddNode("_Graph_Source",
+            "NoOp",
+            "Source node internally in a graph.",
+            emptyArgs,
+            emptyArgs)->Index();
+        m_sinkNodeIndex = AddNode("_Graph_Sink",
+            "NoOp",
+            "Sink node internally in a graph.",
+            emptyArgs,
+            emptyArgs)->Index();
     }
 
     GRAPH_VERSION Graph::IrVersion() const
@@ -885,11 +1244,46 @@ namespace LotusIR
 
     Node* Graph::AddNode(const std::string& p_name,
         const std::string& p_opType,
+        const std::string& p_description,
         const std::vector<NodeArg>& p_inputArgs,
         const std::vector<NodeArg>& p_outputArgs)
     {
         auto node = AllocateNode();
-        node->Init(p_name, p_opType, p_inputArgs, p_outputArgs);
+        node->Init(p_name, p_opType, p_description, p_inputArgs, p_outputArgs);
+        // Set flag to indicates that the graph needs to be resolved.
+        m_isGraphValid = false;
+        return node;
+    }
+
+    Node* Graph::AddNode(const std::string& p_name,
+        const std::string& p_opType,
+        const std::string& p_description,
+        const std::vector<NodeArg>& p_inputArgs,
+        const std::vector<int>& p_inputArgCount,
+        const std::vector<NodeArg>& p_outputArgs)
+    {
+        auto node = AllocateNode();
+        node->Init(p_name,
+            p_opType,
+            p_description,
+            p_inputArgs,
+            p_inputArgCount,
+            p_outputArgs);
+        // Set flag to indicates that the graph needs to be resolved.
+        m_isGraphValid = false;
+        return node;
+    }
+
+    Node* Graph::AddNode(const std::string& p_name,
+        const std::string& p_opType,
+        const std::string& p_description,
+        const std::vector<NodeArg>& p_outputArgs)
+    {
+        auto node = AllocateNode();
+        node->Init(p_name,
+            p_opType,
+            p_description,
+            p_outputArgs);
         // Set flag to indicates that the graph needs to be resolved.
         m_isGraphValid = false;
         return node;
@@ -915,6 +1309,16 @@ namespace LotusIR
         // Set flag to indicates that the graph needs to be resolved.
         m_isGraphValid = false;
         return true;
+    }
+
+    Node* Graph::AddConstantNode(const std::string& p_name,
+        const std::string& p_description,
+        const std::vector<NodeArg>& p_outputArgs,
+        const TensorProto& p_tensor)
+    {
+        Node* node = AddNode(p_name, c_constantOp, p_description, p_outputArgs);
+        node->AddAttribute(c_constantValue, p_tensor);
+        return node;
     }
 
     bool Graph::AddControlEdge(NODEINDEX p_srcNodeIndex,
@@ -956,24 +1360,20 @@ namespace LotusIR
         auto funcIter = m_functionMap.find(funcDefName);
         if (m_functionMap.end() != funcIter)
         {
-            // A function instantion exists.
+            // A function instantiation exists.
             *p_function = funcIter->second.get();
             return true;
         }
 
         m_functionMap[funcDefName] =
             std::unique_ptr<Function>(
-                new Function(m_nodes[p_index].get(),
-                    funcDefIter->second,
-                    IrVersion(),
-                    ProducerVersion(),
-                    ProducerTag()));
+                new Function(m_nodes[p_index].get(), funcDefIter->second));
 
         *p_function = m_functionMap[funcDefName].get();
         return true;
     }
 
-    const GraphProto& Graph::Proto()
+    const GraphProto& Graph::ToGraphProto()
     {
         // Nodes.
         m_graphProto.clear_node();
@@ -1004,6 +1404,11 @@ namespace LotusIR
         }
 
         return m_graphProto;
+    }
+
+    const FunctionDefProto& Graph::ToFuncProto()
+    {
+        return m_funcDefProto;
     }
 
     bool Graph::InlineAllFunctions(/*out*/Graph* p_graph) const
@@ -1049,6 +1454,33 @@ namespace LotusIR
     {
         m_nodes[p_nodeIndex] = nullptr;
         m_numOfNodes--;
+    }
+
+    bool Graph::Save(const GraphProto& p_graphProto, const std::string& p_filePath)
+    {
+        std::fstream outputFileStream(p_filePath, std::ios::out | std::ios::binary);
+        bool result = p_graphProto.SerializeToOstream(&outputFileStream);
+        outputFileStream.close();
+        return result;
+    }
+
+    bool Graph::Load(const std::string& p_filePath, /*out*/ GraphProto* p_graphProto)
+    {
+        if (nullptr == p_graphProto)
+        {
+            return false;
+        }
+
+        std::fstream inputFileStream(p_filePath, std::ios::in | std::ios::binary);
+        if (!inputFileStream)
+        {
+            return false;
+        }
+
+        bool result = p_graphProto->ParsePartialFromIstream(&inputFileStream);
+        inputFileStream.close();
+
+        return result;
     }
 }
 
