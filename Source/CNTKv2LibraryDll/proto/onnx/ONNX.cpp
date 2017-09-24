@@ -49,7 +49,7 @@ void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 
     PrintGraph(cntkFunction, 0);
 
-    filepath;
+    graph->Save(graph->ToGraphProto(), ToString(filepath));
 }
 
 FunctionPtr ONNX::Load(const std::wstring& filepath)

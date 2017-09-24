@@ -7,10 +7,15 @@ import "Data.proto";
 // Defines the type system.
 message TypeProto {
   message TensorTypeProto {
+  // This field MUST NOT have the value of UNDEFINED
+  // This field MUST be present for this version of the IR.
+  //ISSUE:13807134,dbox: When we resolve whether to move TensorShapeProto here or not, this will go away
     optional TensorProto.DataType elem_type = 1;
   }
 
   message SparseTensorTypeProto {
+  // This field MUST NOT have the value of UNDEFINED
+  // This field MUST be present for this version of the IR.
     optional TensorProto.DataType elem_type = 1;
   }
 
@@ -22,9 +27,19 @@ message TypeProto {
   };
 
   message SeqTypeProto {
+  // This field MUST be present for this version of the IR.
     optional TypeProto elem_type = 1;
   };
 
+  message MapTypeProto {
+  // This field MUST be present for this version of the IR.
+  // This field MUST refer to an integral type ([U]INT{8|16|32|64}) or STRING
+    optional TensorProto.DataType key_type = 1;
+  // This field MUST be present for this version of the IR.
+  // This field MUST NOT refer to UNDEFINED
+    optional TensorProto.DataType value_type = 2;
+  };
+      
   oneof value {
     // The type of a tensor.
     TensorTypeProto tensor_type = 1;
@@ -41,5 +56,8 @@ message TypeProto {
 
     // The type of a sequence.
     SeqTypeProto seq_type = 5;
+
+    // The type of a map.
+    MapTypeProto map_type = 6;
   }
 }

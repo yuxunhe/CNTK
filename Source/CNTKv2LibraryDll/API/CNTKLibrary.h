@@ -3871,6 +3871,11 @@ namespace CNTK
     }
 
     ///
+    /// Flatten the input tensor to 1D while keeping the batch axis intact.
+    ///
+    CNTK_API FunctionPtr Flatten(const Variable& operand, const std::wstring& name = L"");
+
+    ///
     /// Create an instance of the CNTK built-in elementwise tensor addition operation with the specified input operands.
     ///
     CNTK_API FunctionPtr Plus(const Variable& leftOperand, const Variable& rightOperand, const std::wstring& name = L"");
@@ -3913,6 +3918,17 @@ namespace CNTK
     /// Create an instance of the CNTK built-in elementwise division operation on specified tensor input operands.
     ///
     CNTK_API FunctionPtr ElementDivide(const Variable& leftOperand, const Variable& rightOperand, const std::wstring& name = L"");
+
+    ///
+    /// Compute the element wise maximum operation between the given operands.
+    ///
+    CNTK_API FunctionPtr ElementMax(const Variable& leftOperand, const Variable& rightOperand, const std::wstring& name);
+
+
+    ///
+    /// Compute the element wise minimum operation between the given operands.
+    ///
+    CNTK_API FunctionPtr ElementMin(const Variable& leftOperand, const Variable& rightOperand, const std::wstring& name);
 
     ///
     /// Create an instance of the CNTK built-in elementwise equality comparison operation on specified tensor input operands.

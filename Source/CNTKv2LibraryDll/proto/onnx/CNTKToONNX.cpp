@@ -16,24 +16,38 @@ namespace CNTK
 class CNTKToONNXHelper
 {
 public:
+    static void Copy(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& dst);
+
+private:
+    static LotusIR::Node* CreateNode(const FunctionPtr& src,
+                                     std::unique_ptr<LotusIR::Graph>& graph,
+                                     std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
+                                     std::unordered_map<Variable, LotusIR::Node*>& variableNodes);
+
+    static void AddAttributes(const FunctionPtr& src, LotusIR::Node* node);
     static LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape);
     static LotusIR::TypeProto ToONNXType(DataType dataType);
     static std::string ToOPName(const FunctionPtr& src);
-    static LotusIR::Node* CreateNode(const FunctionPtr& src,
-                                      std::unique_ptr<LotusIR::Graph>& graph,
-                                      std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
-                                      std::unordered_map<Variable, LotusIR::Node*>& variableNodes);
+    static bool FilterInput(const FunctionPtr& src, const CNTK::Variable& input, size_t inputIndex);
 };
 
 std::unique_ptr<LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
 {
-    std::unique_ptr<LotusIR::Graph> graph(new LotusIR::Graph("CNTKGraph", 1, 1, "CNTK"));
+    std::unique_ptr<LotusIR::Graph> dstGraph(new LotusIR::Graph("CNTKGraph", 1, 1, "CNTK"));
+    CNTKToONNXHelper::Copy(src, dstGraph);
+    return dstGraph;
+}
+
+void CNTKToONNXHelper::Copy(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& dst)
+{
     std::unordered_map<FunctionPtr, LotusIR::Node*> functionNodes;
     std::unordered_map<Variable, LotusIR::Node*> variableNodes;
 
-    CNTKToONNXHelper::CreateNode(src, graph, functionNodes, variableNodes);
-
-    return graph;
+    //
+    // Iterate through each node in CNTK graph and create an equivalent node
+    // in ONNX graph.
+    //
+    CreateNode(src, dst, functionNodes, variableNodes);
 }
 
 LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape)
@@ -69,11 +83,14 @@ std::string CNTKToONNXHelper::ToOPName(const FunctionPtr& src)
     assert(lookup.count(src->OpName()) != 0);
 
     std::string opName = ToString(src->OpName());
-
     if (lookup.count(src->OpName()) == 1)
-        opName = lookup.find(src->OpName())->second;
+    {
+        auto attributesMap = lookup.find(src->OpName())->second.map;
+        opName = attributesMap[src->OpName()];
+    }
     else
     {
+        // Some nodes map one to many.
         if (src->OpName() == L"Pooling")
         {
             PoolingType poolingType = (PoolingType)src->Attributes()[L"poolingType"].Value<size_t>();
@@ -87,6 +104,19 @@ std::string CNTKToONNXHelper::ToOPName(const FunctionPtr& src)
     return opName;
 }
 
+bool CNTKToONNXHelper::FilterInput(const FunctionPtr& src, const CNTK::Variable& input, size_t inputIndex)
+{
+    // In CNTK block functions, they expose all constants inside the block. For block functions that
+    // map directly to ONNX OP, we don't care about constanst inside the block.
+    if (input.IsConstant())
+        return !Operators::IsValidInputs(src->OpName(), inputIndex);
+    return false;
+}
+
+//
+// This is the main horsepower, it navigate CNTK graph recursivley while keep track of all visited nodes and variables, 
+// and create the corresponding ONNX graph.
+//
 LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                                             std::unique_ptr<LotusIR::Graph>& graph,
                                             std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
@@ -97,6 +127,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
         return iter->second;
 
     LotusIR::Node* functionNode = nullptr;
+    std::string opName = ToString(src->OpName());
 
     //
     // If this block node equivalent to a primitive ONNX OP, then treated as such.
@@ -106,6 +137,10 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
     {
         functionNode = CreateNode(src->BlockRoot(), graph, functionNodes, variableNodes);
     }
+    //
+    // For compatibility of other framework that support ONNX, we will limit the list of OPs to the one
+    // supported by ONNX https://github.com/onnx/onnx/tree/master/onnx/defs.
+    //
     else if (Operators::IsSupportedCNTKOP(src->OpName()))
     {
         std::vector<LotusIR::NodeArg> inputs;
@@ -114,22 +149,30 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
         for (const auto& output : src->Outputs())
         {
             LotusIR::NodeArg outputArg(ToString(output.Uid()),
-                                       CNTKToONNXHelper::ToONNXType(output.GetDataType()),
-                                       CNTKToONNXHelper::ToTensorShape(output.Shape()));
+                                       ToONNXType(output.GetDataType()),
+                                       ToTensorShape(output.Shape()));
             outputs.push_back(outputArg);
         }
 
-        for (const auto& input : src->Inputs())
+        for (size_t inputIndex = 0; inputIndex < src->Inputs().size(); ++inputIndex)
         {
+            auto input = src->Inputs()[inputIndex];
+
             if (input.IsPlaceholder())
                 continue;
 
+            if (src->IsBlock() && FilterInput(src, input, inputIndex))
+                continue;
+
             LotusIR::NodeArg inputArg(ToString(input.Uid()),
-                                      CNTKToONNXHelper::ToONNXType(input.GetDataType()),
-                                      CNTKToONNXHelper::ToTensorShape(input.Shape()));
+                                      ToONNXType(input.GetDataType()),
+                                      ToTensorShape(input.Shape()));
 
             inputs.push_back(inputArg);
 
+            //
+            // Leaf nodes are data entry to the graph and need their own node with only output arg.
+            //
             if (input.IsInput() || input.IsParameter() || input.IsConstant())
             {
                 if (variableNodes.find(input) == variableNodes.end())
@@ -140,24 +183,35 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                     varOutputs.push_back({ inputArg });
                     LotusIR::Node* variableNode = nullptr;
                     if (input.IsParameter() || input.IsConstant())
-                        variableNode = graph->AddNode(ToString(input.Uid()), "Constant", varInputs, varOutputs);
+                        variableNode = graph->AddNode(ToString(input.Uid()), "Constant", "", varInputs, varOutputs);
                     else
-                        variableNode = graph->AddNode(ToString(input.Uid()), "Variable", varInputs, varOutputs);
+                        variableNode = graph->AddNode(ToString(input.Uid()), "Variable", "", varInputs, varOutputs);
 
                     variableNodes.emplace(input, variableNode);
                 }
             }
+            //
+            // If this input is output, then it is the ouput of an up stream node. Recursively add all upstream nodes.
+            // Pretty much, we are doing DFS.
+            //
             else if (input.IsOutput())
                 CreateNode(input.Owner(), graph, functionNodes, variableNodes);
         }
 
-        functionNode = graph->AddNode(ToString(src->Uid()), CNTKToONNXHelper::ToOPName(src), inputs, outputs);
+        functionNode = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", inputs, outputs);
+        AddAttributes(src, functionNode);
     }
     else
         LogicError("Node '%S': Unsupported node.", src->AsString().c_str());
 
     functionNodes.emplace(src, functionNode);
     return functionNode;
+}
+
+void CNTKToONNXHelper::AddAttributes(const FunctionPtr& src, LotusIR::Node* node)
+{
+    src;
+    node;
 }
 
 }

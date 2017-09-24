@@ -10,14 +10,18 @@
 #include "../protobuf/graph.pb.h"
 #pragma warning(pop)
 
-#include "Status.h"
+#include "status.h"
+#include "utils.h"
 
 namespace LotusIR
 {
-    typedef uint32_t NODEINDEX;
+    static const std::string c_constantOp = "Constant";
+    static const std::string c_constantValue = "CONSTANT_VALUE";
+    typedef size_t NODEINDEX;
     typedef int64_t GRAPH_VERSION;
     typedef std::unordered_map<std::string, AttributeProto> NodeAttributes;
     typedef ArgInfoProto NodeArgInfo;
+
     class Graph;
 
     // Node argument definition, for both input and output,
@@ -27,14 +31,15 @@ namespace LotusIR
     public:
 
         // Constructor by specifying a name, type and shape.
-        NodeArg(const std::string& p_name, const TypeProto& p_type,
+        NodeArg(const std::string& p_name,
+            const TypeProto& p_type,
             const TensorShapeProto& p_shape);
 
         // Get node arg name.
         const std::string& Name() const;
 
         // Get node arg type.
-        const TypeProto& Type() const;
+        const PTYPE& Type() const;
 
         // Get node arg shape.
         const TensorShapeProto& Shape() const;
@@ -45,26 +50,39 @@ namespace LotusIR
     private:
 
         friend class Node;
+        friend class Graph;
 
         // Constructor by specifying a <NodeArgInfo>.
         // This is called when loading a <Graph> from <GraphProto> normally.
         NodeArg(const std::string& p_name,
             const NodeArgInfo& p_nodeProtoInputOutput);
 
+        void SetType(PTYPE p_type);
+
         // Node arg name.
         std::string m_name;
+
+        // Node arg DType.
+        PTYPE m_type;
 
         // Node arg type and shape.
         NodeArgInfo m_nodeArgTypeAndShape;
     };
 
     // Function representation.
-    // There're two cases of instantiating a function,
-    // 1. Instantiating a function instance per <FunctionDefProto> which does
-    //    not contain template.
-    // 2. Instantiating a function instance per <Node> and <FunctionDefProto>
-    //    which contains template. Node's inputs contain type value to do
-    //    instantiation.
+    // It could present two cases of functions.
+    // 1. Function without instantiation (No Node* sent to constructor). This
+    //    may be used in pure function optimization.
+    //    Function body (subgraph) should not be able to executed since no real
+    //    tensor binded with inputs/outputs of the function.
+    // 2. Function with instantiation (A non-empty Node* sent to constructor).
+    //    Function body (subgraph) should be able to be executed since all 
+    //    input/output names among nodes inside are refering real tensor names.
+    //    2_a. Function with template type parameter.
+    //    2_b. Function without template type parameter.
+    // Function definition (FunctionDefProto) will be synced only when its body
+    // is changed. Meanwhile, in 2_a case above, the function definition name
+    // will be appended with real type string.
     class Function
     {
     public:
@@ -80,10 +98,7 @@ namespace LotusIR
         const std::string& Name();
 
         // Get the protobuf representation of <*this> function.
-        // TODO: Flag may be added to indicate whether <*this> function body is
-        // changed due to optimization, if yes, the <m_functionDefProto> should
-        // be synced with <*this> function body.
-        const FunctionDefProto& Proto();
+        const FunctionDefProto& ToProto();
 
     private:
 
@@ -96,24 +111,11 @@ namespace LotusIR
         // used to instantiate <p_funcProto> if <p_funcProto> is a function
         // template.
         // <p_funcProto> specifies a function definition that a node refers to.
-        // <p_version> specifies a graph version this function will use for its
-        // function body - a subgraph. It normally uses the same version as its
-        // parent graph.
         Function(Node* p_node,
-            const FunctionDefProto& p_funcProto,
-            GRAPH_VERSION p_irVersion,
-            GRAPH_VERSION p_producerVersion,
-            const std::string& p_producerTag);
+            const FunctionDefProto& p_funcProto);
 
         // Function body which is a SubGraph.
         std::unique_ptr<Graph> m_body;
-
-        Node* m_node;
-        std::string m_name;
-
-        // Function definition, which should be synced with <m_body> if there's
-        // any optimization on <m_body>.
-        FunctionDefProto m_functionDefProto;
     };
 
     // A node representation class.
@@ -177,10 +179,16 @@ namespace LotusIR
         // Get node operator type.
         const std::string& OpType() const;
 
+        // Get node description.
+        const std::string& Description() const;
+
         // Read/Write <*this> node's input args' definition, including name,
         // type and shape.
         const std::vector<NodeArg>& InputDefs() const;
         std::vector<NodeArg>& Mutable_InputDefs();
+
+        const std::vector<int>& InputArgCount() const;
+        std::vector<int>& Mutable_InputArgCount();
 
         // Read/Write <*this> node's output args' definition, including name,
         // type and shape.
@@ -199,14 +207,24 @@ namespace LotusIR
             /*out*/const EdgeEnd** p_inputEdgeSrcEnd);
 
         // Add a node attribute with specified attribute name and value.
-        template <typename T>
-        bool AddAttribute(const std::string& p_attrName, const T& p_value)
-        {
-            // TODO: add implementation.
-        }
+        bool AddAttribute(const std::string& p_attrName, const AttributeProto& p_value);
 
-        // Clear specified node attribute.
-        bool ClearAttribute(const std::string& p_attrName);
+#define ADD_ATTR_INTERFACES(TypeName)                             \
+        bool AddAttribute(const std::string& p_attrName,          \
+                          const TypeName& p_value);               \
+        bool AddAttribute(const std::string& p_attrName,          \
+                          const std::vector<TypeName>& p_values); \
+
+        ADD_ATTR_INTERFACES(int64_t)
+            ADD_ATTR_INTERFACES(float)
+            ADD_ATTR_INTERFACES(std::string)
+            ADD_ATTR_INTERFACES(TensorProto)
+            ADD_ATTR_INTERFACES(GraphProto)
+            ADD_ATTR_INTERFACES(TypeProto)
+            ADD_ATTR_INTERFACES(TensorShapeProto)
+
+            // Clear specified node attribute.
+            bool ClearAttribute(const std::string& p_attrName);
 
         // Get node attributes.
         const NodeAttributes& GetAttributes() const;
@@ -235,7 +253,18 @@ namespace LotusIR
         void Init(const NodeProto& p_nodeProto);
         void Init(const std::string& p_name,
             const std::string& p_opType,
+            const std::string& p_description,
             const std::vector<NodeArg>& p_inputArgs,
+            const std::vector<NodeArg>& p_outputArgs);
+        void Init(const std::string& p_name,
+            const std::string& p_opType,
+            const std::string& p_description,
+            const std::vector<NodeArg>& p_inputArgs,
+            const std::vector<int>& p_inputArgCount,
+            const std::vector<NodeArg>& p_outputArgs);
+        void Init(const std::string& p_name,
+            const std::string& p_opType,
+            const std::string& p_description,
             const std::vector<NodeArg>& p_outputArgs);
 
         // Node index.
@@ -247,8 +276,18 @@ namespace LotusIR
         // Node operator type.
         std::string m_opType;
 
+        // Node doc string.
+        std::string m_description;
+
         // Node inputs' definition.
         std::vector<NodeArg> m_inputDefs;
+        // The number of inputs for each argument of the operator or function which
+        // this node refers.
+        // For example, <m_inputDefs> has 10 elements (inputs), and <m_inputArgCount>
+        // is {4, 6}. This means that 4 elements (inputs) of <m_inputDefs> map to the
+        // first argument of the operator or function, and the other 6 map to the
+        // second argument.
+        std::vector<int> m_inputArgCount;
 
         // Node outputs' definition.
         std::vector<NodeArg> m_outputDefs;
@@ -324,11 +363,7 @@ namespace LotusIR
         // Question: will a node defined in a function refers another function
         // please? I (Ke) am assuming we don't allow such case here for now.
         Graph(Node* p_node,
-            const FunctionDefProto& p_functionProto,
-            const std::string& p_name,
-            GRAPH_VERSION p_irVersion,
-            GRAPH_VERSION p_producerVersion,
-            const std::string& p_producerTag);
+            const FunctionDefProto& p_functionProto);
 
         // Resolve <*this> graph to ensure it's in a good shape with full
         // functionality.
@@ -342,17 +377,19 @@ namespace LotusIR
         // Returns resolving status.
         Status Resolve();
 
-        // Getter and Setter for <m_irVersion>.
+        // Getter and Setter for producer version.
         GRAPH_VERSION ProducerVersion() const;
         void SetProducerVersion(GRAPH_VERSION p_producerVersion);
 
+        // Getter and Setter for IR version.
         GRAPH_VERSION IrVersion() const;
         void SetIrVersion(GRAPH_VERSION p_irVersion);
 
+        // Getter and Setter for producer tag.
         const std::string& ProducerTag() const;
         void SetProducerTag(const std::string& p_producerTag);
 
-        // Getter and Setter for <m_name>.
+        // Getter and Setter for graph name.
         const std::string& Name() const;
         void SetName(const std::string& p_name);
 
@@ -384,10 +421,27 @@ namespace LotusIR
         // Add, remove node from <*this> graph.
         Node* AddNode(const std::string& p_name,
             const std::string& p_opType,
+            const std::string& p_description,
             const std::vector<NodeArg>& p_inputArgs,
+            const std::vector<NodeArg>& p_outputArgs);
+        Node* AddNode(const std::string& p_name,
+            const std::string& p_opType,
+            const std::string& p_description,
+            const std::vector<NodeArg>& p_inputArgs,
+            const std::vector<int>& p_inputArgCount,
+            const std::vector<NodeArg>& p_outputArgs);
+        Node* AddNode(const std::string& p_name,
+            const std::string& p_opType,
+            const std::string& p_description,
             const std::vector<NodeArg>& p_outputArgs);
         Node* AddNode(const Node& p_other);
         bool RemoveNode(NODEINDEX p_nodeIndex);
+
+        // Convenience method for adding a constant op
+        Node* AddConstantNode(const std::string& p_name,
+            const std::string& p_description,
+            const std::vector<NodeArg>& p_outputArgs,
+            const TensorProto& p_tensor);
 
         // Add control edge into <*this> graph.
         // The <p_dstNodeIndex> node does not consume any data output by
@@ -401,7 +455,11 @@ namespace LotusIR
             /*out*/ Function** p_function);
 
         // Serialize the <Graph> into <GraphProto>.
-        const GraphProto& Proto();
+        const GraphProto& ToGraphProto();
+
+        // Serialize the <Graph> into <FunctionDefProto>.
+        // This is used when the graph is a subgraph of a main graph.
+        const FunctionDefProto& ToFuncProto();
 
         // Inline all function in <*this> and construct <p_graph>
         // without any functions. <p_graph> owned by caller.
@@ -413,7 +471,19 @@ namespace LotusIR
         const Node* SourceNode() const;
         const Node* SinkNode() const;
 
+        // Save a GraphProto to a file.
+        static bool Save(const GraphProto& p_graphProto, const std::string& p_filePath);
+
+        // Load a GraphProto from a file.
+        static bool Load(const std::string& p_filePath, /*out*/ GraphProto* p_graphProto);
+
     private:
+
+        enum Type
+        {
+            Main = 1,
+            Sub = 2,
+        };
 
         friend class Node;
 
@@ -426,14 +496,6 @@ namespace LotusIR
         Status VerifyNoDuplicateName(/*out*/
             std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs);
 
-        // Verify node op_type should be valid, either pointing to an
-        // operator or a function.
-        // Verify node attributes should match operator/function attributes.
-        // Verify node inputs/outputs' type/shape should match operator/
-        // function inputs/outputs type/shape.
-        Status VerifyNodeAndOpMatch(
-            /*out*/ std::set<std::string>& p_funcDefNames);
-
         // Build and verify node connection (edges).
         // Verify NodeArg name/type/shape matching correctly.
         Status BuildConnections(
@@ -442,11 +504,29 @@ namespace LotusIR
         // Check whether <*this> graph is acyclic.
         // Depth-first going thru the graph and check whether there's any back
         // edge.
-        Status Graph::CheckIsAcyclic();
+        // <p_nodesInToplogicalOrder> returns nodes' indexes in toplogical
+        // order if <Status> returned is "OK", otherwise it's undefined.
+        Status Graph::CheckIsAcyclic(
+            /*out*/std::vector<NODEINDEX>& p_nodesInToplogicalOrder);
 
+        // Depth-first graph access.
+        // <p_ancestors> specifies all ancestor nodes of <p_current> node.
+        // <p_current> specifies current node being accessed.
+        // <p_visitedNodes> specifies nodes already visited.
+        // <p_nodesInToplogicalOrder> returns nodes' indexes in toplogical
+        // order if the graph is acyclic.
         Status DepthFirstAccess(std::unordered_set<NODEINDEX> p_ancestors,
             NODEINDEX p_current,
-            std::unordered_set<NODEINDEX>& p_visitedNodes);
+            /*in | out*/std::unordered_set<NODEINDEX>& p_visitedNodes,
+            /*out*/std::vector<NODEINDEX>& p_nodesInToplogicalOrder);
+
+        // Given nodes in toplogical order, infer and set type information
+        // across <*this> graph if needed, and verify type/attribute
+        // information match between node and op.
+        Status InferAndVerifyTypeMatch(
+            const std::vector<NODEINDEX>& p_nodesInToplogicalOrder,
+            std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs,
+            /*out*/ std::set<std::string>& p_funcDefNames);
 
         // Clean function definition map.
         // Remove function definitions not refered by any node.
@@ -468,11 +548,12 @@ namespace LotusIR
         NODEINDEX m_sourceNodeIndex;
         NODEINDEX m_sinkNodeIndex;
 
-        // GraphProto to store name, version, parameters.
+        // GraphProto to store name, version, initializer.
         // When serilizing <*this> Graph to a GraphProto, the nodes and
         // functions in <Graph> will also be fed into <m_graphProto> so that
         // it's consistent with <*this> graph.
         GraphProto m_graphProto;
+        FunctionDefProto m_funcDefProto;
 
         // The node which refers to <*this> graph (Function).
         Node* m_node;
@@ -489,6 +570,8 @@ namespace LotusIR
 
         // A flag indicates whether <*this> graph needs to be resolved.
         bool m_isGraphValid;
+
+        int m_graphType;
     };
 }
 

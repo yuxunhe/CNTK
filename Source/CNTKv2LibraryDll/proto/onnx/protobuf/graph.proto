@@ -24,20 +24,22 @@ import "TensorShape.proto";
 // - Graph: These names identify graphs in the protobuf.
 // - Attribute: These names identify attribute names for extra attributes
 //   that are passed to operators.
-// - Operator and functions: These names identify particular operators and
+// - OperatorOrFunction: These names identify particular operators and
 //   functions.
-// - Tensor: These names identify intermediate tensor values flowing through
+// - Value: These names identify intermediate values (typically tensors) flowing through
 //   the computation of a graph.
 // - Shape: These names represent parameters for unknown shape dimensions.
 //
 // We specify the namespace of a name in LotusIR as comments in the form
-// of "namespace {Node,Graph,Attribute,Tensor,Shape}". Framework is
+// of "namespace {Node,Graph,OperatorOrFunction,Attribute,Value,Shape}". Framework is
 // responsible for supporting the namespaces.
 
 // Defines argument information set, except argument name.
 // The argument could be an input or an output of a graph, node or function.
 message ArgInfoProto {
+  // This field MUST be present this version of the IR.  
     optional TypeProto type = 1;
+  // This field MUST only be present if the type field is not a TensorTypeProto
     optional TensorShapeProto shape = 2;
 }
 
@@ -45,6 +47,31 @@ message ArgInfoProto {
 // All the input/output tensors are explicitly named so a framework can
 // run any subgraph of the graph by feeding and fetching the named tensors.
 message GraphProto {
+//BUG:13806896,onnx: 
+//          Format/protocol design 101. We need to put the version info
+//          at the front of the format.  In the current layout, one has to 
+//          parse past the entire graph + all initial tensor values prior
+//          to knowing (a) if the IR_VERSION is supported and (b) whether
+//          to quirk based on the producer_version/producer_tag.
+//          The best layout would be:
+//
+//      ir_version
+//      producer_version
+//      producer_tag
+//      model_version
+//      model_author
+//      model_license
+//      model_information
+//      name
+//      attributes
+//      namespace
+//      doc_string (can go anywhere before node and initializer)
+//      input
+//      output
+//      node
+//      initializer
+//
+
   // The nodes in the graph.
   repeated NodeProto node = 1;
 
@@ -55,24 +82,32 @@ message GraphProto {
   // of some nodes in the graph. The list output must be output names of some
   // nodes in the graph. For names in input that are not in initializer, their
   // types and shapes are required.
-  repeated string input = 3;  // namespace Tensor
-  repeated string output = 4; // namespace Tensor
+  //ISSUE:13807021,dbox: For input tensors that also appear in the initializer field,
+  //            do we also expose those parameters as inputs to eval?
+  repeated string input = 3;  // namespace Value
+  repeated string output = 4; // namespace Value
 
-  // An optional list of initial values for tensors in the list of input above.
+  // An optional list of named initial values for tensors in the list of input above.
   // Used to pass serialized parameters for networks.
   // Each entry specifies a value for the input whose TensorProto.name matches
   // a name in the input. This list is a subset of input since many tensors
-  // might not have initial values.
+  // might not have initial values. 
+  //ISSUE:13807021,onnx: Do we require at most one Tensor per input name? Given that
+  //            our evaluation model allows multiple tensors to be fed into a 
+  //            given node, I'm guessing we allow two or more tensors per
+  //            input (and also allow users to provide it). I'll tighten up
+  //            the text once we resolve. As written, it's ambiguous in ONNX.
   repeated TensorProto initializer = 5;
 
   // The version of the IR this graph targets. See Version enum below.
+  // This field MUST be present this version of the IR.  
   optional int64 ir_version = 6;
 
-  // The version of the framework runtime that generates this graph.
+  // The optional version of the framework runtime that generates this graph.
   // This producer_version has the same format as ir_version. 
   optional int64 producer_version = 7;
 
-  // The name of the framework used to generate this graph in the form
+  // The optional name of the framework used to generate this graph in the form
   // "framework_name[-tag]". Tag is optional and provides additional
   // information such as `alpha` or `beta` or `rc3`.
   optional string producer_tag = 8;
@@ -81,21 +116,45 @@ message GraphProto {
   // We use reverse domain names as name space indicators. For example:
   // `com.facebook.fair` or `com.microsoft.cognitiveservices`
   //
-  // Together with `name` and `version`, this forms the unique identity of
+  // Together with `name` and `model_version`, this forms the unique identity of
   // the graph.
   optional string domain = 9;
 
-  // A human-readable documentation for this graph.
+  // An optional human-readable documentation for this graph.
+  // This text MAY contain Markdown markup that conforms to http://commonmark.org/. 
   optional string doc_string = 10;
 
   // The function definitions of the graph. They can only only be used
   // (i.e., called) in this graph.
+  // Each FunctionDefProto in function MUST have a unique name. 
   repeated FunctionDefProto function = 11;
 
   // Argument information for input/output of this graph.
+  // Each ArgInfoProto corresponds one-to-one by position with the 
+  // input or output tensor of the graph.
+  // The number of elements in input_arg_info MUST match the number 
+  // of elements in the input field.
+  // The number of elements in output_arg_info MUST match the number 
+  // of elements in the output field.
   repeated ArgInfoProto input_arg_info = 12;
   repeated ArgInfoProto output_arg_info = 13;
-  
+
+  // An optional version identifier used to track evolution of this graph.
+  // This model_version has the same format as ir_version. 
+  optional int64 model_version = 14;
+
+  // The optional name of the author who created the graph.
+  optional string model_author = 15;
+
+  // Optional licensing information concerning use or origination of the graph.
+  // This text MAY contain Markdown markup that conforms to http://commonmark.org/. 
+  optional string model_license = 16;
+
+  // TODO: When the map type is added, provide for the "model_information"
+  // field which holds name/value pairs of strings with additional devops
+  // metadata, such as an identifier for which training set this instance
+  // of a graph was trained with.
+
   reserved 100 to 200; // for future extensions.
 }
 
@@ -135,58 +194,94 @@ enum Version {
 message NodeProto {
 
   // The named inputs of the node.
-  repeated string input = 1;   // namespace Tensor
+  repeated string input = 1;   // namespace Value
 
   // The named outputs of the node.
-  repeated string output = 2;  // namespace Tensor
+  repeated string output = 2;  // namespace Value
 
   // The name of this node.
+  // This field is optional and used to uniquely identify nodes in the graph.
   optional string name = 3;    // namespace Node
 
   // The name of the operator/function called by the node.
-  optional string op_type = 4; // namespace Operator
+  // This field MUST be present for this version of the IR.
+  optional string op_type = 4; // namespace OperatorOrFunction
 
   // Additional named attributes.
   repeated AttributeProto attribute = 5;
 
-  // A human-readable documentation for this graph.
+  // An optional human-readable documentation for this node in the graph.
+  // This text MAY contain Markdown markup that conforms to http://commonmark.org/. 
   optional string doc_string = 6;
 
   // Information including type and shape for each input and output
   // argument of the operator/function called by the node.
+  //ISSUE:13806939,dbox: Mail thread pending on type inferencing model. 
   repeated ArgInfoProto input_arg_info = 7;
   repeated ArgInfoProto output_arg_info = 8;
 
   // The number of inputs for each argument of the operator/function.
   // A formal parameter of the op may take a variable number of inputs
   // that is only known when this node is constructed.
+  //BUG:13806939,dbox: I'm assuming that this field is like input_arg_info in that
+  //          a zero element/missing array implies that one needs to crawl
+  //          the graph to figure out the input counts, yes? COnfirm and I'll
+  //          make clear.  Otherwise, we need to require it to be present
+  //          and accurate.
   repeated int32 input_arg_count = 9;
 
-  // Specify a list of nodes that must be executed before this node.
+  // Specify a list of named nodes that must be executed before this node.
   // Framework may use this to give users the ability to impose additional
   // execution orders for the operations.
   repeated string control_input = 10;
 }
+
+message ParameterDeclProto {
+  optional string name = 1;
+  optional TypeProto type = 2;
+  optional TensorShapeProto shape = 3;
+// An optional human-readable documentation for this parameter.
+  optional string doc_string = 4;
+};
+
+message SignatureDeclProto {
+// The formal input parameters to the operation or function 
+  repeated ParameterDeclProto input_params = 1;
+// The formal output parameters to the operation or function 
+  repeated ParameterDeclProto output_params = 2;
+// The declaration of expected attributes to the operation or function 
+  repeated ParameterDeclProto input_attributes = 3; 
+// An optional human-readable documentation for this signature.
+  optional string doc_string = 4;
+};
+
+message OperatorDeclProto {
+// This field MUST be present for this version of the IR.
+  optional string name = 1;
+
+// This field MUST contain at least one SignatureDeclProto.
+// This field MAY contain multiple SignatureDeclProtos, one 
+// per type signature supported by this operator.
+  repeated SignatureDeclProto signature = 2;
+
+// An optional human-readable documentation for this operator.
+  optional string doc_string = 3;
+};
 
 // Defines a function.
 // A function is well-formed if
 //   - input_arg.name is the name of an InParam node in `node`.
 //   - output_arg.name is the name of an OutParam node in `node`.
 message FunctionDefProto {
-  message FunctionParam {
-    optional string name = 1;
-    optional TypeProto type = 2;
-    optional TensorShapeProto shape = 3;
-  };
-
   // The name of the function.
+  // This field MUST be present for this version of the IR.
   optional string name = 1;
 
   // The input parameters of the function.
-  repeated FunctionParam input_arg = 2;
+  repeated ParameterDeclProto input_params = 2;
 
   // The output parameters of the function.
-  repeated FunctionParam output_arg = 3;
+  repeated ParameterDeclProto output_params = 3;
 
   // The body of the function.
   repeated NodeProto node = 4;
@@ -195,11 +290,13 @@ message FunctionDefProto {
   repeated AttributeProto attr = 5;
 }
 
+//BUG:13806952,onnx: Make clear that name is required. The ONNX spec uses "should"
 // A named attribute containing either singular float, integer, string
 // and tensor values, or repeated float, integer, string and tensor values.
-// An AttributeProto should contain the name field, and *only one* of the
+// An AttributeProto MUST contain the name field, and *only one* of the
 // following content fields, effectively enforcing a C/C++ union equivalent.
 message AttributeProto {
+  // This field MUST be present for this version of the IR.
   optional string name = 1;           // namespace Attribute
   optional float f = 2;               // float
   optional int64 i = 3;               // int
@@ -215,6 +312,69 @@ message AttributeProto {
 
   optional TypeProto type = 12;
   repeated TypeProto types = 13;
+  //ISSUE:13807134,dbox: Do we ever see shape showing up as an attribute value?
+  //            If so, won't it always be accompanied by a TypeProto?
   optional TensorShapeProto shape = 14;
   repeated TensorShapeProto shapes = 15;
 }
+
+
+// A library is a top-level format that contains the declaration
+// of operators and the definition of functions. 
+message LibraryProto {
+  // The version of the IR this graph targets. See Version enum below.
+  // This field MUST be present this version of the IR.  
+  optional int64 ir_version = 1;
+
+  // The optional version of the framework runtime that generates this graph.
+  // This producer_version has the same format as ir_version. 
+  optional int64 producer_version = 2;
+
+  // The optional name of the framework used to generate this graph in the form
+  // "framework_name[-tag]". Tag is optional and provides additional
+  // information such as `alpha` or `beta` or `rc3`.
+  optional string producer_tag = 3;
+
+  // An optional version identifier used to track evolution of this library.
+  // This model_version has the same format as ir_version. 
+  optional int64 model_version = 4;
+
+  // The optional name of the author who created the library.
+  optional string model_author = 5;
+
+  // Optional licensing information concerning use or origination of the library.
+  optional string model_license = 6;
+
+  // The name of the library.
+  optional string name = 7;   // namespace Library
+
+
+  // Domain of the graph.
+  // We use reverse domain names as name space indicators. For example:
+  // `com.facebook.fair` or `com.microsoft.cognitiveservices`
+  //
+  // Together with `name` and `model_version`, this forms the unique identity of
+  // the library.
+  optional string domain = 8;
+
+  // An optional human-readable documentation for this graph.
+  optional string doc_string = 9;
+
+//TODO: Define import/referencing mechanism to refer to a 
+//      Library from either a graph or another library
+
+
+  // The operators declared by this library. 
+  repeated OperatorDeclProto operator = 10;
+
+  // The function definitions of the library. 
+  repeated FunctionDefProto function = 11;
+
+  // A given name may appear at most once in either operator or function (but not both).
+  // When refering to an operator or function from outside of this library, the op_type
+  // field must equal:
+  //      LibraryProto.domain + "." + LibraryProto.name + "." OperatorDeclProto.name  
+  // or
+  //      LibraryProto.domain + "." + LibraryProto.name + "." FunctionDefProto.name  
+};
+

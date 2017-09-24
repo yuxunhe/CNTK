@@ -852,8 +852,6 @@ def element_times(left, right, name=''):
     right = sanitize_input(right, dtype)
     return cntk_py_element_times(left, right, name)
 
-
-# TODO: move element_max/min to C++
 @associative_multi_arg
 @typemap
 def element_max(left, right, name=''):
@@ -869,10 +867,11 @@ def element_max(left, right, name=''):
     Returns:
         :class:`~cntk.ops.functions.Function`
     '''
-    gt = greater(left, right)
-    # TODO: use as_block()
-    return element_select(gt, left, right, name)
-
+    from cntk.cntk_py import element_max as cntk_py_element_max
+    dtype = get_data_type(left, right)
+    left = sanitize_input(left, dtype)
+    right = sanitize_input(right, dtype)
+    return cntk_py_element_max(left, right, name)
 
 @associative_multi_arg
 @typemap
@@ -889,10 +888,11 @@ def element_min(left, right, name=''):
     Returns:
         :class:`~cntk.ops.functions.Function`
     '''
-    lt = less(left, right)
-    # TODO: use as_block()
-    return element_select(lt, left, right, name)
-
+    from cntk.cntk_py import element_min as cntk_py_element_min
+    dtype = get_data_type(left, right)
+    left = sanitize_input(left, dtype)
+    right = sanitize_input(right, dtype)
+    return cntk_py_element_min(left, right, name)
 
 @typemap
 def element_divide(left, right, name=''):

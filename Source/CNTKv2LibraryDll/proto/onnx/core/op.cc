@@ -1,7 +1,5 @@
-#pragma warning(push)
-#pragma warning(disable : 4800 4610 4512 4510 4267 4127 4125 4100 4456)
-
 #include "op.h"
+#include "utils.h"
 
 namespace LotusIR
 {
@@ -51,23 +49,125 @@ namespace LotusIR
     }
 
     OperatorSchemaSetter&
-        OperatorSchemaSetter::Input(const std::string& p_input)
+        OperatorSchemaSetter::Input(const std::string& p_inputName,
+            const std::string& p_type,
+            const std::string& p_description)
     {
-        m_inputs.push_back(p_input);
+        m_inputs.push_back(std::make_tuple(p_inputName, p_type, p_description));
         return *this;
     }
 
     OperatorSchemaSetter&
-        OperatorSchemaSetter::Output(const std::string& p_output)
+        OperatorSchemaSetter::Output(const std::string& p_outputName,
+            const std::string& p_type,
+            const std::string& p_description)
     {
-        m_outputs.push_back(p_output);
+        m_outputs.push_back(std::make_tuple(p_outputName, p_type, p_description));
         return *this;
     }
 
     OperatorSchemaSetter&
-        OperatorSchemaSetter::Attr(const std::string& p_attr)
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,
+            AttrType p_attrType,
+            const std::string& p_description)
     {
-        m_attributes.push_back(p_attr);
+        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, AttributeProto()));
+        return *this;
+    }
+
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,
+            AttrType p_attrType,
+            const std::string& p_description,
+            const int64_t& p_defaultValue)
+    {
+        AttributeProto a;
+        a.set_name(p_attrName);
+        a.set_i(p_defaultValue);
+        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
+        return *this;
+    }
+
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,
+            AttrType p_attrType,
+            const std::string& p_description,
+            const std::vector<int64_t>& p_defaultValue)
+    {
+        AttributeProto a;
+        a.set_name(p_attrName);
+        for (const auto& v : p_defaultValue)
+        {
+            a.add_ints(v);
+        }
+        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
+        return *this;
+    }
+
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,
+            AttrType p_attrType,
+            const std::string& p_description,
+            const float& p_defaultValue)
+    {
+        AttributeProto a;
+        a.set_name(p_attrName);
+        a.set_f(p_defaultValue);
+        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
+        return *this;
+    }
+
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,
+            AttrType p_attrType,
+            const std::string& p_description,
+            const std::vector<float>& p_defaultValue)
+    {
+        AttributeProto a;
+        a.set_name(p_attrName);
+        for (const auto& v : p_defaultValue)
+        {
+            a.add_floats(v);
+        }
+        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
+        return *this;
+    }
+
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,
+            AttrType p_attrType,
+            const std::string& p_description,
+            const std::string& p_defaultValue)
+    {
+        AttributeProto a;
+        a.set_name(p_attrName);
+        a.set_s(p_defaultValue);
+        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
+        return *this;
+    }
+
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,
+            AttrType p_attrType,
+            const std::string& p_description,
+            const std::vector<std::string>& p_defaultValue)
+    {
+        AttributeProto a;
+        a.set_name(p_attrName);
+        for (const auto& v : p_defaultValue)
+        {
+            a.add_strings(v);
+        }
+        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
+        return *this;
+    }
+
+    OperatorSchemaSetter&
+        OperatorSchemaSetter::TypeConstraint(const std::string& p_typeName,
+            const std::vector<std::string>& p_constraints,
+            const std::string& p_description)
+    {
+        m_constraints.push_back(std::make_tuple(p_typeName, p_constraints, p_description));
         return *this;
     }
 
@@ -88,9 +188,20 @@ namespace LotusIR
     }
 
     OperatorSchema::FormalParameter::FormalParameter(
-        const std::string& p_paramStr)
+        const std::string& p_name, const std::string& p_type,
+        const std::string& p_description,
+        const TypeConstraintMap& p_constraintMap)
+        : m_name(p_name), m_typeStr(p_type), m_description(p_description)
     {
-        // TODO: add implementation.
+        auto it = p_constraintMap.find(p_type);
+        if (it != p_constraintMap.end())
+        {
+            m_types = it->second.first;
+        }
+        else
+        {
+            m_types.emplace(Utils::OpUtils::ToType(m_typeStr));
+        }
     }
 
     const std::string& OperatorSchema::FormalParameter::GetName() const
@@ -98,8 +209,7 @@ namespace LotusIR
         return m_name;
     }
 
-    const DataTypeSet&
-        OperatorSchema::FormalParameter::GetTypes() const
+    const DataTypeSet& OperatorSchema::FormalParameter::GetTypes() const
     {
         return m_types;
     }
@@ -109,9 +219,29 @@ namespace LotusIR
         return m_typeStr;
     }
 
-    OperatorSchema::Attribute::Attribute(const std::string& p_attributeStr)
+    const std::string& OperatorSchema::FormalParameter::GetDescription() const
     {
-        // TODO: add implementation.
+        return m_description;
+    }
+
+    OperatorSchema::Attribute::Attribute(
+        const std::string& p_attrName,
+        AttrType p_type,
+        const std::string& p_description,
+        const AttributeProto& p_defaultVal)
+        : m_name(p_attrName), m_type(p_type), m_description(p_description),
+        m_hasDefaultValue(true)
+    {
+        m_allowedValues.push_back(p_defaultVal);
+    }
+
+    OperatorSchema::Attribute::Attribute(
+        const std::string& p_attrName,
+        AttrType p_type,
+        const std::string& p_description)
+        : m_name(p_attrName), m_type(p_type), m_description(p_description),
+        m_hasDefaultValue(false)
+    {
     }
 
     const std::string& OperatorSchema::Attribute::GetName() const
@@ -119,7 +249,7 @@ namespace LotusIR
         return m_name;
     }
 
-    const TypeProto& OperatorSchema::Attribute::GetType() const
+    AttrType OperatorSchema::Attribute::GetType() const
     {
         return m_type;
     }
@@ -136,42 +266,72 @@ namespace LotusIR
         return m_hasDefaultValue;
     }
 
-    size_t OperatorSchema::Attribute::GetAllowedValues(
-        const AttributeProto** p_values) const
-    {
-        if (nullptr == p_values)
-        {
-            return 0;
-        }
-
-        *p_values = m_allowedValues.data();
-        return m_allowedValues.size();
-    }
-
-    bool OperatorSchema::Attribute::IsMandatory() const
-    {
-        return m_isMandatory;
-    }
-
     OperatorSchema::OperatorSchema(const OperatorSchemaSetter& p_setter)
         : m_name(p_setter.m_name),
         m_description(p_setter.m_description),
         m_shapeInferFunc(p_setter.m_shapeInferFunc),
         m_parser(p_setter.m_parser)
     {
-        for (auto input : p_setter.m_inputs)
+        // Process type constraints.
+        for (const auto& constraint : p_setter.m_constraints)
         {
-            m_inputs.push_back(FormalParameter(input));
+            std::string name;
+            std::vector<std::string> types;
+            std::string desc;
+            std::tie(name, types, desc) = constraint;
+
+            auto it = m_typeConstraintMap.find(name);
+            if (it == m_typeConstraintMap.end())
+            {
+                DataTypeSet d;
+                for (const auto& t : types)
+                {
+                    d.insert(Utils::OpUtils::ToType(t));
+                }
+                m_typeConstraintMap.insert(std::make_pair(name, std::make_pair(d, desc)));
+            }
+            else
+            {
+                // already a constraint with the same name. error.
+            }
         }
 
-        for (auto output : p_setter.m_outputs)
+        m_inputs.reserve(p_setter.m_inputs.size());
+        for (const auto& input : p_setter.m_inputs)
         {
-            m_outputs.push_back(FormalParameter(output));
+            std::string name;
+            std::string type;
+            std::string desc;
+            std::tie(name, type, desc) = input;
+            m_inputs.push_back(FormalParameter(name, type, desc, m_typeConstraintMap));
         }
 
-        for (auto attr : p_setter.m_attributes)
+        m_outputs.reserve(p_setter.m_outputs.size());
+        for (const auto& output : p_setter.m_outputs)
         {
-            m_attributes.push_back(Attribute(attr));
+            std::string name;
+            std::string type;
+            std::string desc;
+            std::tie(name, type, desc) = output;
+            m_outputs.push_back(FormalParameter(name, type, desc, m_typeConstraintMap));
+        }
+
+        m_attributes.reserve(p_setter.m_attributes.size());
+        for (const auto& attr : p_setter.m_attributes)
+        {
+            std::string name;
+            AttrType type;
+            std::string desc;
+            AttributeProto a;
+            std::tie(name, type, desc, a) = attr;
+            if (a.name() == name)
+            {
+                m_attributes.push_back(Attribute(name, type, desc, a));
+            }
+            else
+            {
+                m_attributes.push_back(Attribute(name, type, desc));
+            }
         }
     }
 
@@ -211,6 +371,41 @@ namespace LotusIR
     AttributeParser OperatorSchema::GetAttributeParser() const
     {
         return m_parser;
+    }
+
+    const TypeConstraintMap& OperatorSchema::GetTypeConstraintMap() const
+    {
+        return m_typeConstraintMap;
+    }
+
+    bool OperatorSchema::IsValidAttribute(const AttributeProto& p_attr)
+    {
+        if (p_attr.name().empty())
+        {
+            return false;
+        }
+
+        int num_fields =
+            p_attr.has_f() +
+            p_attr.has_i() +
+            p_attr.has_s() +
+            p_attr.has_t() +
+            p_attr.has_g() +
+            (p_attr.floats_size() > 0) +
+            (p_attr.ints_size() > 0) +
+            (p_attr.strings_size() > 0) +
+            (p_attr.tensors_size() > 0) +
+            (p_attr.graphs_size() > 0) +
+            p_attr.has_type() +
+            (p_attr.types_size() > 0) +
+            p_attr.has_shape() +
+            (p_attr.shapes_size() > 0);
+
+        if (num_fields == 1)
+        {
+            return true;
+        }
+        return false;
     }
 
     OperatorSchemaRegistry::RegisterOnce::RegisterOnce(
@@ -260,6 +455,76 @@ namespace LotusIR
             = new OperatorSchemaRegistry();
         return s_registry;
     }
-}
 
-#pragma warning(pop)
+    Status TypeUtils::GetType(const AttributeProto& p_attr, AttrType& p_type)
+    {
+        if (!OperatorSchema::IsValidAttribute(p_attr))
+        {
+            return Status(false, "Invalid AttributeProto.");
+        }
+
+        if (p_attr.has_f())
+        {
+            p_type = AttrType::FLOAT;
+        }
+        else if (p_attr.has_i())
+        {
+            p_type = AttrType::INT;
+        }
+        else if (p_attr.has_s())
+        {
+            p_type = AttrType::STRING;
+        }
+        else if (p_attr.has_t())
+        {
+            p_type = AttrType::TENSOR;
+        }
+        else if (p_attr.has_g())
+        {
+            p_type = AttrType::GRAPH;
+        }
+        else if (p_attr.floats_size())
+        {
+            p_type = AttrType::FLOATS;
+        }
+        else if (p_attr.ints_size())
+        {
+            p_type = AttrType::INTS;
+        }
+        else if (p_attr.strings_size())
+        {
+            p_type = AttrType::STRINGS;
+        }
+        else if (p_attr.tensors_size())
+        {
+            p_type = AttrType::TENSORS;
+        }
+        else if (p_attr.graphs_size())
+        {
+            p_type = AttrType::GRAPHS;
+        }
+        else if (p_attr.has_type())
+        {
+            p_type = AttrType::TYPE;
+        }
+        else if (p_attr.types_size())
+        {
+            p_type = AttrType::TYPES;
+        }
+        else if (p_attr.has_shape())
+        {
+            p_type = AttrType::SHAPE;
+        }
+        else if (p_attr.has_shape())
+        {
+            p_type = AttrType::SHAPES;
+        }
+        else
+        {
+            p_type = AttrType::NONE;
+            return Status(false, "Invalid AttributeProto.");
+        }
+
+        return Status::OK();
+    }
+}
