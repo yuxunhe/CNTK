@@ -746,7 +746,7 @@ namespace LotusIR
         std::unordered_map<std::string, Node::EdgeEnd> outputArgs;
         std::set<std::string> funcDefNames;
         RETURN_IF_ERROR(VerifyNoDuplicateName(outputArgs));
-        RETURN_IF_ERROR(VerifyNodeAndOpMatch(funcDefNames));
+        // RETURN_IF_ERROR(VerifyNodeAndOpMatch(funcDefNames));
         RETURN_IF_ERROR(BuildConnections(outputArgs));
         RETURN_IF_ERROR(CheckIsAcyclic());
 

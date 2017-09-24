@@ -18,6 +18,31 @@ class ONNXToCNTKHelper
 public:
     static FunctionPtr FromONNXNode(const Node *node,ONNXToCNTKMap &constructedNodeMap);
     static FunctionPtr CreateCNTKFunction(const Node *node, std::vector<Variable> &inputs);
+
+    NDShape ONNXToCNTKHelper::FromTensorShape(const TensorShapeProto& tensorShape)
+    {
+        std::vector<size_t> dimensions;
+        for (int index = 0; index < tensorShape.dim_size(); index++)
+            dimensions.push_back(tensorShape.dim(index).dim_value());
+
+        NDShape shape(dimensions);
+        return shape;
+    }
+
+    DataType ONNXToCNTKHelper::ToONNXType(LotusIR::TypeProto type)
+    {
+        switch (type.mutable_tensor_type()->elem_type())
+        {
+        case LotusIR::TensorProto_DataType_FLOAT:
+            return DataType::Float;
+        case LotusIR::TensorProto_DataType_DOUBLE:
+            return DataType::Double;
+            break;
+        default:
+            NOT_IMPLEMENTED;
+        }
+    }
+
 };
 
 FunctionPtr ONNXToCNTKHelper::FromONNXNode(const Node *node, ONNXToCNTKMap &constructedNodeMap)
@@ -105,6 +130,7 @@ FunctionPtr ONNXToCNTKHelper::CreateCNTKFunction(const Node *node, std::vector<V
         std::vector<bool> autoPadding({ true});
         NDShape dilation({1});
         size_t reductionRank = 1; 
+        size_t groups = 1;
         size_t maxTempMemSizeInSamples = 0;
         FunctionPtr cntkFunction = Convolution(
             inputs[1], 
@@ -114,6 +140,7 @@ FunctionPtr ONNXToCNTKHelper::CreateCNTKFunction(const Node *node, std::vector<V
             autoPadding,
             dilation,
             reductionRank,
+            groups,
             maxTempMemSizeInSamples,
             ToWString(node->Name()));
         return cntkFunction;
