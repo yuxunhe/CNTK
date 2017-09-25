@@ -24,6 +24,7 @@ private:
                                      std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
                                      std::unordered_map<Variable, LotusIR::Node*>& variableNodes);
 
+    static void CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto& dst);
     static void AddAttributes(const FunctionPtr& src, LotusIR::Node* node);
     static LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape);
     static LotusIR::TypeProto ToONNXType(DataType dataType);
@@ -48,6 +49,41 @@ void CNTKToONNXHelper::Copy(const FunctionPtr& src, std::unique_ptr<LotusIR::Gra
     // in ONNX graph.
     //
     CreateNode(src, dst, functionNodes, variableNodes);
+}
+
+void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto& dst)
+{
+    auto dataType = src->GetDataType();
+    auto srcT = src->Transpose();
+    auto srcShape = srcT->Shape();
+    auto totalSize = srcShape.TotalSize();
+
+    switch (dataType)
+    {
+        case DataType::Float:
+        {
+            dst.set_data_type(LotusIR::TensorProto_DataType_FLOAT);
+            auto data = srcT->DataBuffer<float>();
+            for (size_t index = 0; index < totalSize; index++)
+                *(dst.mutable_float_data()->Add()) = data[index];
+
+            break;
+        }
+        case DataType::Double:
+        {
+            dst.set_data_type(LotusIR::TensorProto_DataType_DOUBLE);
+            auto data = srcT->DataBuffer<double>();
+            for (size_t index = 0; index < totalSize; index++)
+                *(dst.mutable_double_data()->Add()) = data[index];
+
+            break;
+        }
+        default:
+            NOT_IMPLEMENTED;
+    }
+
+    for (auto dim : srcShape.Dimensions())
+        *(dst.mutable_dims()->Add()) = dim;
 }
 
 LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape)
@@ -183,7 +219,15 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                     varOutputs.push_back({ inputArg });
                     LotusIR::Node* variableNode = nullptr;
                     if (input.IsParameter() || input.IsConstant())
+                    {
                         variableNode = graph->AddNode(ToString(input.Uid()), "Constant", "", varInputs, varOutputs);
+                        auto srcTensor = input.IsParameter() ? Parameter(input).Value() : Constant(input).Value();
+                        
+                        LotusIR::TensorProto dstTensor;
+                        CopyTensor(srcTensor, dstTensor);
+
+                        variableNode->AddAttribute("value", dstTensor);
+                    }
                     else
                         variableNode = graph->AddNode(ToString(input.Uid()), "Variable", "", varInputs, varOutputs);
 
@@ -211,7 +255,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
 void CNTKToONNXHelper::AddAttributes(const FunctionPtr& src, LotusIR::Node* node)
 {
     src;
-    node;
+    node; // node->AddAttribute();
 }
 
 }

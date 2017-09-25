@@ -14,7 +14,7 @@ namespace CNTK
 void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
     std::unique_ptr<LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
-    graph->Save(graph->ToGraphProto(), ToString(filepath));
+    LotusIR::Graph::Save(graph->ToGraphProto(), ToString(filepath));
 }
 
 FunctionPtr ONNX::Load(const std::wstring& filepath)
