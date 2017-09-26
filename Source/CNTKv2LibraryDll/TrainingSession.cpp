@@ -7,7 +7,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 
 #include "CNTKLibrary.h"
-#include "utils.h"
+#include "Utils.h"
 #include "fileutil.h"
 #include "PerformanceProfiler.h"
 
