@@ -207,8 +207,8 @@ namespace CNTK
                 ? 0
                 : m_maxNumSamples - Trainer()->TotalNumberOfSamplesSeen();
 
-            bool isSweepEnd; //it will obtain the value by calling GetTrainingMinibatch.
-
+            //isSweepEnd will obtain the value by calling GetTrainingMinibatch.
+            bool isSweepEnd;
             // Note that in case of distributed training we don't want to stop if the local minibatch
             // is empty - it is possible that the other workers are still processing their minibatches.
             GetTrainingMinibatch(minibatch, isSweepEnd, samplesLeft, computeDevice);
@@ -388,9 +388,9 @@ namespace CNTK
 
         // TODO: is copy really necessary here?
         auto minibatchData = source->GetNextMinibatch(0 /*numberOfSequences*/, mbSize, numberOfWorkers, workerRank, computeDevice);
+        isSweepEnd = IsAtSweepEnd(minibatchData);
         if (minibatchData.empty())
             return;
-        isSweepEnd = IsAtSweepEnd(minibatchData);
         for (auto v : inputVarToStream)
         {
             auto value = minibatchData.find(v.second);

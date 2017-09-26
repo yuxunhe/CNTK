@@ -5861,7 +5861,7 @@ namespace CNTK
         ///
         virtual size_t GetMinibatchSize()
         {
-            return m_mbSize[Trainer()->TotalNumberOfUnitsSeen(DataUnit::Sample)];
+            return m_mbSize[Trainer()->TotalNumberOfSamplesSeen()];
         }
 
         ///

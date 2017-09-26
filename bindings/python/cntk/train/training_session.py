@@ -39,14 +39,14 @@ def _unpack_parameter_frequency(frequency):
     if frequency is not None:
         if isinstance(frequency, int):
             #default to sample unit
-            return frequency, cntk_py.DataUnit_Sample
+            return frequency, DataUnit.sample
         elif isinstance(frequency, tuple):
             return frequency
         else:
             raise('Unsupported frequency specification: %s' % frequency)
     else:
         #default to sample unit
-        return None, cntk_py.DataUnit_Sample
+        return None, DataUnit.sample
 
 __doc__ = '''\
 A training session encapsulates a typical training loop and binds together a minibatch source that is used for training, a :class:`~cntk.train.trainer.Trainer` and an optional cross validation minibatch source. A training session takes care of consistent checkpointing and progress printing with specified frequencies.

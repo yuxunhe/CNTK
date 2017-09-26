@@ -123,8 +123,9 @@ class MockProgressWriter(cntk_py.ProgressWriter):
         mb_samples = samples[1] - samples[0]
         avg_loss = (aggregate_loss[1] - aggregate_loss[0]) / mb_samples
         avg_metric = (aggregate_metric[1] - aggregate_metric[0]) / mb_samples
+        mb_info = (self.training_summary_counter, (avg_loss, avg_metric, mb_samples))
         self.minibatch_info.append(
-            (self.training_summary_counter, (avg_loss, avg_metric, mb_samples)))
+            mb_info)
 
     def on_write_training_summary(self, samples, updates, summaries, aggregate_loss, aggregate_metric,
                                   elapsed_milliseconds):
@@ -385,7 +386,6 @@ def test_session_restart_from_checkpoint_preserve_all(tmpdir, device_id):
     }
 
     test_dir = str(tmpdir)
-
     C.training_session(trainer=t, mb_source=mbs,
         mb_size=4, model_inputs_to_streams=input_map,
         max_samples=60, progress_frequency = 20,
@@ -417,7 +417,6 @@ def test_session_restart_from_checkpoint_preserve_all(tmpdir, device_id):
     first_run_minibatch_info = [i for i in writer.minibatch_info if i[0] != 0 and i[0] != 1]
     writer.minibatch_info = []
     writer.training_summary_counter = 2
-
     # restoring from a particular checkpoint and again save everything from the 3 epoch
     mbs = mb_source(tmpdir, "training", max_samples=INFINITELY_REPEAT)
     C.training_session(
@@ -441,6 +440,7 @@ def test_session_restart_from_checkpoint_preserve_all(tmpdir, device_id):
     assert("restart_from_checkpoint.ckp" in candidates)
 
     assert(len(candidates) == 6)
+
     assert(first_run_minibatch_info == writer.minibatch_info)
 
     # remove everything except for 1
@@ -458,7 +458,7 @@ def test_session_restart_from_checkpoint_preserve_all(tmpdir, device_id):
 
     # restoring from a particular checkpoint and again save everything from the 3 epoch
     mbs = mb_source(tmpdir, "training", max_samples=INFINITELY_REPEAT)
-    C.training_session(
+    training_session = C.training_session(
         trainer=t, mb_source=mbs,
         mb_size=4, model_inputs_to_streams=input_map,
         max_samples=60, progress_frequency=20,
