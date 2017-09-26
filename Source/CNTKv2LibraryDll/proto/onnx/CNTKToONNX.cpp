@@ -44,10 +44,16 @@ private:
     static void CopyAttributes(const FunctionPtr& src, LotusIR::Node* node);
 
     //
+    // Convert Axis object to actual tensor index.
+    //
+    static int ToIndex(const Axis& axis);
+
+    //
     // Convert NDShape and various std::vector types to TensorShape
     //
-    static LotusIR::TensorShapeProto ToTensorShape(const NDShape& shape);
+    static LotusIR::TensorShapeProto ToTensorShape(const NDShape& shape, bool hasBatchAxis = false);
     static LotusIR::TensorShapeProto ToTensorShape(const std::vector<bool>& shape);
+    static LotusIR::TensorShapeProto ToTensorShape(const std::vector<int>& shape);
     static LotusIR::TensorShapeProto ToTensorShape(const std::vector<Axis>& axes);
 
     //
@@ -120,9 +126,27 @@ void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto
         *(dst.mutable_dims()->Add()) = dim;
 }
 
-LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape)
+int CNTKToONNXHelper::ToIndex(const Axis& axis)
+{
+    if ((axis == Axis::AllAxes()) || (axis == Axis::AllStaticAxes()))
+        LogicError("AllAxes and AllStaticAxes are currently not supported.");
+
+    if (axis.IsSequenceAxis())
+        LogicError("Sequence axis are currently not supported.");
+
+    if (axis.IsBatchAxis())
+        return 0;
+ 
+    return axis.StaticAxisIndex() + 1;
+}
+
+LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape, bool hasBatchAxis)
 {
     LotusIR::TensorShapeProto newShape;
+
+    if (hasBatchAxis)
+        newShape.add_dim()->set_dim_value(-1);
+
     for (auto dimension : shape.Dimensions())
         newShape.add_dim()->set_dim_value(dimension);
 
@@ -138,21 +162,21 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<bool
     return newShape;
 }
 
+LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<int>& shape)
+{
+    LotusIR::TensorShapeProto newShape;
+    for (auto dimension : shape)
+        newShape.add_dim()->set_dim_value(dimension);
+
+    return newShape;
+}
+
 LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<Axis>& axes)
 {
     std::vector<int> axesValue;
     for (auto axis : axes)
     {
-        if ((axis == Axis::AllAxes()) || (axis == Axis::AllStaticAxes()))
-            LogicError("AllAxes and AllStaticAxes are currently not supported.");
-
-        if (axis.IsSequenceAxis())
-            LogicError("Sequence axis are currently not supported.");
-
-        if (axis.IsBatchAxis())
-            axesValue.push_back(0);
-        else
-            axesValue.push_back(axis.StaticAxisIndex() + 1);
+        axesValue.push_back(ToIndex(axis));
     }
     std::sort(axesValue.begin(), axesValue.end());
 
@@ -336,12 +360,12 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
             //auto kernelShape = (NDShape)src->Attributes()[L"poolingWindowShape"].Value<NDShape>();
             auto strides = (NDShape)src->Attributes()[L"strides"].Value<NDShape>();
             auto autoPadding = AsVector<bool>(src->Attributes()[L"autoPadding"].Value<std::vector<DictionaryValue>>());
-            auto dilations = (int64_t)src->Attributes()[L"dilation"].Value<int>();
+            auto dilations = (NDShape)src->Attributes()[L"dilation"].Value<NDShape>();
 
             //node->AddAttribute("kernel_shape", ToTensorShape(kernelShape));
             node->AddAttribute("strides", ToTensorShape(strides));
             node->AddAttribute("pads", ToTensorShape(autoPadding));
-            node->AddAttribute(attributesMap[L"dilation"], dilations);
+            node->AddAttribute(attributesMap[L"dilation"], ToTensorShape(dilations));
         }
         else if (src->OpName() == L"BatchNormalization")
         {
@@ -376,9 +400,10 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
                 node->AddAttribute(attributesMap[L"newShape"], ToTensorShape(shape));
             }
         }
-        else if ((src->OpName() == L"ReduceMax") || (src->OpName() == L"ReduceMin")  ||
-                 (src->OpName() == L"ReduceSum") || (src->OpName() == L"ReduceMean") ||
-                 (src->OpName() == L"ReduceProd") || (src->OpName() == L"ReduceLogSum"))
+        else if ((src->OpName() == L"ReduceMax")  || (src->OpName() == L"ReduceMin")    ||
+                 (src->OpName() == L"ReduceSum")  || (src->OpName() == L"ReduceMean")   ||
+                 (src->OpName() == L"ReduceProd") || (src->OpName() == L"ReduceLogSum") ||
+                 (src->OpName() == L"Argmax")     || (src->OpName() == L"Argmin"))
         {
             auto keepReducedDimensions = (int64_t)((bool)src->Attributes()[L"reductionKeepDimensions"].Value<bool>() ? 1 : 0);
             std::vector<Axis> reductionAxes;
@@ -387,8 +412,46 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
             else if (src->Attributes().Contains(L"axis"))
                 reductionAxes.push_back((Axis)(src->Attributes()[L"axis"].Value<Axis>()));
 
-            node->AddAttribute("keepdims", keepReducedDimensions);
-            node->AddAttribute(attributesMap[L"axes"], ToTensorShape(reductionAxes));
+            node->AddAttribute(attributesMap[L"reductionKeepDimensions"], keepReducedDimensions);
+            node->AddAttribute("axes", ToTensorShape(reductionAxes));
+        }
+        else if (src->OpName() == L"Transpose")
+        {
+            std::vector<Axis> perm = AsVector<Axis>(src->Attributes()[L"axisVec"].Value<std::vector<DictionaryValue>>());
+            node->AddAttribute(attributesMap[L"axisVec"], ToTensorShape(perm));
+        }
+        else if (src->OpName() == L"Reshape")
+        {
+            auto shape = (NDShape)src->Attributes()[L"newShape"].Value<NDShape>();
+            node->AddAttribute(attributesMap[L"newShape"], ToTensorShape(shape, true));
+        }
+        else if (src->OpName() == L"Splice")
+        {
+            Axis axis = (Axis)(src->Attributes()[L"axis"].Value<Axis>());
+            node->AddAttribute(attributesMap[L"axis"], (int64_t)ToIndex(axis));
+        }
+        else if (src->OpName() == L"Slice")
+        {
+            std::vector<Axis> sliceAxes;
+            std::vector<int> beginIndex;
+            std::vector<int> endIndex;
+
+            if (src->Attributes().Contains(L"axisVec"))
+            {
+                sliceAxes = AsVector<Axis>(src->Attributes()[L"axisVec"].Value<std::vector<DictionaryValue>>());
+                beginIndex = AsVector<int>(src->Attributes()[L"beginIndexVec"].Value<std::vector<DictionaryValue>>());
+                endIndex = AsVector<int>(src->Attributes()[L"endIndexVec"].Value<std::vector<DictionaryValue>>());
+            }
+            else if (src->Attributes().Contains(L"axis"))
+            {
+                sliceAxes.push_back((Axis)(src->Attributes()[L"axis"].Value<Axis>()));
+                beginIndex.push_back((int)(src->Attributes()[L"beginIndex"].Value<int>()));
+                endIndex.push_back((int)(src->Attributes()[L"endIndex"].Value<int>()));
+            }
+
+            node->AddAttribute(attributesMap[L"axes"], ToTensorShape(sliceAxes));
+            node->AddAttribute(attributesMap[L"starts"], ToTensorShape(beginIndex));
+            node->AddAttribute(attributesMap[L"ends"], ToTensorShape(endIndex));
         }
     }
     else
