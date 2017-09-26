@@ -44,10 +44,11 @@ private:
     static void CopyAttributes(const FunctionPtr& src, LotusIR::Node* node);
 
     //
-    // Convert NDShape to TensorShape
+    // Convert NDShape and various std::vector types to TensorShape
     //
     static LotusIR::TensorShapeProto ToTensorShape(const NDShape& shape);
     static LotusIR::TensorShapeProto ToTensorShape(const std::vector<bool>& shape);
+    static LotusIR::TensorShapeProto ToTensorShape(const std::vector<Axis>& axes);
 
     //
     // Convert data types.
@@ -87,7 +88,7 @@ void CNTKToONNXHelper::Copy(const FunctionPtr& src, std::unique_ptr<LotusIR::Gra
 void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto& dst)
 {
     auto dataType = src->GetDataType();
-    auto srcT = src->Transpose();
+    auto srcT = src->Transpose(); // Column major to row major.
     auto srcShape = srcT->Shape();
     auto totalSize = srcShape.TotalSize();
 
@@ -133,6 +134,31 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<bool
     LotusIR::TensorShapeProto newShape;
     for (auto dimension : shape)
         newShape.add_dim()->set_dim_value(dimension ? 1:0);
+
+    return newShape;
+}
+
+LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<Axis>& axes)
+{
+    std::vector<int> axesValue;
+    for (auto axis : axes)
+    {
+        if ((axis == Axis::AllAxes()) || (axis == Axis::AllStaticAxes()))
+            LogicError("AllAxes and AllStaticAxes are currently not supported.");
+
+        if (axis.IsSequenceAxis())
+            LogicError("Sequence axis are currently not supported.");
+
+        if (axis.IsBatchAxis())
+            axesValue.push_back(0);
+        else
+            axesValue.push_back(axis.StaticAxisIndex() + 1);
+    }
+    std::sort(axesValue.begin(), axesValue.end());
+
+    LotusIR::TensorShapeProto newShape;
+    for (auto dimension : axesValue)
+        newShape.add_dim()->set_dim_value(dimension);
 
     return newShape;
 }
@@ -349,6 +375,20 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
                 auto shape = (NDShape)src->Attributes()[L"newShape"].Value<NDShape>();
                 node->AddAttribute(attributesMap[L"newShape"], ToTensorShape(shape));
             }
+        }
+        else if ((src->OpName() == L"ReduceMax") || (src->OpName() == L"ReduceMin")  ||
+                 (src->OpName() == L"ReduceSum") || (src->OpName() == L"ReduceMean") ||
+                 (src->OpName() == L"ReduceProd") || (src->OpName() == L"ReduceLogSum"))
+        {
+            auto keepReducedDimensions = (int64_t)((bool)src->Attributes()[L"reductionKeepDimensions"].Value<bool>() ? 1 : 0);
+            std::vector<Axis> reductionAxes;
+            if (src->Attributes().Contains(L"axisVec"))
+                reductionAxes = AsVector<Axis>(src->Attributes()[L"axisVec"].Value<std::vector<DictionaryValue>>());
+            else if (src->Attributes().Contains(L"axis"))
+                reductionAxes.push_back((Axis)(src->Attributes()[L"axis"].Value<Axis>()));
+
+            node->AddAttribute("keepdims", keepReducedDimensions);
+            node->AddAttribute(attributesMap[L"axes"], ToTensorShape(reductionAxes));
         }
     }
     else
