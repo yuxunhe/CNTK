@@ -55,33 +55,11 @@ namespace CNTK
         /// <param name="sharing">whether to share parameters (default = true)</param>
         /// <param name="autoPadding"></param>
         /// <returns></returns>
-        public static Function Convolution(Variable convolutionMap, Variable operand, NDShape strides, 
-            string name = "")
+        public static Function Convolution(Variable convolutionMap, Variable operand, NDShape strides, IEnumerable<bool> sharing, IEnumerable<bool> autoPadding)
         {
-            return CNTKLib.Convolution(convolutionMap, operand, strides, (IEnumerable<bool>)null, (IEnumerable <bool>)null, 
-                (NDShape)null, 1, 0, name);
-        }
-
-        /// <summary>
-        /// build a convolution function 
-        /// </summary>
-        /// <param name="convolutionMap">convolution parameters (shape, type of the kernal)</param>
-        /// <param name="operand">input variable</param>
-        /// <param name="strides">strides to apply convolution</param>
-        /// <param name="sharing">whether to share parameters (default = true)</param>
-        /// <param name="autoPadding"></param>
-        /// <returns></returns>
-        public static Function Convolution(Variable convolutionMap, Variable operand, NDShape strides, 
-            IEnumerable<bool> sharing = null, IEnumerable<bool> autoPadding = null,
-            NDShape dilation = null, uint reductionRank = 1, uint maxTempMemSizeInSamples = 0, string name = "")
-        {
-            BoolVector sharingVec = sharing != null ? Helper.AsBoolVector(sharing) : new BoolVector(new List<bool>() { true });
-            BoolVector autoPaddingVec = autoPadding != null ? Helper.AsBoolVector(autoPadding) : new BoolVector(new List<bool>() { true });
-            if (dilation == null)
-            {
-                dilation = new int[] { 1 };
-            }
-            return CNTKLib.Convolution(convolutionMap, operand, strides, sharingVec, autoPaddingVec, dilation, reductionRank, maxTempMemSizeInSamples, name);
+            BoolVector sharingVec = Helper.AsBoolVector(sharing);
+            BoolVector autoPaddingVec = Helper.AsBoolVector(autoPadding);
+            return CNTKLib.Convolution(convolutionMap, operand, strides, sharingVec, autoPaddingVec);
         }
 
         /// <summary>
@@ -93,11 +71,10 @@ namespace CNTK
         /// <param name="strides">strides to apply the pooling</param>
         /// <param name="autoPadding"></param>
         /// <returns></returns>
-        public static Function Pooling(Variable operand, PoolingType poolingType, NDShape poolingWindowShape, NDShape strides, IEnumerable<bool> autoPadding,
-            bool ceilOutDim = false, bool includePad = false, string name = "")
+        public static Function Pooling(Variable operand, PoolingType poolingType, NDShape poolingWindowShape, NDShape strides, IEnumerable<bool> autoPadding)
         {
             BoolVector autoPaddingVector = Helper.AsBoolVector(autoPadding);
-            return Pooling(operand, poolingType, poolingWindowShape, strides, autoPaddingVector, ceilOutDim, includePad, name);
+            return Pooling(operand, poolingType, poolingWindowShape, strides, autoPaddingVector);
         }
     }
 }

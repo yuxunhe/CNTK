@@ -20,14 +20,14 @@ namespace CNTK.CSTrainingExamples
     }
     public class TestHelper
     {
-        public static Function Dense(Variable input, int outputDim, DeviceDescriptor device, 
+        public static Function Dense(Variable input, int outputDim, DeviceDescriptor device,
             Activation activation = Activation.None, string outputName = "")
         {
             if (input.Shape.Rank != 1)
             {
                 // 
                 int newDim = input.Shape.Dimensions.Aggregate((d1, d2) => d1 * d2);
-                input = CNTKLib.Reshape(input, new int[] { newDim }, outputName + "-Reshape");
+                input = CNTKLib.Reshape(input, new int[] { newDim });
             }
 
             Function fullyConnected = FullyConnectedLinearLayer(input, outputDim, device, outputName);
@@ -58,10 +58,10 @@ namespace CNTK.CSTrainingExamples
                     CNTKLib.SentinelValueForInferParamInitRank,
                     CNTKLib.SentinelValueForInferParamInitRank, 1),
                 device, "timesParam");
-            var timesFunction = CNTKLib.Times(timesParam, input, outputName + "-times");
+            var timesFunction = CNTKLib.Times(timesParam, input, "times");
 
             int[] s2 = { outputDim };
-            var plusParam = new Parameter(s2, 0.0f, device, outputName + "-plusParam");
+            var plusParam = new Parameter(s2, 0.0f, device, "plusParam");
             return CNTKLib.Plus(plusParam, timesFunction, outputName);
         }
 

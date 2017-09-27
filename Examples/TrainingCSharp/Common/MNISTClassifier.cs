@@ -57,7 +57,7 @@ namespace CNTK.CSTrainingExamples
             var input = CNTKLib.InputVariable(imageDim, DataType.Float, featureStreamName);
             if (useConvolution)
             {
-                var scaledInput = CNTKLib.ElementTimes(Constant.Scalar<float>(0.00390625f, device), input, "ElementTimes");
+                var scaledInput = CNTKLib.ElementTimes(Constant.Scalar<float>(0.00390625f, device), input);
                 classifierOutput = CreateConvolutionalNeuralNetwork(scaledInput, numClasses, device, classifierName);
             }
             else
@@ -71,7 +71,7 @@ namespace CNTK.CSTrainingExamples
             var labels = CNTKLib.InputVariable(new int[] { numClasses }, DataType.Float, labelsStreamName);
             var trainingLoss = CNTKLib.CrossEntropyWithSoftmax(new Variable(classifierOutput), labels, "lossFunction");
             var prediction = CNTKLib.ClassificationError(new Variable(classifierOutput), labels, "classificationError");
-            
+
             // prepare training data
             var minibatchSource = MinibatchSource.TextFormatMinibatchSource(
                 Path.Combine(ImageDataFolder, "Train_cntk_text.txt"), streamConfigurations, MinibatchSource.InfinitelyRepeat);
@@ -81,7 +81,7 @@ namespace CNTK.CSTrainingExamples
 
             // set per sample learning rate
             CNTK.TrainingParameterScheduleDouble learningRatePerSample = new CNTK.TrainingParameterScheduleDouble(
-                0.003125, 1);
+                0.003125, TrainingParameterScheduleDouble.UnitType.Sample);
 
             IList<Learner> parameterLearners = new List<Learner>() { Learner.SGDLearner(classifierOutput.Parameters(), learningRatePerSample) };
             var trainer = Trainer.CreateTrainer(classifierOutput, trainingLoss, prediction, parameterLearners);
@@ -122,7 +122,7 @@ namespace CNTK.CSTrainingExamples
                                 imageDim, numClasses, featureStreamName, labelsStreamName, classifierName, device);
         }
 
-        private static Function CreateMLPClassifier(DeviceDescriptor device, int numOutputClasses, int hiddenLayerDim, 
+        private static Function CreateMLPClassifier(DeviceDescriptor device, int numOutputClasses, int hiddenLayerDim,
             Function scaledInput, string classifierName)
         {
             Function dense1 = TestHelper.Dense(scaledInput, hiddenLayerDim, device, Activation.Sigmoid, "");
@@ -146,7 +146,7 @@ namespace CNTK.CSTrainingExamples
             int poolingWindowWidth1 = 3, poolingWindowHeight1 = 3;
 
             Function pooling1 = ConvolutionWithMaxPooling(features, device, kernelWidth1, kernelHeight1,
-                numInputChannels1, outFeatureMapCount1, hStride1, vStride1, poolingWindowWidth1, poolingWindowHeight1, "pooling1");
+                numInputChannels1, outFeatureMapCount1, hStride1, vStride1, poolingWindowWidth1, poolingWindowHeight1);
 
             // 14x14x4 -> 7x7x8
             int kernelWidth2 = 3, kernelHeight2 = 3, numInputChannels2 = outFeatureMapCount1, outFeatureMapCount2 = 8;
@@ -154,25 +154,24 @@ namespace CNTK.CSTrainingExamples
             int poolingWindowWidth2 = 3, poolingWindowHeight2 = 3;
 
             Function pooling2 = ConvolutionWithMaxPooling(pooling1, device, kernelWidth2, kernelHeight2,
-                numInputChannels2, outFeatureMapCount2, hStride2, vStride2, poolingWindowWidth2, poolingWindowHeight2, "pooling2");
+                numInputChannels2, outFeatureMapCount2, hStride2, vStride2, poolingWindowWidth2, poolingWindowHeight2);
 
             Function denseLayer = TestHelper.Dense(pooling2, outDims, device, Activation.None, classifierName);
             return denseLayer;
         }
 
-        private static Function ConvolutionWithMaxPooling(Variable features, DeviceDescriptor device, 
-            int kernelWidth, int kernelHeight, int numInputChannels, int outFeatureMapCount, 
-            int hStride, int vStride, int poolingWindowWidth, int poolingWindowHeight, string scopeName)
+        private static Function ConvolutionWithMaxPooling(Variable features, DeviceDescriptor device,
+            int kernelWidth, int kernelHeight, int numInputChannels, int outFeatureMapCount,
+            int hStride, int vStride, int poolingWindowWidth, int poolingWindowHeight)
         {
             // parameter initialization hyper parameter
             double convWScale = 0.26;
             var convParams = new Parameter(new int[] { kernelWidth, kernelHeight, numInputChannels, outFeatureMapCount }, DataType.Float,
-                CNTKLib.GlorotUniformInitializer(convWScale, -1, 2), device, scopeName + "-convParam");
-            Function convFunction = CNTKLib.ReLU(CNTKLib.Convolution(convParams, features, new int[] { 1, 1, numInputChannels } /* strides */, 
-                scopeName + "-Convolution"), scopeName + "ReLU");
+                CNTKLib.GlorotUniformInitializer(convWScale, -1, 2), device);
+            Function convFunction = CNTKLib.ReLU(CNTKLib.Convolution(convParams, features, new int[] { 1, 1, numInputChannels } /* strides */));
 
             Function pooling = CNTKLib.Pooling(convFunction, PoolingType.Max,
-                new int[] { poolingWindowWidth, poolingWindowHeight }, new int[] { hStride, vStride }, new bool[] { true }, false, false, scopeName);
+                new int[] { poolingWindowWidth, poolingWindowHeight }, new int[] { hStride, vStride }, new bool[] { true });
             return pooling;
         }
     }
