@@ -98,6 +98,9 @@ void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto
     auto srcShape = srcT->Shape();
     auto totalSize = srcShape.TotalSize();
 
+    // This is our own copy so move it to the CPU.
+    srcT->ChangeDevice(DeviceDescriptor::CPUDevice());
+
     switch (dataType)
     {
         case DataType::Float:
