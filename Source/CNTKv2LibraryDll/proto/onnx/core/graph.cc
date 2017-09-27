@@ -8,6 +8,7 @@
 #include "graph.h"
 #include "op.h"
 #include "utils.h"
+#include <iostream>
 
 using namespace LotusIR::Utils;
 

@@ -108,7 +108,6 @@
     <Compile Include="SwigProxyClasses\StreamInformation.cs" />
     <Compile Include="SwigProxyClasses\StringVector.cs" />
     <Compile Include="SwigProxyClasses\Trainer.cs" />
-    <Compile Include="SwigProxyClasses\TrainingParameterPerSampleScheduleDouble.cs" />
     <Compile Include="SwigProxyClasses\TrainingParameterScheduleDouble.cs" />
     <Compile Include="SwigProxyClasses\UnorderedMapParameterNDArrayViewPtr.cs" />
     <Compile Include="SwigProxyClasses\UnorderedMapStreamInformationMinibatchData.cs" />

@@ -527,6 +527,13 @@ namespace CNTK
         else
         {
             assert(variable.IsOutput());
+            // The primary output of a function is its first output
+            auto primaryOutput = variable.Owner()->RawOutputs()[0];
+            // If this variable is not the primary output, then we need to look up the primary output
+            // so that the variableToNodeMap will contain a mapping from the primary variable to an OutputMultiplexerNode
+            // which is how we handle multiple outputs in V1. See also the instantiation of OutputMultiplexerNode in this file.
+            if (primaryOutput != variable)
+                GetNode(primaryOutput, network, builder, fullyDefinedArgumentsMap, variableToNodeMap, isVariableRootMap, inputsToExcludeGradientsFor, useMangledNamesForComputationNodes);
             auto outputVariableNode = GetOutputVariableNode(variable, network, builder, fullyDefinedArgumentsMap, variableToNodeMap, isVariableRootMap, inputsToExcludeGradientsFor, useMangledNamesForComputationNodes);
             // Can be null in case of loops with f.output == f.input.
             // Such loops cannot be handled, so we leave nullptr as computational node.
@@ -1380,6 +1387,10 @@ namespace CNTK
             {
                 // This ComputationNode has at least one null input which now needs to be properly attached
                 const PrimitiveFunction* primitiveFunc = dynamic_cast<const PrimitiveFunction*>(currentVar.Owner().get());
+
+                if (primitiveFunc == nullptr) {
+                    LogicError("Non-primitive function '%S' cannot be a part of the CNTK recurrent loop.", currentVar.Owner()->Name().c_str());
+                }
 
                 // Skip block primitives since they do not directly map to a computation node
                 if (primitiveFunc->OpType() == PrimitiveOpType::Block)
