@@ -1,3 +1,6 @@
+#pragma warning(push)
+#pragma warning(disable : 4800 4610 4512 4510 4267 4127 4125 4100 4456)
+
 #include "op.h"
 #include "utils.h"
 
@@ -50,117 +53,68 @@ namespace LotusIR
 
     OperatorSchemaSetter&
         OperatorSchemaSetter::Input(const std::string& p_inputName,
-            const std::string& p_type,
-            const std::string& p_description)
+            const std::string& p_description,
+            const std::string& p_type)
     {
-        m_inputs.push_back(std::make_tuple(p_inputName, p_type, p_description));
+        m_inputs.push_back(std::make_tuple(p_inputName, p_description, p_type));
         return *this;
     }
 
     OperatorSchemaSetter&
         OperatorSchemaSetter::Output(const std::string& p_outputName,
-            const std::string& p_type,
-            const std::string& p_description)
-    {
-        m_outputs.push_back(std::make_tuple(p_outputName, p_type, p_description));
-        return *this;
-    }
-
-    OperatorSchemaSetter&
-        OperatorSchemaSetter::Attr(const std::string& p_attrName,
-            AttrType p_attrType,
-            const std::string& p_description)
-    {
-        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, AttributeProto()));
-        return *this;
-    }
-
-    OperatorSchemaSetter&
-        OperatorSchemaSetter::Attr(const std::string& p_attrName,
-            AttrType p_attrType,
             const std::string& p_description,
-            const int64_t& p_defaultValue)
+            const std::string& p_type)
     {
-        AttributeProto a;
-        a.set_name(p_attrName);
-        a.set_i(p_defaultValue);
-        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
+        m_outputs.push_back(std::make_tuple(p_outputName, p_description, p_type));
         return *this;
     }
 
     OperatorSchemaSetter&
         OperatorSchemaSetter::Attr(const std::string& p_attrName,
-            AttrType p_attrType,
             const std::string& p_description,
-            const std::vector<int64_t>& p_defaultValue)
+            AttrType p_attrType, bool required)
     {
-        AttributeProto a;
-        a.set_name(p_attrName);
-        for (const auto& v : p_defaultValue)
-        {
-            a.add_ints(v);
-        }
-        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
+        m_attributes.push_back(make_tuple(p_attrName, p_description, p_attrType, AttributeProto()));
         return *this;
     }
 
-    OperatorSchemaSetter&
-        OperatorSchemaSetter::Attr(const std::string& p_attrName,
-            AttrType p_attrType,
-            const std::string& p_description,
-            const float& p_defaultValue)
-    {
-        AttributeProto a;
-        a.set_name(p_attrName);
-        a.set_f(p_defaultValue);
-        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
-        return *this;
-    }
+#define ATTR_SETTER_BASIC_IMPL(type, field)                                               \
+    OperatorSchemaSetter&                                                                 \
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,                         \
+            const std::string& p_description,                                             \
+            AttrType p_attrType,                                                          \
+            const type& p_defaultValue)                                                   \
+    {                                                                                     \
+        AttributeProto a;                                                                 \
+        a.set_name(p_attrName);                                                           \
+        a.set_##field(p_defaultValue);                                                    \
+        m_attributes.push_back(make_tuple(p_attrName, p_description, p_attrType, a));     \
+        return *this;                                                                     \
+    }                                                                                     \
 
-    OperatorSchemaSetter&
-        OperatorSchemaSetter::Attr(const std::string& p_attrName,
-            AttrType p_attrType,
-            const std::string& p_description,
-            const std::vector<float>& p_defaultValue)
-    {
-        AttributeProto a;
-        a.set_name(p_attrName);
-        for (const auto& v : p_defaultValue)
-        {
-            a.add_floats(v);
-        }
-        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
-        return *this;
-    }
+#define ATTR_SETTER_LIST_IMPL(type, field)                                                \
+    OperatorSchemaSetter&                                                                 \
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,                         \
+            const std::string& p_description,                                             \
+            AttrType p_attrType,                                                          \
+            const std::vector<type>& p_defaultValue)                                      \
+    {                                                                                     \
+        AttributeProto a;                                                                 \
+        a.set_name(p_attrName);                                                           \
+        for (const auto& v : p_defaultValue)                                              \
+        {                                                                                 \
+            a.add_##field(v);                                                             \
+        }                                                                                 \
+        m_attributes.push_back(make_tuple(p_attrName, p_description, p_attrType, a));     \
+        return *this;                                                                     \
+    }                                                                                     \
 
-    OperatorSchemaSetter&
-        OperatorSchemaSetter::Attr(const std::string& p_attrName,
-            AttrType p_attrType,
-            const std::string& p_description,
-            const std::string& p_defaultValue)
-    {
-        AttributeProto a;
-        a.set_name(p_attrName);
-        a.set_s(p_defaultValue);
-        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
-        return *this;
-    }
-
-    OperatorSchemaSetter&
-        OperatorSchemaSetter::Attr(const std::string& p_attrName,
-            AttrType p_attrType,
-            const std::string& p_description,
-            const std::vector<std::string>& p_defaultValue)
-    {
-        AttributeProto a;
-        a.set_name(p_attrName);
-        for (const auto& v : p_defaultValue)
-        {
-            a.add_strings(v);
-        }
-        m_attributes.push_back(make_tuple(p_attrName, p_attrType, p_description, a));
-        return *this;
-    }
+    ATTR_SETTER_BASIC_IMPL(int64_t, i)
+    ATTR_SETTER_BASIC_IMPL(float, f)
+    ATTR_SETTER_BASIC_IMPL(std::string, s)
+    ATTR_SETTER_LIST_IMPL(int64_t, ints)
+    ATTR_SETTER_LIST_IMPL(float, floats)
+    ATTR_SETTER_LIST_IMPL(std::string, strings)
 
     OperatorSchemaSetter&
         OperatorSchemaSetter::TypeConstraint(const std::string& p_typeName,
@@ -200,7 +154,10 @@ namespace LotusIR
         }
         else
         {
-            m_types.emplace(Utils::OpUtils::ToType(m_typeStr));
+            if (!p_type.empty())
+            {
+                m_types.emplace(Utils::OpUtils::ToType(m_typeStr));
+            }
         }
     }
 
@@ -302,7 +259,7 @@ namespace LotusIR
             std::string name;
             std::string type;
             std::string desc;
-            std::tie(name, type, desc) = input;
+            std::tie(name, desc, type) = input;
             m_inputs.push_back(FormalParameter(name, type, desc, m_typeConstraintMap));
         }
 
@@ -312,7 +269,7 @@ namespace LotusIR
             std::string name;
             std::string type;
             std::string desc;
-            std::tie(name, type, desc) = output;
+            std::tie(name, desc, type) = output;
             m_outputs.push_back(FormalParameter(name, type, desc, m_typeConstraintMap));
         }
 
@@ -323,7 +280,7 @@ namespace LotusIR
             AttrType type;
             std::string desc;
             AttributeProto a;
-            std::tie(name, type, desc, a) = attr;
+            std::tie(name, desc, type, a) = attr;
             if (a.name() == name)
             {
                 m_attributes.push_back(Attribute(name, type, desc, a));
@@ -527,4 +484,21 @@ namespace LotusIR
 
         return Status::OK();
     }
+
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
+    size_t ReplaceAll(std::string& s, const char* from, const char* to)
+    {
+        size_t numReplaced = 0;
+        std::string::size_type lenFrom = std::strlen(from);
+        std::string::size_type lenTo = std::strlen(to);
+        for (std::string::size_type pos = s.find(from); pos != std::string::npos;
+            pos = s.find(from, pos + lenTo)) {
+            s.replace(pos, lenFrom, to);
+            numReplaced++;
+        }
+        return numReplaced;
+    }
+#endif
 }
+
+#pragma warning(pop)

@@ -49,13 +49,13 @@ namespace ONNX
             { L"strides", "strides" },
             { L"autoPadding", "pads" },
             { L"dilation", "dilations" },
+            { L"outputShape", "output_shape" },
         } } },
-        // typo? "GlobalMaxPooling", "GlobalAveragePool"
         { L"GlobalMaxPooling", { {
-            { L"GlobalMaxPooling", "GlobalAveragePool" },
+            { L"GlobalMaxPooling", "GlobalMaxPool" },
         } } },
         { L"GlobalAveragePooling", { {
-            { L"GlobalAveragePooling", "GlobalMaxPool" },
+            { L"GlobalAveragePooling", "GlobalAveragePool" },
         } } },
         { L"BatchNormalization", { {
             { L"BatchNormalization", "BatchNormalization" },

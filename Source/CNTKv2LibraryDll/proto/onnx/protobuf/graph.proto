@@ -80,23 +80,17 @@ message GraphProto {
 
   // The inputs and outputs of the graph. The list input must be input names
   // of some nodes in the graph. The list output must be output names of some
-  // nodes in the graph. For names in input that are not in initializer, their
-  // types and shapes are required.
-  //ISSUE:13807021,dbox: For input tensors that also appear in the initializer field,
-  //            do we also expose those parameters as inputs to eval?
+  // nodes in the graph. For names in input, their types and shapes are required.
   repeated string input = 3;  // namespace Value
   repeated string output = 4; // namespace Value
 
-  // An optional list of named initial values for tensors in the list of input above.
-  // Used to pass serialized parameters for networks.
-  // Each entry specifies a value for the input whose TensorProto.name matches
-  // a name in the input. This list is a subset of input since many tensors
-  // might not have initial values. 
-  //ISSUE:13807021,onnx: Do we require at most one Tensor per input name? Given that
-  //            our evaluation model allows multiple tensors to be fed into a 
-  //            given node, I'm guessing we allow two or more tensors per
-  //            input (and also allow users to provide it). I'll tighten up
-  //            the text once we resolve. As written, it's ambiguous in ONNX.
+  // A list of named tensor values (constants), used to specify default
+  // values for some of the inputs of the graph.
+  // Each TensorProto entry must have a distinct name (within the list) that
+  // also appears in the input list.
+  // In an evaluation, the default value specified here is used if and only if
+  // user specifies no value for the corresponding input parameter.
+  // May be used to pass serialized parameters for networks.
   repeated TensorProto initializer = 5;
 
   // The version of the IR this graph targets. See Version enum below.
@@ -129,6 +123,10 @@ message GraphProto {
   // Each FunctionDefProto in function MUST have a unique name. 
   repeated FunctionDefProto function = 11;
 
+  // The externally defined operators declared by this graph. 
+  repeated OperatorDeclProto operator = 17;
+    
+    
   // Argument information for input/output of this graph.
   // Each ArgInfoProto corresponds one-to-one by position with the 
   // input or output tensor of the graph.
@@ -155,6 +153,11 @@ message GraphProto {
   // metadata, such as an identifier for which training set this instance
   // of a graph was trained with.
 
+  // Imported libraries are referenced as a collection of strings in the form of absolute
+  // URIs or relative paths. Where such relative paths are rooted is defined by tools and
+  // runtime implementations.
+  repeated string imported_libraries = 18;  
+  
   reserved 100 to 200; // for future extensions.
 }
 
@@ -360,10 +363,6 @@ message LibraryProto {
   // An optional human-readable documentation for this graph.
   optional string doc_string = 9;
 
-//TODO: Define import/referencing mechanism to refer to a 
-//      Library from either a graph or another library
-
-
   // The operators declared by this library. 
   repeated OperatorDeclProto operator = 10;
 
@@ -376,5 +375,10 @@ message LibraryProto {
   //      LibraryProto.domain + "." + LibraryProto.name + "." OperatorDeclProto.name  
   // or
   //      LibraryProto.domain + "." + LibraryProto.name + "." FunctionDefProto.name  
+
+  // Imported libraries are referenced as a collection of strings in the form of absolute
+  // URIs or relative paths. Where such relative paths are rooted is defined by tools and
+  // runtime implementations.
+  repeated string imported_libraries = 12;  
 };
 
