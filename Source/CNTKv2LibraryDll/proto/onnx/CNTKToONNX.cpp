@@ -375,7 +375,15 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
         }
         else if (src->OpName() == L"BatchNormalization")
         {
+            auto spatial = (int64_t)((bool)src->Attributes()[L"spatial"].Value<bool>() ? 1 : 0);
+            auto normalizationTimeConstant = (float)src->Attributes()[L"normalizationTimeConstant"].Value<double>();
+            auto blendTimeConstant = (float)src->Attributes()[L"blendTimeConstant"].Value<double>();
+            auto epsilon = (float)src->Attributes()[L"epsilon"].Value<double>();
 
+            node->AddAttribute(attributesMap[L"spatial"], spatial);
+            node->AddAttribute("is_test", (int64_t)1);
+            node->AddAttribute(attributesMap[L"epsilon"], epsilon);
+            node->AddAttribute("momentum", 0.9f);
         }
         else if ((src->OpName() == L"LeakyReLU") || (src->OpName() == L"ELU"))
         {

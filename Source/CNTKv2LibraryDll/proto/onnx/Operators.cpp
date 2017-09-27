@@ -61,7 +61,7 @@ namespace ONNX
             { L"spatial", "spatial" },
             // { L"", "is_test" },
             { L"epsilon", "epsilon" },
-            { L"blendTimeConstant", "momentum" },
+            // { L"", "momentum" },
         } } },
         { L"Dropout", { {
             { L"Dropout", "Dropout" },
