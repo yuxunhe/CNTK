@@ -50,6 +50,7 @@ namespace ONNX
             { L"autoPadding", "pads" },
             { L"dilation", "dilations" },
         } } },
+        // typo? "GlobalMaxPooling", "GlobalAveragePool"
         { L"GlobalMaxPooling", { {
             { L"GlobalMaxPooling", "GlobalAveragePool" },
         } } },

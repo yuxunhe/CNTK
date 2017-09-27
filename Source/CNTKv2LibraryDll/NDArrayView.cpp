@@ -546,6 +546,32 @@ namespace CNTK
         }
     }
 
+    NDArrayViewPtr NDArrayView::Transpose()
+    {
+        auto tensorShape = AsTensorViewShape(Shape());
+        void* tensorView = nullptr;
+        switch (m_dataType)
+        {
+        case DataType::Float:
+        {
+            auto matrix = std::make_shared<Matrix<float>>(std::move(GetWritableMatrix<float>()->Transpose()));
+            tensorView = new TensorView<float>(matrix, tensorShape);
+            break;
+        }
+        case DataType::Double:
+        {
+            auto matrix = std::make_shared<Matrix<double>>(std::move(GetWritableMatrix<double>()->Transpose()));
+            tensorView = new TensorView<double>(matrix, tensorShape);
+            break;
+        }
+        default:
+            LogicError("NDArrayView::Transpose: Unsupported DataType %s", DataTypeName(m_dataType));
+            break;
+        }
+
+        return MakeSharedObject<NDArrayView>(GetDataType(), Device(), GetStorageFormat(), Shape(), IsReadOnly(), tensorView);
+    }
+
     void NDArrayView::ChangeDevice(const DeviceDescriptor& device)
     {
         if (device == m_device)

@@ -11,6 +11,8 @@
 
 #include <iostream>
 #include <cstdio>
+#include <locale>
+#include <codecvt>
 
 using namespace CNTK;
 using namespace std::placeholders;
@@ -28,22 +30,73 @@ void TestDistributedCheckpointing();
 // #include "../proto/onnx/ONNXToCNTK.h"
 // #include "../proto/onnx/core/graph.h"
 
+std::string ToString(const std::wstring& wstring)
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+    return converter.to_bytes(wstring);
+}
+
+static void PrintGraph(const FunctionPtr& function, int spaces, bool useName = false)
+{
+    std::vector<Variable> inputs = function->Inputs();
+    size_t count = inputs.size();
+    if (count == 0)
+    {
+        std::cout << std::string(spaces, '.') + "(" + ToString(useName ? function->Name() : function->Uid()) + ")" + ToString(function->AsString()) << std::endl;
+        return;
+    }
+
+    for (Variable input : inputs)
+    {
+        std::cout << std::string(spaces, '.') + "(" + ToString(useName ? function->Name() : function->Uid()) + ")" + "->" +
+            "(" + ToString(useName ? input.Name() : input.Uid()) + ")" + ToString(input.AsString()) << std::endl;
+    }
+
+    for (Variable input : inputs)
+    {
+        if (input.Owner() != NULL)
+        {
+            FunctionPtr f = input.Owner();
+            PrintGraph(f, spaces + 4);
+        }
+    }
+}
+
 void RunLotus(DeviceDescriptor device)
 {
-     const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolution.model";
-     const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolutionONNX.model";
+    {
+        // vgg model load failed
+        //const std::wstring vgg16 = L"E:/LiqunWA/CNTK/ONNX/vgg16/vgg16/graph.pb";
+        //FunctionPtr cntkModel = Function::Load(vgg16, device, ModelFormat::ONNX);
+    }
 
-    //const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTMLP.model";
-    //const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTMLPONNX.model";
+    // CNTK function saved as ONNX. 
+    // Loaded but graph is not the same as in memory graph. See ONNX.Save commented code.
+    // FunctionPtr cntkModel = Function::Load(savedONNXModelFile, device, ModelFormat::ONNX);
 
-    //const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/LogisticRegression.model";
-    //const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/LogisticRegressionONNX.model";
+    // following are experiment code
+    {
+        const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolutionONNX.model";
+        const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolution.model";
+        const std::wstring cntkModelFile2 = L"E:/LiqunWA/CNTK/ONNX/MNISTConvolution.model";
 
-    FunctionPtr cntkModel = Function::Load(cntkModelFile, device, ModelFormat::CNTKv2);
+        //const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTMLP.model";
+        //const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/MNISTMLPONNX.model";
 
-    cntkModel->Save(savedONNXModelFile, ModelFormat::ONNX);
+        //const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/LogisticRegression.model";
+        //const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/LogisticRegressionONNX.model";
 
-    FunctionPtr cntkModelFromONNX = Function::Load(savedONNXModelFile, device, ModelFormat::CNTKv2);
+        FunctionPtr cntkModel = Function::Load(cntkModelFile, device, ModelFormat::CNTKv2);
+
+        cntkModel->Save(savedONNXModelFile, ModelFormat::ONNX);
+        // TODO PrintGraph does not work for some reason
+        // PrintGraph(cntkModel->RootFunction(), 0);
+
+        // failed here because graph save/load operation is not idempotent
+        FunctionPtr cntkModelFromONNX = Function::Load(savedONNXModelFile, device, ModelFormat::ONNX);
+        // PrintGraph(cntkModelFromONNX, 0);
+        cntkModelFromONNX->Save(cntkModelFile2, ModelFormat::CNTKv2);
+    }
 }
 
 int main(int argc, char *argv[])

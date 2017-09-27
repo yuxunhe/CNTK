@@ -14,18 +14,18 @@
 
 namespace CNTK
 {
-    static void PrintGraph(FunctionPtr function, int spaces)
+    static void PrintGraph(FunctionPtr function, int spaces, bool useName = false)
     {
         if (function->Inputs().size() == 0)
         {
-            cout << string(spaces, '.') + "(" + ToString(function->Name()) + ")" + ToString(function->AsString()) << std::endl;
+            cout << string(spaces, '.') + "(" + ToString(useName ? function->Name() : function->Uid()) + ")" + ToString(function->AsString()) << std::endl;
             return;
         }
 
         for(auto input: function->Inputs())
         {
-            cout << string(spaces, '.') + "(" + ToString(function->Name()) + ")" + "->" +
-                "(" + ToString(input.Name()) + ")" + ToString(input.AsString()) << std::endl;
+            cout << string(spaces, '.') + "(" + ToString(useName ? function->Name() : function->Uid()) + ")" + "->" +
+                "(" + ToString(useName ? input.Name() : input.Uid()) + ")" + ToString(input.AsString()) << std::endl;
         }
 
         for(auto input: function->Inputs())
@@ -40,22 +40,33 @@ namespace CNTK
 
 void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
-    PrintGraph(src, 0);
     std::unique_ptr<LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
 
     // Liqun: experiment Create CNTK function from ONNX graph
-    graph->Resolve();
-    FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
+    bool runExperiment = true;
+    if (runExperiment)
+    {
+        PrintGraph(src, 0);
+        graph->Resolve();
+        FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
+        PrintGraph(cntkFunction, 0, true);
+    }
 
-    PrintGraph(cntkFunction, 0);
-
-    graph->Save(graph->ToGraphProto(), ToString(filepath));
+    LotusIR::Graph::Save(graph->ToGraphProto(), ToString(filepath));
 }
 
 FunctionPtr ONNX::Load(const std::wstring& filepath)
 {
-    filepath;
-    return nullptr;
+    LotusIR::GraphProto grapu;
+    bool loadStatus = LotusIR::Graph::Load(ToString(filepath), &grapu);
+    if (!loadStatus)
+    {
+        return nullptr;
+    }
+
+    std::unique_ptr<LotusIR::Graph> graph(new LotusIR::Graph(grapu));
+    FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
+    return cntkFunction;
 }
 
 }
