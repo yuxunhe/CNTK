@@ -372,6 +372,12 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
             node->AddAttribute("strides", ToTensorShape(strides));
             node->AddAttribute("pads", ToTensorShape(autoPadding));
             node->AddAttribute(attributesMap[L"dilation"], ToTensorShape(dilations));
+
+            if (src->OpName() == L"ConvolutionTranspose")
+            {
+                auto outputShape = (NDShape)src->Attributes()[L"outputShape"].Value<NDShape>();
+                node->AddAttribute(attributesMap[L"outputShape"], ToTensorShape(outputShape));
+            }
         }
         else if (src->OpName() == L"BatchNormalization")
         {
