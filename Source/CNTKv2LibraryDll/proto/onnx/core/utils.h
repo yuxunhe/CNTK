@@ -2,6 +2,7 @@
 #define LOTUSIR_UTILS_H
 
 #include <unordered_map>
+#include <unordered_set>
 #include <xstring>
 
 class TensorProto;
@@ -23,6 +24,7 @@ namespace LotusIR
             static std::string ToString(const TensorProto::DataType& p_type);
             static void FromString(const std::string& p_src, TypeProto& p_type);
             static void FromString(const std::string& p_src, TensorProto::DataType& p_type);
+            static bool IsValidDataTypeString(const std::string &p_dataType);
         private:
             static std::unordered_map<std::string, TypeProto> s_typeStrToProtoMap;
         };

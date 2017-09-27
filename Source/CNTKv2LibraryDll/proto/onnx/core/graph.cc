@@ -8,7 +8,6 @@
 #include "graph.h"
 #include "op.h"
 #include "utils.h"
-#include <iostream>
 
 using namespace LotusIR::Utils;
 
@@ -301,7 +300,7 @@ namespace LotusIR
         m_name = p_nodeProto.name();
         m_opType = p_nodeProto.op_type();
 
-        for (size_t i = 0; i < p_nodeProto.input().size(); ++i)
+        for (int i = 0; i < p_nodeProto.input().size(); ++i)
         {
             m_inputDefs.push_back(NodeArg(p_nodeProto.input(i), p_nodeProto.input_arg_info(i)));
         }
@@ -311,9 +310,9 @@ namespace LotusIR
             m_inputArgCount.push_back(argCount);
         }
 
-        for (size_t i = 0; i < p_nodeProto.output().size(); ++i)
+        for (int i = 0; i < p_nodeProto.output().size(); ++i)
         {
-            m_inputDefs.push_back(NodeArg(p_nodeProto.output(i), p_nodeProto.output_arg_info(i)));
+            m_outputDefs.push_back(NodeArg(p_nodeProto.output(i), p_nodeProto.output_arg_info(i)));
         }
 
         for (auto control_input : p_nodeProto.control_input())
@@ -776,7 +775,7 @@ namespace LotusIR
                 }
 
                 // Infer and verify node input arg type information.
-                int totalArgCount = std::accumulate(node->InputArgCount().begin(),
+                size_t totalArgCount = std::accumulate(node->InputArgCount().begin(),
                     node->InputArgCount().end(), 0);
                 if (totalArgCount != node->InputDefs().size())
                 {
@@ -1049,7 +1048,7 @@ namespace LotusIR
                 p_funcDefNames.insert(op_type);
 
                 // Verify node inputs have same size with function definition.
-                if (funcIter->second.input_params_size()
+                if ((size_t)funcIter->second.input_params_size()
                     != node->InputDefs().size())
                 {
                     // Number of inputs do not match.
@@ -1060,7 +1059,7 @@ namespace LotusIR
                 }
 
                 // Verify node outputs have same size with function definition.
-                if (funcIter->second.output_params_size()
+                if ((size_t)funcIter->second.output_params_size()
                     != node->OutputDefs().size())
                 {
                     // Number of outputs do not match.
@@ -1097,11 +1096,11 @@ namespace LotusIR
         std::vector<NODEINDEX> nodesInToplogicalOrder;
         RETURN_IF_ERROR(CheckIsAcyclic(nodesInToplogicalOrder));
 
-        // std::set<std::string> funcDefNames;
-        // RETURN_IF_ERROR(InferAndVerifyTypeMatch(nodesInToplogicalOrder,
-        //     outputArgs,
-        //     funcDefNames));
-        // CleanFunctionDefMap(funcDefNames);
+        std::set<std::string> funcDefNames;
+        RETURN_IF_ERROR(InferAndVerifyTypeMatch(nodesInToplogicalOrder,
+            outputArgs,
+            funcDefNames));
+        CleanFunctionDefMap(funcDefNames);
 
         m_isGraphValid = true;
         return Status::OK();
@@ -1457,7 +1456,7 @@ namespace LotusIR
         m_numOfNodes--;
     }
 
-    bool Graph::Save(const GraphProto& p_graphProto, const std::string& p_filePath)
+    bool Graph::Save(const GraphProto& p_graphProto, const std::wstring& p_filePath)
     {
         std::fstream outputFileStream(p_filePath, std::ios::out | std::ios::binary);
         bool result = p_graphProto.SerializeToOstream(&outputFileStream);
@@ -1465,7 +1464,13 @@ namespace LotusIR
         return result;
     }
 
-    bool Graph::Load(const std::string& p_filePath, /*out*/ GraphProto* p_graphProto)
+    bool Graph::Save(Graph& p_graph, const std::wstring& p_filePath)
+    {
+        GraphProto graphProto = p_graph.ToGraphProto();
+        return Save(graphProto, p_filePath);
+    }
+
+    bool Graph::Load(const std::wstring& p_filePath, /*out*/ GraphProto* p_graphProto)
     {
         if (nullptr == p_graphProto)
         {

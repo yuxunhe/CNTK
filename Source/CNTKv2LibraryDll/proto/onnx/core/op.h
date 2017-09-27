@@ -1,3 +1,6 @@
+#pragma warning(push)
+#pragma warning(disable : 4800 4610 4512 4510 4267 4127 4125 4100 4456)
+
 #ifndef CORE_GRAPH_OP_H
 #define CORE_GRAPH_OP_H
 
@@ -10,6 +13,10 @@
 namespace LotusIR
 {
     class OperatorSchema;
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
+    class OperatorSchemaSetter;
+    typedef OperatorSchemaSetter OpSchema;
+#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
     enum class AttrType {
         NONE,
@@ -105,17 +112,17 @@ namespace LotusIR
     typedef std::function<Status(const NodeAttributes&)> AttributeParser;
 
     typedef std::tuple<std::string, std::string, std::string> InputOutputParam;
-    typedef std::tuple<std::string, AttrType, std::string, AttributeProto> AttrParam;
+    typedef std::tuple<std::string, std::string, AttrType, AttributeProto> AttrParam;
     typedef std::tuple<std::string, std::vector<std::string>, std::string> TypeConstraintParam;
 
 #define ATTR_SETTER_INTERFACE(TypeName) \
     OperatorSchemaSetter& Attr(const std::string& p_attrName, \
-                               AttrType p_attrType, \
                                const std::string& p_description, \
+                               AttrType p_attrType, \
                                const TypeName& p_defaultValue); \
     OperatorSchemaSetter& Attr(const std::string& p_attrName, \
-                               AttrType p_attrType, \
                                const std::string& p_description, \
+                               AttrType p_attrType, \
                                const std::vector<TypeName>& p_defaultValues); \
     // Operator registry setter helper.
     // This is used in "REGISTER_OP" macro, to separate setters from getters
@@ -131,16 +138,16 @@ namespace LotusIR
         OperatorSchemaSetter& Description(const std::string& p_description);
 
         OperatorSchemaSetter& Input(const std::string& p_inputName,
-            const std::string& p_type,
-            const std::string& p_description);
+            const std::string& p_description,
+            const std::string& p_type = "");
 
         OperatorSchemaSetter& Output(const std::string& p_outputName,
-            const std::string& p_type,
-            const std::string& p_description);
+            const std::string& p_description,
+            const std::string& p_type = "");
 
         OperatorSchemaSetter& Attr(const std::string& p_attrName,
-            AttrType p_attrType,
-            const std::string& p_description);
+            const std::string& p_description,
+            AttrType p_attrType, bool required = false);
 
         ATTR_SETTER_INTERFACE(int64_t)
         ATTR_SETTER_INTERFACE(float)
@@ -163,6 +170,53 @@ namespace LotusIR
         // whether Node attributes are matching operator attributes definition.
         OperatorSchemaSetter& SetAttributeParser(
             AttributeParser p_attrParser);
+
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
+        enum class SupportType {
+            COMMON,
+            EXPERIMENTAL,
+        };
+        // Stubs for compatibility with ONNX OpSchema registration API
+        OpSchema& NumInputs(int n) { return *this; }
+        OpSchema& NumInputs(int min, int max) { return *this; }
+        OpSchema& NumInputs(std::set<int> allowed_input_nums) { return *this; }
+        OpSchema& NumInputs(std::function<bool(int)> func) { return *this; }
+        OpSchema& NumOutputs(int n) { return *this; }
+        OpSchema& NumOutputs(int min, int max) { return *this; }
+        OpSchema& NumOutputs(std::set<int> allowed_output_nums) { return *this; }
+        OpSchema& NumOutputs(std::function<bool(int)> func) { return *this; }
+        OpSchema& NumInputsOutputs(std::function<bool(int, int)> func) { return *this; }
+        OpSchema& OutputCalculator(std::function<int(int)> calc) { return *this; }
+        OpSchema& SameNumberOfOutput() { return *this; }
+        OpSchema& AllowConsumed(std::function<std::pair<bool, int>(int)> inplace) { return *this; }
+        OpSchema& AllowConsumed(std::unordered_map<int, int> inplace) { return *this; }
+        OpSchema& AllowOneToOneConsumed() { return *this; }
+        OpSchema& EnforceConsumed(std::function<std::pair<bool, int>(int)> inplace) { return *this; }
+        OpSchema& EnforceConsumed(std::unordered_map<int, int> inplace) { return *this; }
+        OpSchema& EnforceOneToOneConsumed() { return *this; }
+        OpSchema& SetSupportLevel(SupportType supportType) { return *this; }
+        OpSchema& AllowUncheckedAttributes() { return *this; }
+        OpSchema& FillUsing(std::function<void(OpSchema&)> populator)
+        {
+            if (populator)
+            {
+                populator(*this);
+            }
+            return *this;
+        }
+        OpSchema& Input(const int n, const char* name, const char* description)
+        {
+            return Input(name, description);
+        }
+        OpSchema& Output(const int n, const char* name, const char* description)
+        {
+            return Output(name, description);
+        }
+        OpSchema& SetDoc(const std::string& doc)
+        {
+            return Description(doc);
+        }
+#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
     private:
 
@@ -193,6 +247,7 @@ namespace LotusIR
         // Attribute parser.
         AttributeParser m_parser;
     };
+
 
     typedef std::unordered_set<PTYPE> DataTypeSet;
     typedef std::unordered_map<std::string, std::pair<DataTypeSet, std::string>> TypeConstraintMap;
@@ -392,20 +447,28 @@ namespace LotusIR
         std::unordered_map<std::string, OperatorSchema> m_operatorRegistryMap;
     };
 
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
+    // utility function used by ONNX v1 op registration defs.
+    size_t ReplaceAll(std::string& s, const char* from, const char* to);
+#define OPERATOR_SCHEMA(OpName) REGISTER_OP(OpName)
+#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
+
 #define REGISTER_OP(OpName) REGISTER_OP_UNIQ_HELPER(__COUNTER__, OpName)
 #define REGISTER_OP_UNIQ_HELPER(Counter, OpName) REGISTER_OP_UNIQ(Counter, OpName)
 #define REGISTER_OP_UNIQ(Counter, OpName)                     \
     static OperatorSchemaRegistry::RegisterOnce op_##Counter  \
-    = OperatorSchemaSetter().Name(OpName)
+    = OperatorSchemaSetter().Name(#OpName)
 
     // Operator registration example.
-    // REGISTER_OP("Add").Description("An operator to sum two float numbers.")
-    //   .Input("input_1", "T", "docstr for input_1.")
-    //   .Input("input_2", "T", "docstr for input_2.")
-    //   .Output("output_1", "T", "docstr for output_1.")
+    // REGISTER_OP(Add).Description("An operator to sum two float numbers.")
+    //   .Input("input_1", "docstr for input_1.", "T")
+    //   .Input("input_2", "docstr for input_2.", "T")
+    //   .Output("output_1", "docstr for output_1.", "T")
     //   .TypeConstraint("T", { "float16", "float32", "float64" }, "Constrain input and output types to floats.");
 
 
 }
 
 #endif
+
+#pragma warning(pop)

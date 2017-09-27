@@ -9,6 +9,7 @@
 #include "../protobuf/Data.pb.h"
 #include "../protobuf/graph.pb.h"
 #include "../protobuf/Type.pb.h"
+#include "constants.h"
 #include "utils.h"
 
 
@@ -57,7 +58,7 @@ namespace LotusIR
             case TypeProto::ValueCase::kSparseTensorType:
                 return "sparse(" + ToString(p_type.sparse_tensor_type().elem_type()) + ")";
             case TypeProto::ValueCase::kSeqType:
-                return "list(" + ToString(p_type.seq_type().elem_type()) + ")";
+                return "seq(" + ToString(p_type.seq_type().elem_type()) + ")";
             case TypeProto::ValueCase::kTupleType:
             {
                 int size = p_type.tuple_type().elem_type_size();
@@ -79,8 +80,9 @@ namespace LotusIR
             }
             case TypeProto::ValueCase::kHandleType:
                 return "handle";
+            default:
+                throw std::invalid_argument("Unknown TypeProto");
             }
-            return "";
         }
 
         std::string OpUtils::ToString(const TensorProto::DataType& p_type)
@@ -88,27 +90,38 @@ namespace LotusIR
             switch (p_type)
             {
             case TensorProto::DataType::TensorProto_DataType_BOOL:
-                return "bool";
-            case TensorProto::DataType::TensorProto_DataType_FLOAT:
-                return "float32";
-            case TensorProto::DataType::TensorProto_DataType_FLOAT16:
-                return "float16";
-            case TensorProto::DataType::TensorProto_DataType_DOUBLE:
-                return "float64";
-            case TensorProto::DataType::TensorProto_DataType_INT16:
-                return "int16";
-            case TensorProto::DataType::TensorProto_DataType_INT32:
-                return "int32";
-            case TensorProto::DataType::TensorProto_DataType_INT64:
-                return "int64";
-            case TensorProto::DataType::TensorProto_DataType_INT8:
-                return "int8";
+                return c_bool;
             case TensorProto::DataType::TensorProto_DataType_STRING:
-                return "string";
+                return c_string;
+            case TensorProto::DataType::TensorProto_DataType_FLOAT16:
+                return c_float16;
+            case TensorProto::DataType::TensorProto_DataType_FLOAT:
+                return c_float;
+            case TensorProto::DataType::TensorProto_DataType_DOUBLE:
+                return c_double;
+            case TensorProto::DataType::TensorProto_DataType_INT8:
+                return c_int8;
+            case TensorProto::DataType::TensorProto_DataType_INT16:
+                return c_int16;
+            case TensorProto::DataType::TensorProto_DataType_INT32:
+                return c_int32;
+            case TensorProto::DataType::TensorProto_DataType_INT64:
+                return c_int64;
+            case TensorProto::DataType::TensorProto_DataType_UINT8:
+                return c_uint8;
             case TensorProto::DataType::TensorProto_DataType_UINT16:
-                return "uint16";
+                return c_uint16;
+            case TensorProto::DataType::TensorProto_DataType_UINT32:
+                return c_uint32;
+            case TensorProto::DataType::TensorProto_DataType_UINT64:
+                return c_uint64;
+            case TensorProto::DataType::TensorProto_DataType_COMPLEX64:
+                return c_complex64;
+            case TensorProto::DataType::TensorProto_DataType_COMPLEX128:
+                return c_complex128;
             }
-            return "";
+
+            throw std::invalid_argument("Unknown DataType");
         }
 
 
@@ -118,17 +131,38 @@ namespace LotusIR
             s.LAndRStrip();
             p_type.Clear();
 
-            if (s.LStrip("list"))
+            if (s.LStrip("seq("))
             {
-                // TODO
+                s.RStrip(")");
+                FromString(std::string(s.Data(), s.Size()), *p_type.mutable_seq_type()->mutable_elem_type());
             }
-            else if (s.LStrip("tuple"))
+            else if (s.LStrip("tuple("))
             {
-                // TODO
+                s.RStrip(")");
+                std::istringstream types(std::string(s.Data(), s.Size()));
+                std::string type;
+                while (std::getline(types, type, ','))
+                {
+                    FromString(type, *p_type.mutable_tuple_type()->mutable_elem_type()->Add());
+                }
             }
             else if (s.LStrip("map("))
             {
-                // TODO
+                size_t key_size = s.Find(',');
+                StringRange k(s.Data(), key_size);
+                std::string key = std::string(k.Data(), k.Size());
+                s.LStrip(key_size);
+                s.LStrip(",");
+                size_t val_size = s.Find(')');
+                StringRange v(s.Data(), val_size);
+                std::string val = std::string(v.Data(), v.Size());
+
+                TensorProto::DataType key_type;
+                FromString(key, key_type);
+                TensorProto::DataType val_type;
+                FromString(val, val_type);
+                p_type.mutable_map_type()->set_key_type(key_type);
+                p_type.mutable_map_type()->set_value_type(val_type);
             }
             else if (s.LStrip("handle"))
             {
@@ -136,7 +170,6 @@ namespace LotusIR
             }
             else if (s.LStrip("sparse("))
             {
-                // sparse tensor
                 s.RStrip(")");
                 TensorProto::DataType e;
                 FromString(std::string(s.Data(), s.Size()), e);
@@ -151,47 +184,77 @@ namespace LotusIR
             }
         }
 
+        bool OpUtils::IsValidDataTypeString(const std::string& p_dataType)
+        {
+            return (s_allowedDataTypes.find(p_dataType) != s_allowedDataTypes.end());
+        }
+
         void OpUtils::FromString(const std::string& p_typeStr, TensorProto::DataType& p_type)
         {
-            if (p_typeStr == "bool")
+            if (!IsValidDataTypeString(p_typeStr))
+            {
+                throw std::invalid_argument("Unknown DataType: " + p_typeStr);
+            }
+
+            if (p_typeStr == c_bool)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_BOOL;
             }
-            else if (p_typeStr == "float32")
+            else if (p_typeStr == c_float)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_FLOAT;
             }
-            else if (p_typeStr == "float16")
+            else if (p_typeStr == c_float16)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_FLOAT16;
             }
-            else if (p_typeStr == "float64")
+            else if (p_typeStr == c_double)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_DOUBLE;
             }
-            else if (p_typeStr == "int16")
-            {
-                p_type = TensorProto::DataType::TensorProto_DataType_INT16;
-            }
-            else if (p_typeStr == "int32")
-            {
-                p_type = TensorProto::DataType::TensorProto_DataType_INT32;
-            }
-            else if (p_typeStr == "int64")
-            {
-                p_type = TensorProto::DataType::TensorProto_DataType_INT64;
-            }
-            else if (p_typeStr == "int8")
+            else if (p_typeStr == c_int8)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_INT8;
             }
-            else if (p_typeStr == "string")
+            else if (p_typeStr == c_int16)
+            {
+                p_type = TensorProto::DataType::TensorProto_DataType_INT16;
+            }
+            else if (p_typeStr == c_int32)
+            {
+                p_type = TensorProto::DataType::TensorProto_DataType_INT32;
+            }
+            else if (p_typeStr == c_int64)
+            {
+                p_type = TensorProto::DataType::TensorProto_DataType_INT64;
+            }
+            else if (p_typeStr == c_string)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_STRING;
             }
-            else if (p_typeStr == "uint16")
+            else if (p_typeStr == c_uint8)
+            {
+                p_type = TensorProto::DataType::TensorProto_DataType_UINT8;
+            }
+            else if (p_typeStr == c_uint16)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_UINT16;
+            }
+            else if (p_typeStr == c_uint32)
+            {
+                p_type = TensorProto::DataType::TensorProto_DataType_UINT32;
+            }
+            else if (p_typeStr == c_uint64)
+            {
+                p_type = TensorProto::DataType::TensorProto_DataType_UINT64;
+            }
+            else if (p_typeStr == c_complex64)
+            {
+                p_type = TensorProto::DataType::TensorProto_DataType_COMPLEX64;
+            }
+            else if (p_typeStr == c_complex128)
+            {
+                p_type = TensorProto::DataType::TensorProto_DataType_COMPLEX128;
             }
             else
             {

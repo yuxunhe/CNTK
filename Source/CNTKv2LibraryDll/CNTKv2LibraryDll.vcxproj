@@ -173,6 +173,7 @@
     <ClInclude Include="PrimitiveFunction.h" />
     <ClInclude Include="PrimitiveOpType.h" />
     <ClInclude Include="proto\onnx\CNTKToONNX.h" />
+    <ClInclude Include="proto\onnx\core\constants.h" />
     <ClInclude Include="proto\onnx\core\graph.h" />
     <ClInclude Include="proto\onnx\core\op.h" />
     <ClInclude Include="proto\onnx\core\status.h" />

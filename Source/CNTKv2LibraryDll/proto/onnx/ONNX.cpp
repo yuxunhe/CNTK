@@ -52,13 +52,13 @@ void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
         PrintGraph(cntkFunction, 0, true);
     }
 
-    LotusIR::Graph::Save(graph->ToGraphProto(), ToString(filepath));
+    LotusIR::Graph::Save(graph->ToGraphProto(), filepath);
 }
 
 FunctionPtr ONNX::Load(const std::wstring& filepath)
 {
     LotusIR::GraphProto grapu;
-    bool loadStatus = LotusIR::Graph::Load(ToString(filepath), &grapu);
+    bool loadStatus = LotusIR::Graph::Load(filepath, &grapu);
     if (!loadStatus)
     {
         return nullptr;
