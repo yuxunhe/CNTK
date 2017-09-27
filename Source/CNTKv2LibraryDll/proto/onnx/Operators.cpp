@@ -136,12 +136,12 @@ namespace ONNX
         } } },
         { L"LeakyReLU", { {
             { L"LeakyReLU", "LeakyRelu" },
-            // { L"", "alpha" },
+            { L"alpha", "alpha" },
         } } },
         { L"SELU", { {
             { L"SELU", "Selu" },
-            // { L"", "alpha" },
-            // { L"", "gamma" },
+            { L"alpha", "alpha" },
+            { L"gamma", "gamma" },
         } } },
         { L"ELU", { {
             { L"ELU", "Elu" },
@@ -178,7 +178,7 @@ namespace ONNX
         // { L"", "Sum" },
         { L"Softmax", { {
             { L"Softmax", "Softmax" },
-            { L"", "axis" },
+            { L"axis", "axis" },
         } } },
 
         // From reduction

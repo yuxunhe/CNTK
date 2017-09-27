@@ -1173,10 +1173,13 @@ namespace CNTK
         if (!axis.IsStaticAxis() && (axis != Axis::AllStaticAxes()))
             LogicError("Softmax: support only static axes.");
 
+        auto additionalProperties = Dictionary();
+        additionalProperties[PrimitiveFunction::AttributeNameAxis] = axis;
+
         if (((operand.Shape().Rank() == 1) && (axis.StaticAxisIndex() == 0)) ||
             (axis == Axis::AllStaticAxes()))
         {
-            return UnaryOp(PrimitiveOpType::Softmax, operand, Dictionary(), name);
+            return UnaryOp(PrimitiveOpType::Softmax, operand, std::move(additionalProperties), name);
         }
         else
         {
@@ -1185,7 +1188,7 @@ namespace CNTK
             auto expOperandDelta = Exp(operandDelta);
             auto result = ElementDivide(expOperandDelta, ReduceSum(expOperandDelta, axis));
 
-            return AsBlock(std::move(result), { { operandPlaceholder, operand } }, L"Softmax", name);
+            return AsBlock(std::move(result), { { operandPlaceholder, operand } }, std::move(additionalProperties), L"Softmax", name);
         }
     }
 

@@ -1096,11 +1096,11 @@ namespace LotusIR
         std::vector<NODEINDEX> nodesInToplogicalOrder;
         RETURN_IF_ERROR(CheckIsAcyclic(nodesInToplogicalOrder));
 
-        std::set<std::string> funcDefNames;
-        RETURN_IF_ERROR(InferAndVerifyTypeMatch(nodesInToplogicalOrder,
-            outputArgs,
-            funcDefNames));
-        CleanFunctionDefMap(funcDefNames);
+        // std::set<std::string> funcDefNames;
+        // RETURN_IF_ERROR(InferAndVerifyTypeMatch(nodesInToplogicalOrder,
+        //     outputArgs,
+        //     funcDefNames));
+        // CleanFunctionDefMap(funcDefNames);
 
         m_isGraphValid = true;
         return Status::OK();

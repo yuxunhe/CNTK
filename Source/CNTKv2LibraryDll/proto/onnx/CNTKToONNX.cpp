@@ -76,6 +76,9 @@ std::unique_ptr<LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
 {
     std::unique_ptr<LotusIR::Graph> dstGraph(new LotusIR::Graph("CNTKGraph", 1, 1, "CNTK"));
     CNTKToONNXHelper::Copy(src, dstGraph);
+    LotusIR::Status status = dstGraph->Resolve();
+    if (!status.Ok())
+        LogicError("Invalid ONNX Graph.");
     return dstGraph;
 }
 
@@ -290,7 +293,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             auto input = src->Inputs()[inputIndex];
 
             if (input.IsPlaceholder())
-                continue;
+                LogicError("Node '%S': Placeholder isn't supported currently.", src->AsString().c_str());
 
             if (src->IsBlock() && FilterInput(src, input, inputIndex))
                 continue;
@@ -471,6 +474,13 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
             node->AddAttribute(attributesMap[L"axes"], ToTensorShape(sliceAxes));
             node->AddAttribute(attributesMap[L"starts"], ToTensorShape(beginIndex));
             node->AddAttribute(attributesMap[L"ends"], ToTensorShape(endIndex));
+        }
+        else if (src->OpName() == L"Softmax")
+        {
+            Axis axis = Axis(0);
+            if (src->Attributes().Contains(L"axis"))
+                axis = (Axis)(src->Attributes()[L"axis"].Value<Axis>());
+            node->AddAttribute(attributesMap[L"axis"], (int64_t)ToIndex(axis));
         }
     }
     else
