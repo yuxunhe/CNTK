@@ -50,6 +50,7 @@ void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
         graph->Resolve();
         FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
         PrintGraph(cntkFunction, 0, true);
+        cntkFunction->Save(L"E:/LiqunWA/CNTK/ONNX/MNISTConvolutionCNTKFromONNX.model", ModelFormat::CNTKv2);
     }
 
     LotusIR::Graph::Save(graph->ToGraphProto(), ToString(filepath));
@@ -65,6 +66,7 @@ FunctionPtr ONNX::Load(const std::wstring& filepath)
     }
 
     std::unique_ptr<LotusIR::Graph> graph(new LotusIR::Graph(grapu));
+    graph->Resolve();
     FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
     return cntkFunction;
 }

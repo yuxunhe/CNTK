@@ -22,10 +22,10 @@ namespace CNTK
         static FunctionPtr FromONNXNode(const Node *node, ONNXToCNTKMap &constructedNodeMap);
 
     private:
-        static FunctionPtr CreateCNTKFunctionRecursive(const Node *node, const std::vector<Variable> &inputs);
+        static FunctionPtr CreateCNTKNode(const Node *node, const std::vector<Variable> &inputs);
         static Constant CreateConstant(const Node *node);
         static Variable CreateVariable(const Node *node);
-        static FunctionPtr CreateNode(const Node *node, const std::vector<Variable> &inputs);
+        static FunctionPtr CreateFunction(const Node *node, const std::vector<Variable> &inputs);
 
         static NDShape FromTensorShape(const TensorShapeProto& tensorShape);
         static std::vector<bool> FromTensorShapeAsBool(const TensorShapeProto& tensorShape);
@@ -44,7 +44,6 @@ namespace CNTK
         for (int index = 0; index < tensorShape.dim_size(); index++)
             dimensions.push_back(tensorShape.dim(index).dim_value());
 
-        // NDShape shape(dimensions);
         return dimensions;
     }
 
@@ -92,7 +91,7 @@ namespace CNTK
             }
 
             // TODO: buffer has to be allocated on the specified 'device'?
-            NDArrayViewPtr dst(new NDArrayView(DataType::Float, shape, buffer, valueProto.float_data().size() * sizeof(float), DeviceDescriptor::UseDefaultDevice()));
+            NDArrayViewPtr dst(new NDArrayView(DataType::Float, shape, buffer, valueProto.float_data().size() * sizeof(float), DeviceDescriptor::CPUDevice()));
 
             Constant constantVariable(dst->Transpose(), ToWString(node->Name()));
             return constantVariable;
@@ -104,7 +103,7 @@ namespace CNTK
             {
                 buffer[index] = valueProto.double_data()[index];
             }
-            NDArrayViewPtr dst(new NDArrayView(DataType::Double, shape, buffer, valueProto.double_data().size() * sizeof(double), DeviceDescriptor::UseDefaultDevice()));
+            NDArrayViewPtr dst(new NDArrayView(DataType::Double, shape, buffer, valueProto.double_data().size() * sizeof(double), DeviceDescriptor::CPUDevice()));
 
             Constant constantVariable(dst->Transpose(), ToWString(node->Name()));
             return constantVariable;
@@ -127,7 +126,7 @@ namespace CNTK
         {
         case TensorProto_DataType_FLOAT:
         {
-            return InputVariable(shape, DataType::Float, ToWString(node->Name()));
+            Variable variable = InputVariable(shape, DataType::Float, ToWString(node->Name()));
         }
         case TensorProto_DataType_DOUBLE:
         {
@@ -205,6 +204,14 @@ namespace CNTK
     //    return it->first;
     //}
 
+    void Trace0(const string &onnxOpName, const Variable& variable)
+    {
+        std::cout << endl;
+        std::cout << onnxOpName << endl;
+        std::cout << ToString(variable.Name()) << endl;
+        std::cout << endl;
+    }
+
     void Trace1(const string &onnxOpName, const FunctionPtr cntkFunction, const Variable &input0)
     {
         std::cout << endl;
@@ -222,7 +229,7 @@ namespace CNTK
         std::cout << endl;
     }
 
-    FunctionPtr ONNXToCNTKHelper::CreateNode(const Node *node, const std::vector<Variable> &inputs)
+    FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector<Variable> &inputs)
     {
         string onnxOpName = node->OpType();
         auto lookup = Operators::CntkToONNXLookup();
@@ -402,6 +409,7 @@ namespace CNTK
         else if (onnxOpName == "Mul")
         {
             FunctionPtr cntkFunction = ElementTimes(inputs[0], inputs[1], ToWString(node->Name()));
+            Trace2(onnxOpName, cntkFunction, inputs[0], inputs[1]);
             return cntkFunction;
         }
         else if (onnxOpName == "Div")
@@ -645,13 +653,13 @@ FunctionPtr ONNXToCNTKHelper::FromONNXNode(const Node *node, ONNXToCNTKMap &cons
         }
     }
 
-    FunctionPtr cntkFunction = CreateCNTKFunctionRecursive(node, inputs);
+    FunctionPtr cntkFunction = CreateCNTKNode(node, inputs);
     constructedNodeMap.insert(ONNXToCNTKMap::value_type(node, cntkFunction));
     return cntkFunction;
 }
 
 
-FunctionPtr ONNXToCNTKHelper::CreateCNTKFunctionRecursive(const Node *node, const std::vector<Variable> &inputs)
+FunctionPtr ONNXToCNTKHelper::CreateCNTKNode(const Node *node, const std::vector<Variable> &inputs)
 {
     string onnxOpName = node->OpType();
 
@@ -659,20 +667,24 @@ FunctionPtr ONNXToCNTKHelper::CreateCNTKFunctionRecursive(const Node *node, cons
     {
         // TODO: this is for sink or source - what type of variable for it?
         NDShape shape;
-        Constant constantVariable(shape, 0.5F, DeviceDescriptor::UseDefaultDevice(), ToWString(node->Name()));
+        Constant constantVariable(shape, 0.5F, DeviceDescriptor::CPUDevice(), ToWString(node->Name()));
         return constantVariable;
     }
     else if (onnxOpName == "Constant")
     {
-        return CreateConstant(node);
+        Constant constant = CreateConstant(node);
+        Trace0(onnxOpName, constant);
+        return constant;
     }
     else if (onnxOpName == "Variable")
     {
-        return CreateVariable(node);
+        Variable variable = CreateVariable(node);
+        Trace0(onnxOpName, variable);
+        return variable;
     }
     else
     {
-        return CreateNode(node, inputs);
+        return CreateFunction(node, inputs);
     }
 }
 
