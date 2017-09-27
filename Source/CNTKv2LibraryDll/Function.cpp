@@ -2082,10 +2082,15 @@ namespace CNTK
 
     FunctionPtr AsBlock(FunctionPtr&& composite, const std::vector<std::pair<Variable, Variable>>& argumentsMap, const std::wstring& blockOpName, const std::wstring& blockName)
     {
+        return AsBlock(std::move(composite), argumentsMap, Dictionary(), blockOpName, blockName);
+    }
+
+    FunctionPtr AsBlock(FunctionPtr&& composite, const std::vector<std::pair<Variable, Variable>>& argumentsMap, Dictionary&& attributes, const std::wstring& blockOpName, const std::wstring& blockName)
+    {
         if (!composite->IsComposite())
             InvalidArgument("Composite argument '%S' to AsBlock is not a composite Function.", composite->AsString().c_str());
 
-        return AsComposite(MakeSharedObject<BlockFunction>(std::move(composite), argumentsMap, blockOpName, Dictionary(), blockName), blockName);
+        return AsComposite(MakeSharedObject<BlockFunction>(std::move(composite), argumentsMap, blockOpName, std::move(attributes), blockName), blockName);
     }
 
     FunctionPtr AsComposite(const FunctionPtr& rootFunction, const std::wstring& name)
@@ -2109,26 +2114,33 @@ namespace CNTK
         return UnaryOp(PrimitiveOpType::ELU, operand, Dictionary(), name);
     }
 
-    FunctionPtr SELU(const Variable& operand, double scale, double alpha, const std::wstring& name)
+    FunctionPtr SELU(const Variable& operand, double gamma, double alpha, const std::wstring& name)
     {
+        auto additionalProperties = Dictionary();
+        additionalProperties[PrimitiveFunction::AttributeNameGamma] = gamma;
+        additionalProperties[PrimitiveFunction::AttributeNameAlpha] = alpha;
+
         auto operandPlaceholder = PlaceholderVariable();
         auto lessThanZero = Less(operandPlaceholder, Constant::Scalar(operand.GetDataType(), 0.0));
         auto result = ElementSelect(lessThanZero,
             ElementTimes(Constant::Scalar(operand.GetDataType(), alpha), ELU(operandPlaceholder)),
             operandPlaceholder);
-        result = ElementTimes(Constant::Scalar(operand.GetDataType(), scale), result);
-        return AsBlock(std::move(result), { { operandPlaceholder, operand } }, L"SELU", name);
+        result = ElementTimes(Constant::Scalar(operand.GetDataType(), gamma), result);
+        return AsBlock(std::move(result), { { operandPlaceholder, operand } }, std::move(additionalProperties), L"SELU", name);
     }
 
     FunctionPtr LeakyReLU(const Variable& operand, const std::wstring& name)
     {
+        auto additionalProperties = Dictionary();
+        additionalProperties[PrimitiveFunction::AttributeNameAlpha] = 0.01;
+
         auto operandPlaceholder = PlaceholderVariable();
         auto lessThanZero = Less(operandPlaceholder, Constant::Scalar(operand.GetDataType(), 0.0));
         auto result = ElementSelect(lessThanZero,
             ElementTimes(Constant::Scalar(operand.GetDataType(), 0.01), operandPlaceholder),
             operandPlaceholder);
 
-        return AsBlock(std::move(result), { { operandPlaceholder, operand } }, L"LeakyReLU", name);
+        return AsBlock(std::move(result), { { operandPlaceholder, operand } }, std::move(additionalProperties), L"LeakyReLU", name);
     }
 
     FunctionPtr PReLU(const Variable& alpha, const Variable& operand, const std::wstring& name)

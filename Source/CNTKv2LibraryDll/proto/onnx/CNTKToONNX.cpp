@@ -369,6 +369,22 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
         }
         else if (src->OpName() == L"BatchNormalization")
         {
+
+        }
+        else if ((src->OpName() == L"LeakyReLU") || (src->OpName() == L"ELU"))
+        {
+            auto alpha = 0.01f;
+            if (src->Attributes().Contains(L"alpha"))
+                alpha = (float)src->Attributes()[L"alpha"].Value<double>();
+            node->AddAttribute("alpha", 0.01f);
+        }
+        else if (src->OpName() == L"SELU")
+        {
+            auto gamma = (float)src->Attributes()[L"gamma"].Value<double>();
+            auto alpha = (float)src->Attributes()[L"alpha"].Value<double>();
+
+            node->AddAttribute("gamma", gamma);
+            node->AddAttribute("alpha", alpha);
         }
         else if (src->OpName() == L"Dropout")
         {
