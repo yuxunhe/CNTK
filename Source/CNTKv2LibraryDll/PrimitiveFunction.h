@@ -283,6 +283,7 @@ namespace CNTK
         static const std::wstring AttributeNamePaddingConstantValue;
         static const std::wstring AttributeNameAlpha;
         static const std::wstring AttributeNameGamma;
+        static const std::wstring AttributeNameKernelShape;
 
     protected:
         PrimitiveFunction(PrimitiveOpType op, const std::vector<Variable>& inputs, Dictionary&& functionConfig, const std::wstring& functionName, const std::wstring& uid)

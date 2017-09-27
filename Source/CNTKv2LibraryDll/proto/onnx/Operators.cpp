@@ -37,7 +37,7 @@ namespace ONNX
         } } },
         { L"Convolution", { {
             { L"Convolution", "Conv" },
-            // { L"", "kernel_shape" },
+            { L"kernelShape", "kernel_shape" },
             { L"strides", "strides" },
             { L"autoPadding", "pads" },
             { L"dilation", "dilations" },
@@ -45,7 +45,7 @@ namespace ONNX
         } } },
         { L"ConvolutionTranspose", { {
             { L"ConvolutionTranspose", "ConvTranspose" },
-            // { L"", "kernel_shape" },
+            { L"kernelShape", "kernel_shape" },
             { L"strides", "strides" },
             { L"autoPadding", "pads" },
             { L"dilation", "dilations" },

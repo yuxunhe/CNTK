@@ -363,12 +363,12 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
 
         if ((src->OpName() == L"Convolution") || (src->OpName() == L"ConvolutionTranspose"))
         {
-            //auto kernelShape = (NDShape)src->Attributes()[L"poolingWindowShape"].Value<NDShape>();
+            auto kernelShape = (NDShape)src->Attributes()[L"kernelShape"].Value<NDShape>();
             auto strides = (NDShape)src->Attributes()[L"strides"].Value<NDShape>();
             auto autoPadding = AsVector<bool>(src->Attributes()[L"autoPadding"].Value<std::vector<DictionaryValue>>());
             auto dilations = (NDShape)src->Attributes()[L"dilation"].Value<NDShape>();
 
-            //node->AddAttribute("kernel_shape", ToTensorShape(kernelShape));
+            node->AddAttribute(attributesMap[L"kernelShape"], ToTensorShape(kernelShape));
             node->AddAttribute("strides", ToTensorShape(strides));
             node->AddAttribute("pads", ToTensorShape(autoPadding));
             node->AddAttribute(attributesMap[L"dilation"], ToTensorShape(dilations));
@@ -376,8 +376,8 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
         else if (src->OpName() == L"BatchNormalization")
         {
             auto spatial = (int64_t)((bool)src->Attributes()[L"spatial"].Value<bool>() ? 1 : 0);
-            auto normalizationTimeConstant = (float)src->Attributes()[L"normalizationTimeConstant"].Value<double>();
-            auto blendTimeConstant = (float)src->Attributes()[L"blendTimeConstant"].Value<double>();
+            // auto normalizationTimeConstant = (float)src->Attributes()[L"normalizationTimeConstant"].Value<double>();
+            // auto blendTimeConstant = (float)src->Attributes()[L"blendTimeConstant"].Value<double>();
             auto epsilon = (float)src->Attributes()[L"epsilon"].Value<double>();
 
             node->AddAttribute(attributesMap[L"spatial"], spatial);

@@ -113,6 +113,7 @@ namespace CNTK
     /*static*/ const std::wstring PrimitiveFunction::AttributeNamePaddingConstantValue = L"paddingConstantValue";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameAlpha = L"alpha";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameGamma = L"gamma";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameKernelShape = L"kernelShape";
 
     /*static*/ DataType PrimitiveFunction::GetOutputDataType(PrimitiveOpType op, std::vector<Variable>& inputs, bool inferDimensions)
     {
@@ -881,6 +882,7 @@ namespace CNTK
                             m_attributes[PrimitiveFunction::AttributeNameSharing] = AsDictionaryValueVector(sharing);
                             m_attributes[PrimitiveFunction::AttributeNameAutoPadding] = AsDictionaryValueVector(autoPadding);
                             m_attributes[PrimitiveFunction::AttributeNameDilation] = dilation;
+                            m_attributes[PrimitiveFunction::AttributeNameKernelShape] = kernelShape;
                             break;
                         }
                         case PrimitiveOpType::CrossEntropyWithSoftmax:
