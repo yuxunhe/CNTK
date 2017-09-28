@@ -257,5 +257,10 @@ namespace ONNX
         { L"ElementMax", {} },
         { L"ElementMax", {} },
     };
+
+    std::unordered_map<std::wstring, std::vector<int>> Operators::_cntkToONNXInputIndices = {
+        { L"Convolution", { 1, 0 } },
+        { L"ConvolutionTranspose", { 1, 0 } },
+    };
 }
 }

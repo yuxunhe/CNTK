@@ -4,7 +4,7 @@
 namespace LotusIR
 {
     static const std::string c_constantOp = "Constant";
-    static const std::string c_constantValue = "CONSTANT_VALUE";
+    static const std::string c_constantValue = "value";
 
     // DataType strings. These should match the DataTypes defined in Data.proto
     static const std::string c_float16 = "float16";

@@ -70,6 +70,11 @@ private:
     // Which input to ignore during converting a CNTK block to a primitive OP in ONNX.
     //
     static bool FilterInput(const FunctionPtr& src, const CNTK::Variable& input, size_t inputIndex);
+
+    //
+    // Argument orders between CNTK and ONNX aren't always the same.
+    //
+    static std::vector<LotusIR::NodeArg> MapInputsOrderToONNX(const FunctionPtr& src, const std::vector<LotusIR::NodeArg>& inputs);
 };
 
 std::unique_ptr<LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
@@ -325,11 +330,10 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                         CopyTensor(srcTensor, dstTensor);
 
                         variableNode->AddAttribute("value", dstTensor);
+                        variableNodes.emplace(input, variableNode);
                     }
-                    else
-                        variableNode = graph->AddNode(ToString(input.Uid()), "Variable", "", varInputs, varOutputs);
-
-                    variableNodes.emplace(input, variableNode);
+                    // else
+                        // variableNode = graph->AddNode(ToString(input.Uid()), "Variable", "", varInputs, varOutputs);
                 }
             }
             //
@@ -340,6 +344,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 CreateNode(input.Owner(), graph, functionNodes, variableNodes);
         }
 
+        inputs = MapInputsOrderToONNX(src, inputs);
         functionNode = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", inputs, outputs);
         CopyAttributes(src, functionNode);
     }
@@ -511,6 +516,29 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
             node->AddAttribute("pads", ToTensorShape(autoPadding));
         }
     }
+}
+
+std::vector<LotusIR::NodeArg> CNTKToONNXHelper::MapInputsOrderToONNX(const FunctionPtr& src, const std::vector<LotusIR::NodeArg>& inputs)
+{
+    if (Operators::HasInputIndexMap(src->OpName()))
+    {
+        std::vector<LotusIR::NodeArg> orderedInputs;
+        std::map<int, LotusIR::NodeArg> orderedInputsMap;
+        auto map = Operators::ToONNXInputIndexMap(src->OpName());
+
+        for (size_t inputIndex = 0; inputIndex < inputs.size(); ++inputIndex)
+        {
+            if (map[inputIndex] >= 0)
+                orderedInputsMap.insert(std::pair<int, LotusIR::NodeArg>(map[inputIndex], inputs[inputIndex]));
+        }
+
+        for (const auto& item : orderedInputsMap)
+            orderedInputs.push_back(item.second);
+
+        return orderedInputs;
+    }
+
+    return inputs;
 }
 
 }
