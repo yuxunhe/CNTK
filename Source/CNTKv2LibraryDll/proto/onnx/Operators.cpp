@@ -167,8 +167,8 @@ namespace ONNX
         { L"PReLU", { {
             { L"PReLU", "PRelu" },
         } } },
-        { L"Sigmoid", { {
-            { L"Sigmoid", "Sigmoid" },
+        { L"StableSigmoid", { {
+            { L"StableSigmoid", "Sigmoid" },
         } } },
         { L"ElementMax", { {
             { L"ElementMax", "Max" },

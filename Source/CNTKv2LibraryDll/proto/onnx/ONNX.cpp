@@ -40,13 +40,13 @@ namespace CNTK
 
 void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
+    PrintGraph(src, 0);
     std::unique_ptr<LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
 
     // Liqun: experiment Create CNTK function from ONNX graph
     bool runExperiment = true;
     if (runExperiment)
     {
-        PrintGraph(src, 0);
         graph->Resolve();
         FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
         PrintGraph(cntkFunction, 0, true);

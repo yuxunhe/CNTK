@@ -65,6 +65,18 @@ static void PrintGraph(const FunctionPtr& function, int spaces, bool useName = f
 void RunLotus(DeviceDescriptor device)
 {
     {
+        // TODO: handle block and flaceholder nodes
+        //const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_classifier_only.net0";
+        //const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_classifier_only_onnx.net0";
+
+        const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_MNIST_classifier_only.net0";
+        const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_MNIST_classifier_only_onnx.net0";
+        FunctionPtr cntkModel = Function::Load(cntkModelFile, device, ModelFormat::CNTKv2);
+        
+        cntkModel->Save(savedONNXModelFile, ModelFormat::ONNX);
+        FunctionPtr cntkModelFromONNX = Function::Load(savedONNXModelFile, device, ModelFormat::ONNX);
+    }
+    {
         // vgg model load failed
         //const std::wstring vgg16 = L"E:/LiqunWA/CNTK/ONNX/vgg16/vgg16/graph.pb";
         //FunctionPtr cntkModel = Function::Load(vgg16, device, ModelFormat::ONNX);

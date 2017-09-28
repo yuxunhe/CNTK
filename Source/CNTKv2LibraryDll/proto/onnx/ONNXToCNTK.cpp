@@ -704,7 +704,7 @@ FunctionPtr ONNXToCNTK::CreateGraph(const std::unique_ptr<LotusIR::Graph>& src)
 
     // TODO: 
     ONNXToCNTKMap::iterator itNodeFn = std::find_if(constructedFunctions.begin(), constructedFunctions.end(),
-        [](ONNXToCNTKMap::value_type nodeFn) {return nodeFn.first->Name() == "Plus33"; });
+        [](ONNXToCNTKMap::value_type nodeFn) {return nodeFn.first->Name() == "Plus21"; });
     return itNodeFn->second;
 }
 
