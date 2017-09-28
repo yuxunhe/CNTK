@@ -46,9 +46,21 @@ namespace ONNX
             return invalidIndices.find(index) == invalidIndices.end();
         }
 
+        static inline bool HasInputIndexMap(const std::wstring& opName)
+        {
+            return _cntkToONNXInputIndices.find(opName) != _cntkToONNXInputIndices.end();
+        }
+
+        static inline const std::vector<int>& ToONNXInputIndexMap(const std::wstring& opName)
+        {
+            assert(_cntkToONNXInputIndices.find(opName) != _cntkToONNXInputIndices.end());
+            return _cntkToONNXInputIndices[opName];
+        }
+
     private:
         static std::unordered_multimap<std::wstring, AttributesMapping> _cntkToONNXOpName;
         static std::unordered_map<std::wstring, std::set<size_t>> _cntkBlockOPInvalidIndices;
+        static std::unordered_map<std::wstring, std::vector<int>> _cntkToONNXInputIndices;
     };
 
 }

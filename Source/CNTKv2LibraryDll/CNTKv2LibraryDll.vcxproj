@@ -217,6 +217,14 @@
     <ClCompile Include="proto\onnx\core\op.cc" />
     <ClCompile Include="proto\onnx\core\status.cc" />
     <ClCompile Include="proto\onnx\core\utils.cc" />
+    <ClCompile Include="proto\onnx\defs\experiments\defs.cc" />
+    <ClCompile Include="proto\onnx\defs\generator\defs.cc" />
+    <ClCompile Include="proto\onnx\defs\logical\defs.cc" />
+    <ClCompile Include="proto\onnx\defs\math\defs.cc" />
+    <ClCompile Include="proto\onnx\defs\nn\defs.cc" />
+    <ClCompile Include="proto\onnx\defs\reduction\defs.cc" />
+    <ClCompile Include="proto\onnx\defs\rnn\defs.cc" />
+    <ClCompile Include="proto\onnx\defs\tensor\defs.cc" />
     <ClCompile Include="proto\onnx\ONNX.cpp" />
     <ClCompile Include="proto\onnx\ONNXToCNTK.cpp" />
     <ClCompile Include="proto\onnx\Operators.cpp" />

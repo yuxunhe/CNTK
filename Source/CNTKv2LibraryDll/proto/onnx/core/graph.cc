@@ -850,6 +850,7 @@ namespace LotusIR
                         // Verify the input arg type complying with operator
                         // definition.
 
+                        /*
                         auto iter = opFormalParameter.GetTypes().find(inputDef.Type());
                         if (opFormalParameter.GetTypes().end() == iter)
                         {
@@ -879,6 +880,7 @@ namespace LotusIR
                             typeParameterToTypeMap[opFormalParameter.GetTypeStr()]
                                 = inputDef.Type();
                         }
+                        */
                     }
                 }
 
@@ -893,6 +895,7 @@ namespace LotusIR
                 }
 
                 // Infer and verify node output arg type information.
+                /*
                 int i = 0;
                 for (auto& outputDef : node->Mutable_OutputDefs())
                 {
@@ -981,6 +984,7 @@ namespace LotusIR
                         + outputDef.Name() + ") type inference failed");
                     return status;
                 }
+                */
 
                 // Attribute verification and fill node attribute with
                 // default value defined in operator definition if needed.
@@ -1025,7 +1029,7 @@ namespace LotusIR
                                 Status status(false,
                                     "Node (" + nodeName + ") attribute ("
                                     + nodeAttrIter->first + ") type does not match operator definition.");
-                                return status;
+                                // return status;
                             }
                         }
                     }
