@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 #ifdef ONNX_V1_OPSCHEMA_COMPAT
-#include "op.h"
+#include "../../core/op.h"
 
 using SupportType = LotusIR::OpSchema::SupportType;
 namespace LotusIR {

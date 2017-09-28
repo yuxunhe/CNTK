@@ -485,6 +485,8 @@ namespace LotusIR
         return Status::OK();
     }
 
+#define ONNX_V1_OPSCHEMA_COMPAT
+
 #ifdef ONNX_V1_OPSCHEMA_COMPAT
     size_t ReplaceAll(std::string& s, const char* from, const char* to)
     {
