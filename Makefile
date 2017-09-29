@@ -493,6 +493,26 @@ CNTKLIBRARY_COMMON_SRC =\
 	$(SOURCEDIR)/CNTKv2LibraryDll/tensorboard/tensorboard.pb.cc \
 	$(SOURCEDIR)/CNTKv2LibraryDll/tensorboard/TensorBoardFileWriter.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/tensorboard/TensorBoardUtils.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/protobuf/Data.pb.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/protobuf/graph.pb.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/protobuf/TensorShape.pb.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/protobuf/Type.pb.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/experiments/defs.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/generator/defs.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/logical/defs.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/math/defs.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/nn/defs.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/reduction/defs.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/rnn/defs.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/tensor/defs.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/graph.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/op.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/status.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/utils.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/Operators.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/CNTKToONNX.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/ONNXToCNTK.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/ONNX.cpp \
 
 CNTKLIBRARY_SRC =\
 	$(SOURCEDIR)/CNTKv2LibraryDll/ComputeInputStatistics.cpp \
