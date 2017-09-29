@@ -76,6 +76,9 @@
     <Filter Include="cntk\debugging\tests">
       <UniqueIdentifier>{57d82204-6a94-4563-a561-160d9ded9961}</UniqueIdentifier>
     </Filter>
+    <Filter Include="cntk\netopt">
+      <UniqueIdentifier>{fb0a88e9-8033-49d1-8c7e-0431d9bc9445}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="cntk\__init__.py">
