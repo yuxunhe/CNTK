@@ -15,6 +15,10 @@ using namespace CNTK::ONNX;
 namespace CNTK
 {
 
+//
+// A helper function, to reverse any iterable container and return a copy
+// of the reversed container.
+//
 template<typename ItrType>
 ItrType reverse(ItrType v)
 {
