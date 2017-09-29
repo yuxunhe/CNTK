@@ -3,6 +3,7 @@
 
 namespace LotusIR
 {
+    static const std::string c_noOp = "NoOp";
     static const std::string c_constantOp = "Constant";
     static const std::string c_constantValue = "value";
 

@@ -117,9 +117,9 @@ namespace LotusIR
     ATTR_SETTER_LIST_IMPL(std::string, strings)
 
     OperatorSchemaSetter&
-        OperatorSchemaSetter::TypeConstraint(const std::string& p_typeName,
-            const std::vector<std::string>& p_constraints,
-            const std::string& p_description)
+    OperatorSchemaSetter::TypeConstraint(const std::string& p_typeName,
+        const std::vector<std::string>& p_constraints,
+        const std::string& p_description)
     {
         m_constraints.push_back(std::make_tuple(p_typeName, p_constraints, p_description));
         return *this;
@@ -229,6 +229,16 @@ namespace LotusIR
         m_shapeInferFunc(p_setter.m_shapeInferFunc),
         m_parser(p_setter.m_parser)
     {
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
+        m_onnxMinInput = p_setter.m_onnxMinInput;
+        m_onnxMaxInput = p_setter.m_onnxMaxInput;
+        m_onnxMinOutput = p_setter.m_onnxMinOutput;
+        m_onnxMaxOutput = p_setter.m_onnxMaxOutput;
+        m_onnxNumInputsAllowed = p_setter.m_onnxNumInputsAllowed;
+        m_onnxNumOutputsAllowed = p_setter.m_onnxNumOutputsAllowed;
+        m_onnxNumInputsOutputsAllowed = p_setter.m_onnxNumInputsOutputsAllowed;
+#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
+
         // Process type constraints.
         for (const auto& constraint : p_setter.m_constraints)
         {
@@ -262,6 +272,19 @@ namespace LotusIR
             std::tie(name, desc, type) = input;
             m_inputs.push_back(FormalParameter(name, type, desc, m_typeConstraintMap));
         }
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
+        if (0 == m_inputs.size()
+            && m_onnxMinInput == m_onnxMaxInput
+            && m_onnxMinInput > 0)
+        {
+            for (int i = 0; i < m_onnxMinInput; ++i)
+            {
+                std::string name = "p" + std::to_string(i);
+                std::string desc = "Input Parameter " + std::to_string(i);
+                m_inputs.push_back(FormalParameter(name, "", desc, m_typeConstraintMap));
+            }
+        }
+#endif
 
         m_outputs.reserve(p_setter.m_outputs.size());
         for (const auto& output : p_setter.m_outputs)
@@ -272,6 +295,19 @@ namespace LotusIR
             std::tie(name, desc, type) = output;
             m_outputs.push_back(FormalParameter(name, type, desc, m_typeConstraintMap));
         }
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
+        if (0 == m_outputs.size()
+            && m_onnxMinOutput== m_onnxMaxOutput
+            && m_onnxMinOutput > 0)
+        {
+            for (int i = 0; i < m_onnxMinOutput; ++i)
+            {
+                std::string name = "p" + std::to_string(i);
+                std::string desc = "Output Result " + std::to_string(i);
+                m_outputs.push_back(FormalParameter(name, "", desc, m_typeConstraintMap));
+            }
+        }
+#endif
 
         m_attributes.reserve(p_setter.m_attributes.size());
         for (const auto& attr : p_setter.m_attributes)
@@ -484,8 +520,6 @@ namespace LotusIR
 
         return Status::OK();
     }
-
-#define ONNX_V1_OPSCHEMA_COMPAT
 
 #ifdef ONNX_V1_OPSCHEMA_COMPAT
     size_t ReplaceAll(std::string& s, const char* from, const char* to)

@@ -21,6 +21,7 @@ namespace LotusIR
     typedef ArgInfoProto NodeArgInfo;
 
     class Graph;
+    class OperatorSchema;
 
     // Node argument definition, for both input and output,
     // including arg name, arg type and arg shape.
@@ -50,10 +51,11 @@ namespace LotusIR
         friend class Node;
         friend class Graph;
 
-        // Constructor by specifying a <NodeArgInfo>.
-        // This is called when loading a <Graph> from <GraphProto> normally.
+        // Constructor by specifying node arg name and <NodeArgInfo> which is
+        // optional. This is called when loading a <Graph> from <GraphProto>
+        // normally.
         NodeArg(const std::string& p_name,
-            const NodeArgInfo& p_nodeProtoInputOutput);
+            const NodeArgInfo* p_nodeProtoInputOutput);
 
         void SetType(PTYPE p_type);
 
@@ -202,7 +204,7 @@ namespace LotusIR
         Node::NodeConstIterator OutputNodes_end() const;
         // Given input arg, get the source end of an input edge.
         bool InputEdgeSrcEnd(NodeArg* p_inputArg,
-            /*out*/const EdgeEnd** p_inputEdgeSrcEnd);
+            /*out*/const EdgeEnd** p_inputEdgeSrcEnd) const;
 
         // Add a node attribute with specified attribute name and value.
         bool AddAttribute(const std::string& p_attrName, const AttributeProto& p_value);
@@ -414,7 +416,7 @@ namespace LotusIR
         // Number of nodes in the <Graph>.
         // This is smaller than MaxNodeIndex(), since there may be nodes
         // removed during optimization.
-        int NumberOfNodes();
+        int NumberOfNodes() const;
 
         // Add, remove node from <*this> graph.
         Node* AddNode(const std::string& p_name,
@@ -477,12 +479,18 @@ namespace LotusIR
         // Load a GraphProto from a file.
         static bool Load(const std::wstring& p_filePath, /*out*/ GraphProto* p_graphProto);
 
+        static std::shared_ptr<Graph> Load(const std::wstring& p_filePath);
+
     private:
 
         enum Type
         {
+            // A main graph.
             Main = 1,
+            // A sub graph (function).
             Sub = 2,
+            // A graph with strict type checking.
+            Strict = 4,
         };
 
         friend class Node;
@@ -493,13 +501,15 @@ namespace LotusIR
         // Add node with specified <p_nodeProto>.
         Node* AddNode(const NodeProto& p_nodeProto);
 
-        Status VerifyNoDuplicateName(/*out*/
-            std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs);
+        Status VerifyNoDuplicateName(
+            /*out*/ std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs,
+            /*out*/ std::unordered_map<std::string, NODEINDEX>& p_nodeNameToIndex);
 
         // Build and verify node connection (edges).
         // Verify NodeArg name/type/shape matching correctly.
         Status BuildConnections(
-            const std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs);
+            const std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs,
+            const std::unordered_map<std::string, NODEINDEX>& p_nodeNameToIndex);
 
         // Check whether <*this> graph is acyclic.
         // Depth-first going thru the graph and check whether there's any back
@@ -523,10 +533,14 @@ namespace LotusIR
         // Given nodes in toplogical order, infer and set type information
         // across <*this> graph if needed, and verify type/attribute
         // information match between node and op.
-        Status InferAndVerifyTypeMatch(
+        Status VerifyNodeAndOpMatch(
             const std::vector<NODEINDEX>& p_nodesInToplogicalOrder,
             std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs,
             /*out*/ std::set<std::string>& p_funcDefNames);
+
+        Status InferAndVerifyTypeMatch(Node* p_node,
+            const OperatorSchema* p_op,
+            const std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs);
 
         // Clean function definition map.
         // Remove function definitions not refered by any node.
@@ -534,6 +548,9 @@ namespace LotusIR
 
         // Add source/sink nodes to <*this> graph.
         void AddSourceSinkNodes();
+
+        // Set graph inputs/outputs when serializing to proto.
+        void Graph::SetGraphInputsOutputs();
 
         // Graph nodes.
         // Element in <m_nodes> may be nullptr due to graph optimization.
@@ -569,9 +586,11 @@ namespace LotusIR
             TensorProto> m_nameToInitialTensor;
 
         // A flag indicates whether <*this> graph needs to be resolved.
-        bool m_isGraphValid;
+        bool m_graphResolveNeeded;
 
-        int m_graphType;
+        bool m_graphProtoSyncNeeded;
+
+        int m_graphType = 0;
     };
 }
 
