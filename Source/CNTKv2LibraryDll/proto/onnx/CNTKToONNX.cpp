@@ -385,8 +385,6 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                         variableNode->AddAttribute("value", dstTensor);
                         variableNodes.emplace(input, variableNode);
                     }
-                    // else
-                        // variableNode = graph->AddNode(ToString(input.Uid()), "Variable", "", varInputs, varOutputs);
                 }
             }
             //
