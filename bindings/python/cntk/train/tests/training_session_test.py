@@ -96,7 +96,8 @@ def mb_source(tmpdir, fileprefix, max_samples=FULL_DATA_SWEEP, ctf=ctf_data, str
     return mbs
 
 
-def create_sample_model(device, writer=None):
+def create_sample_model(device, writer=None,
+                        lr_per_sample=C.learning_rate_schedule([0.3, 0.2, 0.1, 0.0], C.UnitType.sample)):
     in1 = sequence.input_variable(shape=(input_dim,))
     labels = sequence.input_variable(shape=(input_dim,))
     p = parameter(shape=(input_dim,), init=10, device=device)
@@ -104,12 +105,9 @@ def create_sample_model(device, writer=None):
     ce = cross_entropy_with_softmax(z, labels)
     errs = classification_error(z, labels)
 
-    lr_per_sample = C.learning_rate_schedule(
-        [0.3, 0.2, 0.1, 0.0], C.UnitType.sample)
     learner = C.sgd(z.parameters, lr_per_sample)
     trainer = C.Trainer(z, (ce, errs), [learner], writer)
     return (trainer, in1, labels)
-
 
 class MockProgressWriter(cntk_py.ProgressWriter):
     def __init__(self, expected_test_summary=None, training_summary_counter=0):
@@ -305,7 +303,8 @@ def test_session_progress_print_on_minibatch_unit(tmpdir, device_id):
 def test_session_progress_print_on_epoch_unit(tmpdir, device_id):
     device = cntk_device(device_id)
     writer = MockProgressWriter()
-    t, feature, label = create_sample_model(device, writer)
+    #set to a higher learning rate as we don't need to have converge but just to go through all the samples
+    t, feature, label = create_sample_model(device, writer, lr_per_sample=C.learning_rate_schedule(0.3, C.UnitType.sample))
     mbs = mb_source(tmpdir, "training",
                     #max_samples=INFINITELY_REPEAT,
                     max_sweeps = 4)
@@ -324,7 +323,7 @@ def test_session_progress_print_on_epoch_unit(tmpdir, device_id):
         progress_frequency=(2, C.train.DataUnit.sweep)
     ).train(device)
     #4 sweeps of 25 samples = 100 samples
-    #assert(t.total_number_of_samples_seen == 100)
+    assert(t.total_number_of_samples_seen == 100)
     #output every 2 epoch sweeps; 4 sweeps in total, at the end 2 outputs are written:
     assert(writer.training_summary_counter == 2)
 

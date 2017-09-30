@@ -207,15 +207,15 @@ namespace CNTK
                 ? 0
                 : m_maxNumSamples - Trainer()->TotalNumberOfSamplesSeen();
 
-            //isSweepEnd will obtain the value by calling GetTrainingMinibatch.
-            bool isSweepEnd;
+            //get the sweep end status from GetTrainingMinibatch and use in TrainMiniBatch below
+            bool isMinibatchAtSweepEnd;
             // Note that in case of distributed training we don't want to stop if the local minibatch
             // is empty - it is possible that the other workers are still processing their minibatches.
-            GetTrainingMinibatch(minibatch, isSweepEnd, samplesLeft, computeDevice);
+            GetTrainingMinibatch(minibatch, &isMinibatchAtSweepEnd, samplesLeft, computeDevice);
 
             // Train on the minibatch.
             OnMinibatchStart();
-            shouldTrain = Trainer()->TrainMinibatch(minibatch, isSweepEnd, computeDevice);
+            shouldTrain = Trainer()->TrainMinibatch(minibatch, isMinibatchAtSweepEnd, computeDevice);
             earlyExit |= !OnMinibatchEnd(); // If the callback wants to have early exit - we stop training.
 
 #ifndef CNTK_UWP
@@ -292,7 +292,7 @@ namespace CNTK
             while (shouldCV)
             {
                 size_t samplesLeft = m_cv.m_maxSamples <= totalNumberOfSamples ? 0 : m_cv.m_maxSamples - totalNumberOfSamples;
-                GetCrossValidationMinibatch(minibatch, (std::min)(m_cv.m_mbSize[totalNumberOfSamples], samplesLeft), computeDevice);
+                GetCrossValidationMinibatch(minibatch, /*pIsMinibatchAtSweepEnd= */nullptr, (std::min)(m_cv.m_mbSize[totalNumberOfSamples], samplesLeft), computeDevice);
 
                 // TODO: it may be slow to rely on TestMinibatch to return error each time, since it may require transfer
                 // of error from the GPU each time, accumulatedError can be allocated on GPU
@@ -332,9 +332,8 @@ namespace CNTK
         std::pair<ValuePtr, size_t> errorAndCount;
         while (shouldTest)
         {
-            bool isSweepEnd = false;
             GetNextMinibatch(m_test.m_source, minibatch, m_test.m_varToStream.empty() ? m_varToStream : m_test.m_varToStream,
-                isSweepEnd, m_test.m_mbSize[totalNumberOfSamples], m_workerRank, m_numberOfWorkers, computeDevice);
+                /*pIsMinibatchAtSweepEnd=*/ nullptr, m_test.m_mbSize[totalNumberOfSamples], m_workerRank, m_numberOfWorkers, computeDevice);
             shouldTest = m_trainer->TestMinibatch(minibatch, errorAndCount, computeDevice, m_numberOfWorkers != 1);
             totalNumberOfSamples += errorAndCount.second;
         }
@@ -347,7 +346,7 @@ namespace CNTK
         Trainer()->SummarizeTrainingProgress();
     }
 
-    void TrainingSession::GetTrainingMinibatch(std::unordered_map<Variable, ValuePtr>& minibatch, bool& isSweepEndInMinibatch, size_t maxMbSize, const DeviceDescriptor& computeDevice)
+    void TrainingSession::GetTrainingMinibatch(std::unordered_map<Variable, ValuePtr>& minibatch, bool* pIsMinibatchAtSweepEnd, size_t maxMbSize, const DeviceDescriptor& computeDevice)
     {
         size_t workerRank = m_workerRank, numberOfWorkers = m_numberOfWorkers;
 
@@ -362,20 +361,19 @@ namespace CNTK
 
         size_t mbSize = GetMinibatchSize() * scaleFactor;
         mbSize = (std::min)(mbSize, maxMbSize);
-        GetNextMinibatch(m_source, minibatch, m_varToStream, isSweepEndInMinibatch, mbSize, workerRank, numberOfWorkers, computeDevice);
+        GetNextMinibatch(m_source, minibatch, m_varToStream, pIsMinibatchAtSweepEnd, mbSize, workerRank, numberOfWorkers, computeDevice);
     }
 
-    void TrainingSession::GetCrossValidationMinibatch(std::unordered_map<Variable, ValuePtr>& minibatch, size_t maxMbSize, const DeviceDescriptor& computeDevice)
+    void TrainingSession::GetCrossValidationMinibatch(std::unordered_map<Variable, ValuePtr>& minibatch, bool* pIsMinibatchAtSweepEnd, size_t maxMbSize, const DeviceDescriptor& computeDevice)
     {
-        bool isSweepEnd = false; //TODO: to reduce sweep END?
-        GetNextMinibatch(m_cv.m_source, minibatch, m_cv.m_varToStream.empty() ? m_varToStream : m_cv.m_varToStream, isSweepEnd, maxMbSize, m_workerRank, m_numberOfWorkers, computeDevice);
+        GetNextMinibatch(m_cv.m_source, minibatch, m_cv.m_varToStream.empty() ? m_varToStream : m_cv.m_varToStream, pIsMinibatchAtSweepEnd, maxMbSize, m_workerRank, m_numberOfWorkers, computeDevice);
     }
 
     void TrainingSession::GetNextMinibatch(
         const MinibatchSourcePtr& source,
         std::unordered_map<Variable, ValuePtr>& minibatch,
         const std::unordered_map<Variable, StreamInformation>& inputVarToStream,
-        bool& isSweepEnd,
+        bool* pIsMinibatchAtSweepEnd,
         size_t mbSize,
         size_t workerRank,
         size_t numberOfWorkers,
@@ -388,7 +386,8 @@ namespace CNTK
 
         // TODO: is copy really necessary here?
         auto minibatchData = source->GetNextMinibatch(0 /*numberOfSequences*/, mbSize, numberOfWorkers, workerRank, computeDevice);
-        isSweepEnd = IsAtSweepEnd(minibatchData);
+        if (pIsMinibatchAtSweepEnd != nullptr)
+            *pIsMinibatchAtSweepEnd = IsAtSweepEnd(minibatchData);
         if (minibatchData.empty())
             return;
         for (auto v : inputVarToStream)
