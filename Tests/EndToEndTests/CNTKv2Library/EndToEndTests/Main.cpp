@@ -62,20 +62,140 @@ static void PrintGraph(const FunctionPtr& function, int spaces, bool useName = f
     }
 }
 
+void EvaluateMNIST(FunctionPtr modelFunc)
+{
+    // evaluate
+    Variable inputVar = modelFunc->Arguments()[0];
+
+    // The model has only one output.
+    // If the model has more than one output, use modelFunc->Outputs to get the list of output variables.
+    Variable outputVar = modelFunc->Output();
+
+    const size_t inputDim = 784;
+    const size_t numOutputClasses = 10;
+    const size_t hiddenLayerDim = 200;
+
+    auto featureStreamName = L"features";
+    auto labelsStreamName = L"labels";
+    auto minibatchSource = TextFormatMinibatchSource(L"Test-28x28_cntk_text_small.txt", { { featureStreamName, inputDim },{ labelsStreamName, numOutputClasses } });
+    const size_t minibatchSize = 50;
+    DeviceDescriptor device = DeviceDescriptor::CPUDevice();
+    auto miniBatchData = minibatchSource->GetNextMinibatch(minibatchSize, device);
+    MinibatchData &arg = miniBatchData[minibatchSource->StreamInfo(featureStreamName)];
+
+    
+    std::unordered_map<Variable, ValuePtr> outputs = { { outputVar, nullptr } };
+    ValuePtr featureValue = arg.data;
+    std::unordered_map<Variable, ValuePtr> arguments = { { inputVar , featureValue } };
+
+    modelFunc->Evaluate(arguments, outputs);
+    ValuePtr outputVal = outputs[outputVar];
+
+    std::vector<std::vector<float>> outputData;
+    outputVal->CopyVariableValueTo(outputVar, outputData);
+}
+
+void ValidateSimple(FunctionPtr modelFunc, size_t inputDim)
+{
+    Variable inputVar = modelFunc->Arguments()[0];
+    Variable outputVar = modelFunc->Output();
+
+    std::unordered_map<Variable, ValuePtr> outputs = { { outputVar, nullptr } };
+    std::vector<float> batchData = { 1,2,3 };
+    ValuePtr featureValue = Value::CreateBatch(NDShape({ inputDim }), batchData, DeviceDescriptor::UseDefaultDevice());
+    std::unordered_map<Variable, ValuePtr> arguments = { { inputVar , featureValue } };
+
+    modelFunc->Evaluate(arguments, outputs);
+    ValuePtr outputVal = outputs[outputVar];
+
+    std::vector<std::vector<float>> outputData;
+    outputVal->CopyVariableValueTo(outputVar, outputData);
+}
+
+std::wstring GetIntermediateCNTKFilename(const std::wstring &savedONNXModelFile)
+{
+    size_t pos = savedONNXModelFile.find(L".model");
+    std::wstring convertedModelFile = savedONNXModelFile.substr(0, pos) + L".CNTKFromONNX.model";
+    return convertedModelFile;
+}
+
+void TestSimple()
+{
+    size_t inputDim = 3, outputDim = 2;
+
+    auto input = InputVariable({ inputDim }, DataType::Float, L"features");
+
+    float timeParamBuf[6] = { 1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F };
+    NDShape timeParamShape({ 2, 3 });
+    NDArrayViewPtr timesParamAV(new NDArrayView(DataType::Float, timeParamShape, &timeParamBuf[0], 
+        inputDim * outputDim * sizeof(float), DeviceDescriptor::UseDefaultDevice()));
+
+    auto timesParam = Parameter(timesParamAV, L"timesParam");
+
+    auto timesFunction = Times(timesParam, input, L"times");
+    
+    FunctionPtr modelFunc = timesFunction;
+
+    //float plusParamBuf[2] = { 0.2F, 0.3F };
+    //NDArrayViewPtr plusParamAV(new NDArrayView(DataType::Float, NDShape({ 2 }), &plusParamBuf[0],
+    //    outputDim * sizeof(float), DeviceDescriptor::UseDefaultDevice()));
+    //auto plusParam = Parameter(plusParamAV, L"plusParam");
+    //FunctionPtr modelFunc = Plus(plusParam, timesFunction, L"timesPlus");
+
+    ValidateSimple(modelFunc, inputDim);
+
+    const std::wstring savedONNXModelFile = L"TestSimple.CNTK.model";
+    modelFunc->Save(savedONNXModelFile, ModelFormat::ONNX);
+
+    std::wstring convertedModelFile = GetIntermediateCNTKFilename(savedONNXModelFile);
+    FunctionPtr modelConvertedFunc = Function::Load(convertedModelFile);
+
+    ValidateSimple(modelConvertedFunc, inputDim);
+
+}
+
+void TestMNISTSimpleFeedForward()
+{
+    const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_MNIST_classifier_only.net0";
+    FunctionPtr cntkModel = Function::Load(cntkModelFile, DeviceDescriptor::UseDefaultDevice(), ModelFormat::CNTKv2);
+    EvaluateMNIST(cntkModel);
+
+    const std::wstring onnxModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_MNIST_classifier_only_ONNX.net0.model";
+    cntkModel->Save(onnxModelFile, ModelFormat::ONNX);
+
+    std::wstring convertedModelFile = GetIntermediateCNTKFilename(onnxModelFile);
+    FunctionPtr modelConvertedFunc = Function::Load(convertedModelFile);
+    EvaluateMNIST(modelConvertedFunc);
+}
+
+//{
+//    // TODO: handle block and flaceholder nodes
+//    //const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_classifier_only.net0";
+//    //const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_classifier_only_onnx.net0";
+//
+//    const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_MNIST_classifier_only.net0";
+//    const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_MNIST_classifier_only_onnx.net0";
+//    //
+//    FunctionPtr cntkModel = Function::Load(cntkModelFile, device, ModelFormat::CNTKv2);
+//    EvaluateMNIST(cntkModel);
+//
+//    cntkModel->Save(savedONNXModelFile, ModelFormat::ONNX);
+//
+//    FunctionPtr cntkModelFromONNX = Function::Load(savedONNXModelFile, device, ModelFormat::ONNX);
+//    EvaluateMNIST(cntkModelFromONNX);
+//}
+
+
 void RunLotus(DeviceDescriptor device)
 {
+    if (!DeviceDescriptor::TrySetDefaultDevice(device))
     {
-        // TODO: handle block and flaceholder nodes
-        //const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_classifier_only.net0";
-        //const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_classifier_only_onnx.net0";
-
-        const std::wstring cntkModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_MNIST_classifier_only.net0";
-        const std::wstring savedONNXModelFile = L"E:/LiqunWA/CNTK/ONNX/feedForward_MNIST_classifier_only_onnx.net0";
-        FunctionPtr cntkModel = Function::Load(cntkModelFile, device, ModelFormat::CNTKv2);
-        
-        cntkModel->Save(savedONNXModelFile, ModelFormat::ONNX);
-        FunctionPtr cntkModelFromONNX = Function::Load(savedONNXModelFile, device, ModelFormat::ONNX);
+        std::cout << "failed to set default device" << std::endl;
     }
+    
+    // TestSimple();
+    TestMNISTSimpleFeedForward();
+
     {
         // vgg model load failed
         //const std::wstring vgg16 = L"E:/LiqunWA/CNTK/ONNX/vgg16/vgg16/graph.pb";

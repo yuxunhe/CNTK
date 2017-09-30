@@ -298,8 +298,8 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             auto input = src->Inputs()[inputIndex];
 
             // TODO: why place holder is not input?
-            //if (input.IsPlaceholder())
-            //    LogicError("Node '%S': Placeholder isn't supported currently.", src->AsString().c_str());
+            if (input.IsPlaceholder())
+                LogicError("Node '%S': Placeholder isn't supported currently.", src->AsString().c_str());
 
             if (src->IsBlock() && FilterInput(src, input, inputIndex))
                 continue;
@@ -313,7 +313,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             //
             // Leaf nodes are data entry to the graph and need their own node with only output arg.
             //
-            if (input.IsPlaceholder() || input.IsInput() || input.IsParameter() || input.IsConstant())
+            if (input.IsInput() || input.IsParameter() || input.IsConstant())
             {
                 if (variableNodes.find(input) == variableNodes.end())
                 {
@@ -334,7 +334,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                         variableNodes.emplace(input, variableNode);
                     }
                     // else
-                        // variableNode = graph->AddNode(ToString(input.Uid()), "Variable", "", varInputs, varOutputs);
+                    // variableNode = graph->AddNode(ToString(input.Uid()), "Variable", "", varInputs, varOutputs);
                 }
             }
             //

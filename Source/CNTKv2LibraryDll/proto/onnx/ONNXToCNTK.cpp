@@ -25,6 +25,7 @@ namespace CNTK
         static FunctionPtr CreateCNTKNode(const Node *node, const std::vector<Variable> &inputs);
         static Constant CreateConstant(const Node *node);
         static Variable CreateVariable(const Node *node);
+        static Variable CreateVariable(const NodeArg *nodeArg);
         static FunctionPtr CreateFunction(const Node *node, const std::vector<Variable> &inputs);
 
         static NDShape FromTensorShape(const TensorShapeProto& tensorShape);
@@ -35,6 +36,8 @@ namespace CNTK
         static std::vector<bool> GetNamedAttributeAsShapeBool(const Node *node, const string &attributeName);
         static size_t GetNamedAttributeAsInt64(const Node *node, const string &attributeName);
         static float GetNamedAttributeAsFloat(const Node *node, const string &attributeName);
+
+        static NDShape ReverseShape(const NDShape &shape);
     };
 
     // TODO: is here the center place to convert/transposing tensor shape to CNTK shape?
@@ -44,6 +47,16 @@ namespace CNTK
         for (int index = 0; index < tensorShape.dim_size(); index++)
             dimensions.push_back(tensorShape.dim(index).dim_value());
 
+        return dimensions;
+    }
+
+    NDShape ONNXToCNTKHelper::ReverseShape(const NDShape &shape)
+    {
+        std::vector<size_t> dimensions;
+        for (int index = shape.Rank() - 1; index >= 0; index--)
+        {
+            dimensions.push_back(shape[index]);
+        }
         return dimensions;
     }
 
@@ -80,33 +93,73 @@ namespace CNTK
         const LotusIR::TensorShapeProto shapeProto = inputArg.Shape();
         NDShape shape = FromTensorShape(shapeProto);
 
+        // CNTK transpose does switch between row major and column major.
+        // However it does not change the shape. This makes second transpose
+        // wrong. Here we have to construct with unchanged data layout
+        // but transposed reshape. Then transpose and reshape to recover
+        // the transpose operation. That is to make 2 transpose operation
+        // an identity transform.
+        NDShape reversedShape = ReverseShape(shape);
+        auto totalSize = shape.TotalSize();
+        NDArrayViewPtr reshaped;
+
         switch (dataType)
         {
         case TensorProto_DataType_FLOAT:
         {
-            float *buffer = new float[valueProto.float_data().size()];
-            for (size_t index = 0; index < valueProto.float_data().size(); index++)
+            float *data = new float[totalSize];
+            for (size_t index = 0; index < totalSize; index++)
             {
-                buffer[index] = valueProto.float_data()[index];
+                data[index] = valueProto.float_data()[index];
             }
 
-            // TODO: buffer has to be allocated on the specified 'device'?
-            NDArrayViewPtr dst(new NDArrayView(DataType::Float, shape, buffer, valueProto.float_data().size() * sizeof(float), DeviceDescriptor::CPUDevice()));
+            // TODO: data has to be allocated on the specified 'device'?
+            reshaped = MakeSharedObject<NDArrayView>(DataType::Float, reversedShape, data,
+                totalSize * sizeof(float), DeviceDescriptor::CPUDevice());
+        }
+        break;
+        case TensorProto_DataType_DOUBLE:
+        {
+            double *data = new double[totalSize];
+            for (size_t index = 0; index < totalSize; index++)
+            {
+                data[index] = valueProto.double_data()[index];
+            }
 
-            Constant constantVariable(dst->Transpose(), ToWString(node->Name()));
-            return constantVariable;
+            // TODO: data has to be allocated on the specified 'device'?
+            reshaped = MakeSharedObject<NDArrayView>(DataType::Double, reversedShape, data,
+                totalSize * sizeof(double), DeviceDescriptor::CPUDevice());
+        }
+        break;
+        default:
+            NOT_IMPLEMENTED;
+        }
+
+        // do transpose and reshape
+        NDArrayViewPtr transposed = reshaped->Transpose();
+        NDArrayViewPtr dstFinal = transposed->AsShape(shape);
+        Constant constantVariable(dstFinal, ToWString(node->Name()));
+        return constantVariable;
+
+    }
+
+    Variable ONNXToCNTKHelper::CreateVariable(const NodeArg *nodeArg)
+    {
+        // TODO: how to get the datatype?
+        auto dataType = TensorProto_DataType_FLOAT;
+
+        const LotusIR::TensorShapeProto shapeProto = nodeArg->Shape();
+        NDShape shape = FromTensorShape(shapeProto);
+
+        switch (dataType)
+        {
+        case TensorProto_DataType_FLOAT:
+        {
+            return InputVariable(shape, DataType::Float, ToWString(nodeArg->Name()));
         }
         case TensorProto_DataType_DOUBLE:
         {
-            double *buffer = new double[valueProto.double_data().size()];
-            for (size_t index = 0; index < valueProto.double_data().size(); index++)
-            {
-                buffer[index] = valueProto.double_data()[index];
-            }
-            NDArrayViewPtr dst(new NDArrayView(DataType::Double, shape, buffer, valueProto.double_data().size() * sizeof(double), DeviceDescriptor::CPUDevice()));
-
-            Constant constantVariable(dst->Transpose(), ToWString(node->Name()));
-            return constantVariable;
+            return InputVariable(shape, DataType::Double, ToWString(nodeArg->Name()));
         }
         default:
             NOT_IMPLEMENTED;
@@ -126,7 +179,7 @@ namespace CNTK
         {
         case TensorProto_DataType_FLOAT:
         {
-            Variable variable = InputVariable(shape, DataType::Float, ToWString(node->Name()));
+            return InputVariable(shape, DataType::Float, ToWString(node->Name()));
         }
         case TensorProto_DataType_DOUBLE:
         {
@@ -638,18 +691,31 @@ FunctionPtr ONNXToCNTKHelper::FromONNXNode(const Node *node, ONNXToCNTKMap &cons
     }
 
     std::vector<Variable> inputs;
-    for (Node::NodeConstIterator it = node->InputNodes_begin(); it != node->InputNodes_end(); ++it)
+    const std::vector<NodeArg>& inputDefs = node->InputDefs();
+    for (std::vector<NodeArg>::const_iterator it = inputDefs.begin(); it != inputDefs.end(); ++it)
     {
-        const Node *onnxNode = *it;
-        ONNXToCNTKMap::iterator itNodeMap = constructedNodeMap.find(const_cast<Node *>(onnxNode));
-        if (itNodeMap != constructedNodeMap.end())
+        NodeArg *nodeArg = const_cast<NodeArg *>(&(*it));
+        const Node::EdgeEnd* inputEdgeSrcEnd = nullptr;
+        Node *cNode = const_cast<Node *>(node);
+        if (cNode->InputEdgeSrcEnd(nodeArg, &inputEdgeSrcEnd))
         {
-            inputs.push_back(itNodeMap->second);
+            const Node* inputNode = inputEdgeSrcEnd->GetNode();
+            ONNXToCNTKMap::iterator itNodeMap = constructedNodeMap.find(const_cast<Node *>(inputNode));
+            if (itNodeMap != constructedNodeMap.end())
+            {
+                inputs.push_back(itNodeMap->second);
+            }
+            else
+            {
+                FunctionPtr input = FromONNXNode(inputNode, constructedNodeMap);
+                inputs.push_back(input);
+            }
         }
         else
         {
-            FunctionPtr input = FromONNXNode(onnxNode, constructedNodeMap);
-            inputs.push_back(input);
+            Variable inputVariable = CreateVariable(nodeArg);
+            Trace0(node->OpType(), inputVariable);
+            inputs.push_back(inputVariable);
         }
     }
 
@@ -702,10 +768,31 @@ FunctionPtr ONNXToCNTK::CreateGraph(const std::unique_ptr<LotusIR::Graph>& src)
         }
     }
 
-    // TODO: 
     ONNXToCNTKMap::iterator itNodeFn = std::find_if(constructedFunctions.begin(), constructedFunctions.end(),
-        [](ONNXToCNTKMap::value_type nodeFn) {return nodeFn.first->Name() == "Plus21"; });
-    return itNodeFn->second;
+        [](ONNXToCNTKMap::value_type nodeFn) {return nodeFn.first->Name() == "_Graph_Sink"; });
+    if (itNodeFn == constructedFunctions.end())
+    {
+        return nullptr;
+    }
+
+    std::vector<FunctionPtr> functions;
+    for (Node::NodeConstIterator it = itNodeFn->first->InputNodes_begin(); it != itNodeFn->first->InputNodes_end(); ++it)
+    {
+        functions.push_back(constructedFunctions[*it]);
+    }
+
+    if (functions.size() == 0)
+    {
+        return nullptr;
+    }
+    else if (functions.size() == 1)
+    {
+        return functions[0];
+    }
+    else
+    {
+        return Combine(std::vector<Variable>(functions.begin(), functions.end()));
+    }
 }
 
 }

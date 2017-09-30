@@ -47,10 +47,17 @@ void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
     bool runExperiment = true;
     if (runExperiment)
     {
-        graph->Resolve();
+        LotusIR::Status status = graph->Resolve();
+        if(status.Ok())
+        {
+        }
         FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
-        PrintGraph(cntkFunction, 0, true);
-        cntkFunction->Save(L"E:/LiqunWA/CNTK/ONNX/MNISTConvolutionCNTKFromONNX.model", ModelFormat::CNTKv2);
+        PrintGraph(cntkFunction->RootFunction(), 0, true);
+
+        size_t pos = filepath.find(L".model");
+        std::wstring convertedModelFile = filepath.substr(0, pos) + L".CNTKFromONNX.model";
+
+        cntkFunction->Save(convertedModelFile, ModelFormat::CNTKv2);
     }
 
     LotusIR::Graph::Save(graph->ToGraphProto(), filepath);
