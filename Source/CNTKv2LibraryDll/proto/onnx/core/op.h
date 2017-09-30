@@ -176,16 +176,53 @@ namespace LotusIR
             COMMON,
             EXPERIMENTAL,
         };
-        // Stubs for compatibility with ONNX OpSchema registration API
-        OpSchema& NumInputs(int n) { return *this; }
-        OpSchema& NumInputs(int min, int max) { return *this; }
-        OpSchema& NumInputs(std::set<int> allowed_input_nums) { return *this; }
-        OpSchema& NumInputs(std::function<bool(int)> func) { return *this; }
-        OpSchema& NumOutputs(int n) { return *this; }
-        OpSchema& NumOutputs(int min, int max) { return *this; }
-        OpSchema& NumOutputs(std::set<int> allowed_output_nums) { return *this; }
-        OpSchema& NumOutputs(std::function<bool(int)> func) { return *this; }
-        OpSchema& NumInputsOutputs(std::function<bool(int, int)> func) { return *this; }
+        // Methods added for compatibility with ONNX OpSchema registration API
+        OpSchema& NumInputs(int n)
+        {
+            return NumInputs(n, n);
+        }
+        OpSchema& NumInputs(int min, int max)
+        {
+            m_onnxMinInput = min;
+            m_onnxMaxInput = max;
+            return *this;
+        }
+        OpSchema& NumInputs(std::set<int> allowed_input_nums)
+        {
+            return NumInputs([allowed_input_nums](int n)-> bool {
+                return allowed_input_nums.count(n) > 0;
+            });
+        }
+        OpSchema& NumInputs(std::function<bool(int)> func)
+        {
+            m_onnxNumInputsAllowed = func;
+            return *this;
+        }
+        OpSchema& NumOutputs(int n) {
+            return NumOutputs(n, n);
+        }
+        OpSchema& NumOutputs(int min, int max)
+        {
+            m_onnxMinOutput = min;
+            m_onnxMaxOutput = max;
+            return *this;
+        }
+        OpSchema& NumOutputs(std::set<int> allowed_output_nums)
+        {
+            return NumOutputs([allowed_output_nums](int n)-> bool {
+                return allowed_output_nums.count(n) > 0;
+            });
+        }
+        OpSchema& NumOutputs(std::function<bool(int)> func)
+        {
+            m_onnxNumOutputsAllowed = func;
+            return *this;
+        }
+        OpSchema& NumInputsOutputs(std::function<bool(int, int)> func)
+        {
+            m_onnxNumInputsOutputsAllowed = func;
+            return *this;
+        }
         OpSchema& OutputCalculator(std::function<int(int)> calc) { return *this; }
         OpSchema& SameNumberOfOutput() { return *this; }
         OpSchema& AllowConsumed(std::function<std::pair<bool, int>(int)> inplace) { return *this; }
@@ -246,6 +283,21 @@ namespace LotusIR
 
         // Attribute parser.
         AttributeParser m_parser;
+
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
+        // To support ONNX variable input/output compatibility.
+        // Min and Max num arguments of last input/output.
+        int m_onnxMinInput = 0;
+        int m_onnxMaxInput = std::numeric_limits<int>::max();
+        int m_onnxMinOutput = 0;
+        int m_onnxMaxOutput = std::numeric_limits<int>::max();
+        std::function<bool(int)> m_onnxNumInputsAllowed =
+            [](int) { return true; };
+        std::function<bool(int)> m_onnxNumOutputsAllowed =
+            [](int) { return true; };
+        std::function<bool(int, int)> m_onnxNumInputsOutputsAllowed =
+            [](int, int) { return true; };
+#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
     };
 
 
@@ -302,6 +354,7 @@ namespace LotusIR
 
             // Formal parameter description
             std::string m_description;
+
         };
 
         // Attribute representation, including name, type, and allowed values.
@@ -386,6 +439,27 @@ namespace LotusIR
         // Get type constraint map.
         const TypeConstraintMap& GetTypeConstraintMap() const;
 
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
+        // To support ONNX variable input/output compatibility.
+        // Min and Max num arguments of last input/output.
+        int GetOnnxMinInput() const { return m_onnxMinInput; }
+        int GetOnnxMaxInput() const { return m_onnxMaxInput; }
+        int GetOnnxMinOutput() const { return m_onnxMinOutput; }
+        int GetOnnxMaxOutput() const { return m_onnxMaxOutput; }
+        std::function<bool(int)> GetOnnxNumInputsAllowedFunc() const
+        {
+            return m_onnxNumInputsAllowed;
+        }
+        std::function<bool(int)> GetOnnxNumOutputsAllowedFunc() const
+        {
+            return m_onnxNumOutputsAllowed;
+        }
+        std::function<bool(int, int)> GetOnnxNumInputsOutputsAllowedFunc() const
+        {
+            return m_onnxNumInputsOutputsAllowed;
+        }
+#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
+
     private:
 
         // Operator name.
@@ -412,6 +486,16 @@ namespace LotusIR
 
         // Attribute parser.
         AttributeParser m_parser;
+
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
+        int m_onnxMinInput;
+        int m_onnxMaxInput;
+        int m_onnxMinOutput;
+        int m_onnxMaxOutput;
+        std::function<bool(int)> m_onnxNumInputsAllowed;
+        std::function<bool(int)> m_onnxNumOutputsAllowed;
+        std::function<bool(int, int)> m_onnxNumInputsOutputsAllowed;
+#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
     };
 
     // Operator schema registry. A singleton registry to manage all operator

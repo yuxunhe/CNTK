@@ -15,6 +15,17 @@ using namespace CNTK::ONNX;
 namespace CNTK
 {
 
+//
+// A helper function, to reverse any iterable container and return a copy
+// of the reversed container.
+//
+template<typename ItrType>
+ItrType reverse(ItrType v)
+{
+    std::reverse(std::begin(v), std::end(v));
+    return v;
+}
+
 class CNTKToONNXHelper
 {
 public:
@@ -55,6 +66,15 @@ private:
     static LotusIR::TensorShapeProto ToTensorShape(const std::vector<bool>& shape);
     static LotusIR::TensorShapeProto ToTensorShape(const std::vector<int>& shape);
     static LotusIR::TensorShapeProto ToTensorShape(const std::vector<Axis>& axes);
+
+    //
+    // Convert TensorShapeProto, NDShape and various std::vector types to std::vector
+    //
+    static std::vector<int64_t> ToINTS(const LotusIR::TensorShapeProto& shape);
+    static std::vector<int64_t> ToINTS(const NDShape& shape, bool hasBatchAxis = false);
+    static std::vector<int64_t> ToINTS(const std::vector<bool>& shape);
+    static std::vector<int64_t> ToINTS(const std::vector<int>& shape);
+    static std::vector<int64_t> ToINTS(const std::vector<Axis>& axes);
 
     //
     // Convert data types.
@@ -158,7 +178,8 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape, 
     if (hasBatchAxis)
         newShape.add_dim()->set_dim_value(-1);
 
-    for (auto dimension : shape.Dimensions())
+    auto dimensions = reverse(shape.Dimensions());
+    for (auto dimension : dimensions)
         newShape.add_dim()->set_dim_value(dimension);
 
     return newShape;
@@ -167,7 +188,8 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape, 
 LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<bool>& shape)
 {
     LotusIR::TensorShapeProto newShape;
-    for (auto dimension : shape)
+    auto dimensions = reverse(shape);
+    for (auto dimension : dimensions)
         newShape.add_dim()->set_dim_value(dimension ? 1:0);
 
     return newShape;
@@ -176,7 +198,8 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<bool
 LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<int>& shape)
 {
     LotusIR::TensorShapeProto newShape;
-    for (auto dimension : shape)
+    auto dimensions = reverse(shape);
+    for (auto dimension : dimensions)
         newShape.add_dim()->set_dim_value(dimension);
 
     return newShape;
@@ -196,6 +219,36 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<Axis
         newShape.add_dim()->set_dim_value(dimension);
 
     return newShape;
+}
+
+std::vector<int64_t> CNTKToONNXHelper::ToINTS(const LotusIR::TensorShapeProto& shape)
+{
+    std::vector<int64_t> newShape;
+
+    for (int i = 0; i < shape.dim_size(); i++)
+        newShape.push_back((int64_t)shape.dim(i).dim_value());
+
+    return newShape;
+}
+
+std::vector<int64_t> CNTKToONNXHelper::ToINTS(const NDShape& shape, bool hasBatchAxis)
+{
+    return ToINTS(ToTensorShape(shape, hasBatchAxis));
+}
+
+std::vector<int64_t> CNTKToONNXHelper::ToINTS(const std::vector<bool>& shape)
+{
+    return ToINTS(ToTensorShape(shape));
+}
+
+std::vector<int64_t> CNTKToONNXHelper::ToINTS(const std::vector<int>& shape)
+{
+    return ToINTS(ToTensorShape(shape));
+}
+
+std::vector<int64_t> CNTKToONNXHelper::ToINTS(const std::vector<Axis>& axes)
+{
+    return ToINTS(ToTensorShape(axes));
 }
 
 LotusIR::TypeProto CNTKToONNXHelper::ToONNXType(DataType dataType)
@@ -333,8 +386,6 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                         variableNode->AddAttribute("value", dstTensor);
                         variableNodes.emplace(input, variableNode);
                     }
-                    // else
-                    // variableNode = graph->AddNode(ToString(input.Uid()), "Variable", "", varInputs, varOutputs);
                 }
             }
             //
@@ -374,16 +425,16 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
             auto autoPadding = AsVector<bool>(src->Attributes()[L"autoPadding"].Value<std::vector<DictionaryValue>>());
             auto dilations = (NDShape)src->Attributes()[L"dilation"].Value<NDShape>();
 
-            node->AddAttribute(attributesMap[L"kernelShape"], ToTensorShape(kernelShape));
-            node->AddAttribute("strides", ToTensorShape(strides));
-            node->AddAttribute("pads", ToTensorShape(autoPadding));
-            node->AddAttribute(attributesMap[L"dilation"], ToTensorShape(dilations));
+            node->AddAttribute(attributesMap[L"kernelShape"], ToINTS(kernelShape));
+            node->AddAttribute("strides", ToINTS(strides));
+            node->AddAttribute("pads", ToINTS(autoPadding));
+            node->AddAttribute(attributesMap[L"dilation"], ToINTS(dilations));
             node->AddAttribute("group", (int64_t)1);
 
             if (src->OpName() == L"ConvolutionTranspose")
             {
                 auto outputShape = (NDShape)src->Attributes()[L"outputShape"].Value<NDShape>();
-                node->AddAttribute(attributesMap[L"outputShape"], ToTensorShape(outputShape));
+                node->AddAttribute(attributesMap[L"outputShape"], ToINTS(outputShape));
             }
         }
         else if (src->OpName() == L"BatchNormalization")
@@ -407,11 +458,16 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
         }
         else if (src->OpName() == L"SELU")
         {
-            auto gamma = (float)src->Attributes()[L"gamma"].Value<double>();
-            auto alpha = (float)src->Attributes()[L"alpha"].Value<double>();
+            auto alpha = 1.6732f;
+            if (src->Attributes().Contains(L"alpha"))
+                alpha = (float)src->Attributes()[L"alpha"].Value<double>();
 
-            node->AddAttribute("gamma", gamma);
+            auto gamma = 1.0507f;
+            if (src->Attributes().Contains(L"gamma"))
+                gamma = (float)src->Attributes()[L"gamma"].Value<double>();
+
             node->AddAttribute("alpha", alpha);
+            node->AddAttribute("gamma", gamma);
         }
         else if (src->OpName() == L"Dropout")
         {
@@ -440,7 +496,7 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
             if ((src->OpName() == L"UniformRandom") || (src->OpName() == L"NormalRandom"))
             {
                 auto shape = (NDShape)src->Attributes()[L"newShape"].Value<NDShape>();
-                node->AddAttribute(attributesMap[L"newShape"], ToTensorShape(shape));
+                node->AddAttribute(attributesMap[L"newShape"], ToINTS(shape));
             }
         }
         else if ((src->OpName() == L"ReduceMax")  || (src->OpName() == L"ReduceMin")    ||
@@ -456,17 +512,17 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
                 reductionAxes.push_back((Axis)(src->Attributes()[L"axis"].Value<Axis>()));
 
             node->AddAttribute(attributesMap[L"reductionKeepDimensions"], keepReducedDimensions);
-            node->AddAttribute("axes", ToTensorShape(reductionAxes));
+            node->AddAttribute("axes", ToINTS(reductionAxes));
         }
         else if (src->OpName() == L"Transpose")
         {
             std::vector<Axis> perm = AsVector<Axis>(src->Attributes()[L"axisVec"].Value<std::vector<DictionaryValue>>());
-            node->AddAttribute(attributesMap[L"axisVec"], ToTensorShape(perm));
+            node->AddAttribute(attributesMap[L"axisVec"], ToINTS(perm));
         }
         else if (src->OpName() == L"Reshape")
         {
             auto shape = (NDShape)src->Attributes()[L"newShape"].Value<NDShape>();
-            node->AddAttribute(attributesMap[L"newShape"], ToTensorShape(shape, true));
+            node->AddAttribute(attributesMap[L"newShape"], ToINTS(shape, true));
         }
         else if (src->OpName() == L"Splice")
         {
@@ -492,9 +548,9 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
                 endIndex.push_back((int)(src->Attributes()[L"endIndex"].Value<int>()));
             }
 
-            node->AddAttribute(attributesMap[L"axes"], ToTensorShape(sliceAxes));
-            node->AddAttribute(attributesMap[L"starts"], ToTensorShape(beginIndex));
-            node->AddAttribute(attributesMap[L"ends"], ToTensorShape(endIndex));
+            node->AddAttribute(attributesMap[L"axes"], ToINTS(sliceAxes));
+            node->AddAttribute(attributesMap[L"starts"], ToINTS(beginIndex));
+            node->AddAttribute(attributesMap[L"ends"], ToINTS(endIndex));
         }
         else if (src->OpName() == L"Softmax")
         {
@@ -513,9 +569,9 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
             auto strides = (NDShape)src->Attributes()[L"strides"].Value<NDShape>();
             auto autoPadding = AsVector<bool>(src->Attributes()[L"autoPadding"].Value<std::vector<DictionaryValue>>());
 
-            node->AddAttribute("kernel_shape", ToTensorShape(kernelShape));
-            node->AddAttribute("strides", ToTensorShape(strides));
-            node->AddAttribute("pads", ToTensorShape(autoPadding));
+            node->AddAttribute("kernel_shape", ToINTS(kernelShape));
+            node->AddAttribute("strides", ToINTS(strides));
+            node->AddAttribute("pads", ToINTS(autoPadding));
         }
     }
 }

@@ -1,8 +1,6 @@
 // Copyright (c) Facebook Inc. and Microsoft Corporation.
 // Licensed under the MIT license.
 
-#define ONNX_V1_OPSCHEMA_COMPAT
-
 #ifdef ONNX_V1_OPSCHEMA_COMPAT
 #include "../../core/op.h"
 
@@ -93,7 +91,7 @@ The convolution operator consumes an input tensor and {filter_desc}, and
 computes the output.)DOC";
             ReplaceAll(doc, "{filter_desc}", filter_desc);
             schema.SetDoc(doc);
-            schema.NumInputs(2);
+            schema.NumInputs(2, 3);
             schema.NumOutputs(1);
             schema.Input(0,
                          "X",

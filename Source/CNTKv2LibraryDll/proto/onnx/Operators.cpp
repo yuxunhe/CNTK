@@ -253,14 +253,15 @@ namespace ONNX
     std::unordered_map<std::wstring, std::set<size_t>> Operators::_cntkBlockOPInvalidIndices = {
         { L"LeakyReLU", {0, 1} },
         { L"SELU", {0, 1, 2} },
-        { L"PReLU", {1} },
+        { L"PReLU", {0} },
         { L"ElementMax", {} },
-        { L"ElementMax", {} },
+        { L"ElementMin", {} },
     };
 
     std::unordered_map<std::wstring, std::vector<int>> Operators::_cntkToONNXInputIndices = {
         { L"Convolution", { 1, 0 } },
         { L"ConvolutionTranspose", { 1, 0 } },
+        { L"BatchNormalization", { 0, 1, 2, 3, 4, -1 } },
     };
 }
 }
