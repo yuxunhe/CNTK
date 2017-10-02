@@ -43,7 +43,7 @@ void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
     std::unique_ptr<LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
 
     // Liqun: experiment Create CNTK function from ONNX graph
-    bool runExperiment = true;
+    bool runExperiment = false;
     if (runExperiment)
     {
         PrintGraph(src, 0);

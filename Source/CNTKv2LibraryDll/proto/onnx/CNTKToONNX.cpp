@@ -103,7 +103,7 @@ std::unique_ptr<LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
     CNTKToONNXHelper::Copy(src, dstGraph);
     LotusIR::Status status = dstGraph->Resolve();
     if (!status.Ok())
-        LogicError("Invalid ONNX Graph.");
+        LogicError("%s", status.ErrorMsg().c_str());
     return dstGraph;
 }
 
@@ -558,6 +558,12 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
             if (src->Attributes().Contains(L"axis"))
                 axis = (Axis)(src->Attributes()[L"axis"].Value<Axis>());
             node->AddAttribute(attributesMap[L"axis"], (int64_t)ToIndex(axis));
+        }
+        else if ((src->OpName() == L"Plus") || (src->OpName() == L"Minus") ||
+                 (src->OpName() == L"ElementTimes") || (src->OpName() == L"ElementDivide"))
+        {
+            node->AddAttribute("broadcast", (int64_t)1);
+            node->AddAttribute("axis", (int64_t)1);
         }
     }
     else
