@@ -256,12 +256,14 @@ namespace ONNX
         { L"PReLU", {0} },
         { L"ElementMax", {} },
         { L"ElementMin", {} },
+        { L"Softmax",{} },
     };
 
     std::unordered_map<std::wstring, std::vector<int>> Operators::_cntkToONNXInputIndices = {
         { L"Convolution", { 1, 0 } },
         { L"ConvolutionTranspose", { 1, 0 } },
         { L"BatchNormalization", { 0, 1, 2, 3, 4, -1 } },
+        { L"Times", { 1, 0 } },
     };
 }
 }

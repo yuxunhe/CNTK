@@ -122,19 +122,19 @@ void CNTKToONNXHelper::Copy(const FunctionPtr& src, std::unique_ptr<LotusIR::Gra
 void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto& dst)
 {
     auto dataType = src->GetDataType();
-    auto srcT = src->Transpose(); // Column major to row major.
-    auto srcShape = srcT->Shape();
+    auto srcTemp = src->DeepClone();
+    auto srcShape = srcTemp->Shape();
     auto totalSize = srcShape.TotalSize();
 
     // This is our own copy so move it to the CPU.
-    srcT->ChangeDevice(DeviceDescriptor::CPUDevice());
+    srcTemp->ChangeDevice(DeviceDescriptor::CPUDevice());
 
     switch (dataType)
     {
         case DataType::Float:
         {
             dst.set_data_type(LotusIR::TensorProto_DataType_FLOAT);
-            auto data = srcT->DataBuffer<float>();
+            auto data = srcTemp->DataBuffer<float>();
             for (size_t index = 0; index < totalSize; index++)
                 *(dst.mutable_float_data()->Add()) = data[index];
 
@@ -143,7 +143,7 @@ void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto
         case DataType::Double:
         {
             dst.set_data_type(LotusIR::TensorProto_DataType_DOUBLE);
-            auto data = srcT->DataBuffer<double>();
+            auto data = srcTemp->DataBuffer<double>();
             for (size_t index = 0; index < totalSize; index++)
                 *(dst.mutable_double_data()->Add()) = data[index];
 
@@ -153,7 +153,8 @@ void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto
             NOT_IMPLEMENTED;
     }
 
-    for (auto dim : srcShape.Dimensions())
+    auto dimensions = reverse(srcShape.Dimensions());
+    for (auto dim : dimensions)
         *(dst.mutable_dims()->Add()) = dim;
 }
 
