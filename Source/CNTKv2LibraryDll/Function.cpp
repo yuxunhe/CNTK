@@ -511,7 +511,7 @@ namespace CNTK
             }
 
             case ModelFormat::ONNX:
-                return ONNX::Load(filepath);
+                return ONNX::Load(filepath, computeDevice);
                 break;
         }
 

@@ -33,14 +33,15 @@ namespace CNTK
             if (input.Owner() != NULL)
             {
                 FunctionPtr f = input.Owner();
-                PrintGraph(f, spaces + 4);
+                PrintGraph(f, spaces + 4, useName);
             }
         }
     }
 
 void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
-    PrintGraph(src, 0);
+    PrintGraph(src, 0, true);
+    PrintGraph(src, 0, false);
     std::unique_ptr<LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
 
     // Liqun: experiment Create CNTK function from ONNX graph
@@ -63,7 +64,7 @@ void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
     LotusIR::Graph::Save(graph->ToGraphProto(), filepath);
 }
 
-FunctionPtr ONNX::Load(const std::wstring& filepath)
+FunctionPtr ONNX::Load(const std::wstring& filepath, const DeviceDescriptor& computeDevice)
 {
     LotusIR::GraphProto grapu;
     bool loadStatus = LotusIR::Graph::Load(filepath, &grapu);
@@ -74,6 +75,8 @@ FunctionPtr ONNX::Load(const std::wstring& filepath)
 
     std::unique_ptr<LotusIR::Graph> graph(new LotusIR::Graph(grapu));
     graph->Resolve();
+
+    // TODO: use device
     FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
     return cntkFunction;
 }

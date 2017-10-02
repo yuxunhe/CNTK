@@ -28,9 +28,11 @@ namespace CNTK
         static Variable CreateVariable(const NodeArg *nodeArg);
         static FunctionPtr CreateFunction(const Node *node, const std::vector<Variable> &inputs);
 
+        static LotusIR::TensorShapeProto FromINTS(const std::vector<int64_t> &shape);
         static NDShape FromTensorShape(const TensorShapeProto& tensorShape);
         static std::vector<bool> FromTensorShapeAsBool(const TensorShapeProto& tensorShape);
         static DataType FromONNXType(LotusIR::TypeProto type);
+
 
         static NDShape GetNamedAttributeAsShape(const Node *node, const string &attributeName);
         static std::vector<bool> GetNamedAttributeAsShapeBool(const Node *node, const string &attributeName);
@@ -40,14 +42,26 @@ namespace CNTK
         static NDShape ReverseShape(const NDShape &shape);
     };
 
-    // TODO: is here the center place to convert/transposing tensor shape to CNTK shape?
+    LotusIR::TensorShapeProto ONNXToCNTKHelper::FromINTS(const std::vector<int64_t> &shape)
+    {
+        LotusIR::TensorShapeProto newShape;
+
+        for (std::vector<int64_t>::const_iterator it = shape.begin(); it != shape.end(); it++)
+        {
+            newShape.add_dim()->set_dim_value(*it);
+        }
+
+        return newShape;
+    }
+
     NDShape ONNXToCNTKHelper::FromTensorShape(const TensorShapeProto& tensorShape)
     {
         std::vector<size_t> dimensions;
         for (int index = 0; index < tensorShape.dim_size(); index++)
             dimensions.push_back(tensorShape.dim(index).dim_value());
 
-        return dimensions;
+        // CNTKToONNX ToTensorShape does reverse, need to reverse to restore CNTK shape
+        return ReverseShape(dimensions);
     }
 
     NDShape ONNXToCNTKHelper::ReverseShape(const NDShape &shape)
@@ -66,6 +80,8 @@ namespace CNTK
         for (int index = 0; index < tensorShape.dim_size(); index++)
             dimensions.push_back(tensorShape.dim(index).dim_value() == 0 ? false : true);
 
+        // CNTKToONNX ToTensorShape does reverse, need to reverse to restore CNTK shape
+        std::reverse(dimensions.begin(), dimensions.end());
         return dimensions;
     }
     
@@ -88,10 +104,11 @@ namespace CNTK
         NodeAttributes::const_iterator itValue = node->GetAttributes().find("value");
         const LotusIR::TensorProto valueProto = itValue->second.t();
         auto dataType = valueProto.data_type();
+        NDShape shape(std::vector<size_t>(valueProto.dims().begin(), valueProto.dims().end()));
 
-        LotusIR::NodeArg inputArg = node->OutputDefs()[0];
-        const LotusIR::TensorShapeProto shapeProto = inputArg.Shape();
-        NDShape shape = FromTensorShape(shapeProto);
+        //////LotusIR::NodeArg inputArg = node->OutputDefs()[0];
+        //////const LotusIR::TensorShapeProto shapeProto = inputArg.Shape();
+        //////NDShape shape = FromTensorShape(shapeProto);
 
         // CNTK transpose does switch between row major and column major.
         // However it does not change the shape. This makes second transpose
@@ -101,34 +118,77 @@ namespace CNTK
         // an identity transform.
         NDShape reversedShape = ReverseShape(shape);
         auto totalSize = shape.TotalSize();
-        NDArrayViewPtr reshaped;
 
         switch (dataType)
         {
         case TensorProto_DataType_FLOAT:
         {
-            float *data = new float[totalSize];
+            std::vector<float> data(totalSize);
+            for (size_t index = 0; index < totalSize; index++)
+            {
+                data[index] = valueProto.float_data()[index];
+            }
+
+           // TODO: for onnx tensfor the first 1 or 2 are probably batch and channel. the last 2 are kernal size
+            if (shape.Rank() <= 2)
+            {
+                // TODO: data has to be allocated on the specified 'device'?
+                NDArrayViewPtr reshaped(new NDArrayView(DataType::Float, reversedShape, &data[0],
+                    totalSize * sizeof(float), DeviceDescriptor::CPUDevice()));
+                NDArrayViewPtr transposed = reshaped->Transpose();
+                NDArrayViewPtr dstFinal = transposed->AsShape(shape);
+                Constant constantVariable(dstFinal, ToWString(node->Name()));
+
+                return constantVariable;
+            }
+            else
+            {
+                std::vector<float> fullKernekData(totalSize);
+                int outputChannels = shape[0], inputChanndels = shape[1];
+                NDShape channelKernelShape(std::vector<size_t>(shape.Dimensions().begin() + 2, shape.Dimensions().end()));
+                NDShape channelReversedShape = ReverseShape(channelKernelShape);
+                int channelKernelSize = channelKernelShape.TotalSize();
+                int nonChannelKernelSize = outputChannels * inputChanndels;
+                for (int oC = 0; oC < outputChannels; oC++)
+                {
+                    for (int iC = 0; iC < inputChanndels; iC++)
+                    {
+                        int channelIndex = (oC * inputChanndels + iC);
+                        NDArrayViewPtr channelReshaped(new NDArrayView(DataType::Float, channelReversedShape, 
+                            &data[channelIndex * channelKernelSize],
+                            channelKernelSize * sizeof(float), DeviceDescriptor::CPUDevice()));
+                        NDArrayViewPtr channelTransposed = channelReshaped->Transpose();
+                        NDArrayViewPtr channelTransposedDstFinal = channelTransposed->AsShape(channelKernelShape);
+                        const float *channelData = channelTransposedDstFinal->DataBuffer<float>();
+                        for (int pixel = 0; pixel < channelKernelSize; pixel++)
+                        {
+                            fullKernekData[pixel * nonChannelKernelSize + channelIndex] = channelData[pixel];
+                        }
+                    }
+                }
+                NDArrayViewPtr dstFinal(new  NDArrayView(DataType::Double, channelReversedShape, &fullKernekData[0],
+                    totalSize * sizeof(double), DeviceDescriptor::CPUDevice()));
+                Constant constantVariable(dstFinal, ToWString(node->Name()));
+                return constantVariable;
+            }
+        }
+        break;
+        case TensorProto_DataType_DOUBLE:
+        {
+            std::vector<double> data(totalSize);
             for (size_t index = 0; index < totalSize; index++)
             {
                 data[index] = valueProto.float_data()[index];
             }
 
             // TODO: data has to be allocated on the specified 'device'?
-            reshaped = MakeSharedObject<NDArrayView>(DataType::Float, reversedShape, data,
-                totalSize * sizeof(float), DeviceDescriptor::CPUDevice());
-        }
-        break;
-        case TensorProto_DataType_DOUBLE:
-        {
-            double *data = new double[totalSize];
-            for (size_t index = 0; index < totalSize; index++)
-            {
-                data[index] = valueProto.double_data()[index];
-            }
+            NDArrayViewPtr reshaped(new NDArrayView(DataType::Double, reversedShape, &data[0],
+                totalSize * sizeof(double), DeviceDescriptor::CPUDevice()));
+            NDArrayViewPtr transposed = reshaped->Transpose();
+            NDArrayViewPtr dstFinal = transposed->AsShape(shape);
+            Constant constantVariable(dstFinal, ToWString(node->Name()));
 
-            // TODO: data has to be allocated on the specified 'device'?
-            reshaped = MakeSharedObject<NDArrayView>(DataType::Double, reversedShape, data,
-                totalSize * sizeof(double), DeviceDescriptor::CPUDevice());
+            return constantVariable;
         }
         break;
         default:
@@ -136,11 +196,6 @@ namespace CNTK
         }
 
         // do transpose and reshape
-        NDArrayViewPtr transposed = reshaped->Transpose();
-        NDArrayViewPtr dstFinal = transposed->AsShape(shape);
-        Constant constantVariable(dstFinal, ToWString(node->Name()));
-        return constantVariable;
-
     }
 
     Variable ONNXToCNTKHelper::CreateVariable(const NodeArg *nodeArg)
@@ -149,8 +204,9 @@ namespace CNTK
         auto dataType = TensorProto_DataType_FLOAT;
 
         const LotusIR::TensorShapeProto shapeProto = nodeArg->Shape();
-        NDShape shape = FromTensorShape(shapeProto);
 
+        NDShape shape = FromTensorShape(shapeProto);
+        
         switch (dataType)
         {
         case TensorProto_DataType_FLOAT:
@@ -194,16 +250,16 @@ namespace CNTK
     {
         NodeAttributes::const_iterator itValue = node->GetAttributes().find(attributeName);
         const AttributeProto &attributeProto = itValue->second;
-        const TensorShapeProto &tensorShapeProto = attributeProto.shape();
-        return FromTensorShape(tensorShapeProto);
+        std::vector<int64_t> shape(attributeProto.ints().begin(), attributeProto.ints().end());
+        return FromTensorShape(FromINTS(shape));
     }
 
     std::vector<bool> ONNXToCNTKHelper::GetNamedAttributeAsShapeBool(const Node *node, const string &attributeName)
     {
         NodeAttributes::const_iterator itValue = node->GetAttributes().find(attributeName);
         const AttributeProto &attributeProto = itValue->second;
-        const TensorShapeProto &tensorShapeProto = attributeProto.shape();
-        return FromTensorShapeAsBool(tensorShapeProto);
+        std::vector<int64_t> shape(attributeProto.ints().begin(), attributeProto.ints().end());
+        return FromTensorShapeAsBool(FromINTS(shape));
     }
 
     size_t ONNXToCNTKHelper::GetNamedAttributeAsInt64(const Node *node, const string &attributeName)
@@ -257,28 +313,45 @@ namespace CNTK
     //    return it->first;
     //}
 
+    std::string ShapeToString(const NDShape &shape)
+    {
+        string s = "[";
+        for (int i = 0; i < shape.Rank(); i++)
+        {
+            s += std::to_string(shape[i]) + " ";
+        }
+        s += "]";
+        return s;
+    }
+
     void Trace0(const string &onnxOpName, const Variable& variable)
     {
+        std::string shape = ShapeToString(variable.Shape());
         std::cout << endl;
         std::cout << onnxOpName << endl;
-        std::cout << ToString(variable.Name()) << endl;
+        std::cout << ToString(variable.Name()) << shape << endl;
         std::cout << endl;
     }
 
     void Trace1(const string &onnxOpName, const FunctionPtr cntkFunction, const Variable &input0)
     {
+        std::string outShape = ShapeToString(cntkFunction->Output().Shape());
+        std::string input0Shape = ShapeToString(input0.Shape());
         std::cout << endl;
         std::cout << onnxOpName << endl;
-        std::cout << ToString(cntkFunction->Name()) << " -> " << ToString(input0.Name()) << endl;
+        std::cout << ToString(cntkFunction->Name()) << outShape << " -> " << ToString(input0.Name()) << input0Shape << endl;
         std::cout << endl;
     }
 
     void Trace2(const string &onnxOpName, const FunctionPtr cntkFunction, const Variable &input0, const Variable &input1)
     {
+        std::string outShape = ShapeToString(cntkFunction->Output().Shape());
+        std::string input0Shape = ShapeToString(input0.Shape());
+        std::string input1Shape = ShapeToString(input1.Shape());
         std::cout << endl;
         std::cout << onnxOpName << endl;
-        std::cout << ToString(cntkFunction->Name()) << " -> " << ToString(input0.Name()) << endl;
-        std::cout << ToString(cntkFunction->Name()) << " -> " << ToString(input1.Name()) << endl;
+        std::cout << ToString(cntkFunction->Name()) << outShape << " -> " << ToString(input0.Name()) << input0Shape << endl;
+        std::cout << ToString(cntkFunction->Name()) << outShape << " -> " << ToString(input1.Name()) << input1Shape << endl;
         std::cout << endl;
     }
 
