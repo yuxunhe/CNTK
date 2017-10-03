@@ -29,30 +29,38 @@ def svd_subprojection(matrix, k):
     # k-rank subprojection
     W1 = U[:, :k]
     W2 = dot(diag(s[:k]), V[:k, :])
-
+   
     return W1, W2
 
-def factor_dense(model, factor_function, projection_function):
+def factor_dense(model, projection_function, filter_function = None, factor_function = None):
     '''
-    Factor a dense model into subprojection based on the provided factor_function and the 
+    Factor a dense model to reduce its size based on the provided factor_function and the 
     projection_function. If no projection_funciton is specified, use svd decomposition. 
 
     Args:
         model                   : dense model.
+        projection_function     : function to return the new size (K) of the dense model
+        filter_function         : function to filter layers in the model to apply the factorization
         factor_function         : function to factor the dense model (e.g. svd)   
-        projection_function     : function to reduce the size of the dense model
+        
         
     Returns:
         a model that is factored and projected (reduced).
     '''
-    fltr_dense = (lambda x: type(x) == cntk.Function and x.op_name == 'Dense')
+    dense_filter = (lambda x: type(x) == cntk.Function and x.op_name == 'Dense') 
+    
+    def dense_converter(model):        
+        W, b = model.W.value, model.b.value
+        
+        # convert based on the filter condition.
+        if filter_function and not filter_function(W):
+            return model
 
-    def dense_converter(model):
-        W, b = model.W.value, model.b.value    
+        print(W.shape)
         ht, wdth = W.shape
-        k = projection_function(W)        
+        k = projection_function(W)       
         W1, W2 = factor_function(W) if factor_function else svd_subprojection(W, k)
-      
+       
         Ws = {'W1': W1, 'W2': W2}
         dfl = _dense_factored((k, wdth),
             init=Ws,
@@ -61,7 +69,7 @@ def factor_dense(model, factor_function, projection_function):
             name='_factored_model')(model.inputs[2])
         return dfl
 
-    return cntk.misc.convert(model, fltr_dense, dense_converter)
+    return cntk.misc.convert(model, dense_filter, dense_converter)
 
 def _dense_factored(shapes, #(shape1, shape2)
                   activation=default_override_or(identity),
