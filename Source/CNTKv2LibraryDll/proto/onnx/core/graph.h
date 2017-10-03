@@ -20,6 +20,7 @@ namespace LotusIR
     typedef std::unordered_map<std::string, AttributeProto> NodeAttributes;
     typedef ArgInfoProto NodeArgInfo;
 
+    class Node;
     class Graph;
     class OperatorSchema;
 
