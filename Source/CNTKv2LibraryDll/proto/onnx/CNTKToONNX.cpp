@@ -659,7 +659,7 @@ LotusIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, std::unique_ptr
 
     //
     // CNTK Times OP is way more flexible for ONNX, so depend on the inputs and output shape,
-    //  we will need to insert some reshape.
+    // we will need to insert some reshapes.
     //
     if (src->OpName() == L"Times")
     {
@@ -677,16 +677,16 @@ LotusIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, std::unique_ptr
             auto input1Reshape = ReduceRank(input1Shape, reductionRank, true);
             auto input2Reshape = ReduceRank(input2Shape, reductionRank, false);
 
-            LotusIR::NodeArg input1Arg(orderedInputs[0].Name() + string("_reshape0"), ToONNXType(src->Inputs()[1].GetDataType()), input1Reshape);
-            LotusIR::NodeArg input2Arg(orderedInputs[1].Name() + string("_reshape1"), ToONNXType(src->Inputs()[0].GetDataType()), input2Reshape);
+            LotusIR::NodeArg inputOutput1Arg(orderedInputs[0].Name() + string("_reshape0"), ToONNXType(src->Inputs()[1].GetDataType()), input1Reshape);
+            LotusIR::NodeArg inputOutput2Arg(orderedInputs[1].Name() + string("_reshape1"), ToONNXType(src->Inputs()[0].GetDataType()), input2Reshape);
 
-            auto reshapeNode1 = graph->AddNode(ToString(src->Uid()) + string("_reshape0"), "Reshape", "", { orderedInputs[0] }, { input1Arg });
-            auto reshapeNode2 = graph->AddNode(ToString(src->Uid()) + string("_reshape1"), "Reshape", "", { orderedInputs[1] }, { input2Arg });
+            auto reshapeNode1 = graph->AddNode(ToString(src->Uid()) + string("_reshape0"), "Reshape", "", { orderedInputs[0] }, { inputOutput1Arg });
+            auto reshapeNode2 = graph->AddNode(ToString(src->Uid()) + string("_reshape1"), "Reshape", "", { orderedInputs[1] }, { inputOutput2Arg });
 
             reshapeNode1->AddAttribute("shape", ToINTS(input1Reshape));
             reshapeNode2->AddAttribute("shape", ToINTS(input2Reshape));
 
-            node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", { input1Arg , input2Arg }, outputs);
+            node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", { inputOutput1Arg , inputOutput2Arg }, outputs);
         }
         else
             node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", orderedInputs, outputs);
