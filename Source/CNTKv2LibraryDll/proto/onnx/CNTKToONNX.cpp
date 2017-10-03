@@ -95,6 +95,11 @@ private:
     // Argument orders between CNTK and ONNX aren't always the same.
     //
     static std::vector<LotusIR::NodeArg> MapInputsOrderToONNX(const FunctionPtr& src, const std::vector<LotusIR::NodeArg>& inputs);
+
+    //
+    // Add current CNTK node to ONNX graph.
+    //
+    static LotusIR::Node* AddNode(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& graph, const std::vector<LotusIR::NodeArg>& inputs, const std::vector<LotusIR::NodeArg>& outputs);
 };
 
 std::unique_ptr<LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
@@ -396,9 +401,10 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 CreateNode(input.Owner(), graph, functionNodes, variableNodes);
         }
 
-        inputs = MapInputsOrderToONNX(src, inputs);
-        functionNode = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", inputs, outputs);
-        CopyAttributes(src, functionNode);
+        //
+        // Finally add a new node to ONNX graph.
+        //
+        functionNode = AddNode(src, graph, inputs, outputs);
     }
     else
         LogicError("Node '%S': Unsupported node.", src->AsString().c_str());
@@ -603,6 +609,15 @@ std::vector<LotusIR::NodeArg> CNTKToONNXHelper::MapInputsOrderToONNX(const Funct
     }
 
     return inputs;
+}
+
+LotusIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& graph, const std::vector<LotusIR::NodeArg>& inputs, const std::vector<LotusIR::NodeArg>& outputs)
+{
+    auto inputs_update = MapInputsOrderToONNX(src, inputs);
+    auto functionNode = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", inputs_update, outputs);
+    CopyAttributes(src, functionNode);
+
+    return functionNode;
 }
 
 }
