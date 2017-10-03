@@ -3,11 +3,12 @@
 # for full license information.
 # ==============================================================================
 
+import os
 import numpy as np
 import cntk as C
 
-
 def test_load_save_constant(tmpdir):
+    # import pdb;pdb.set_trace()
     c = C.constant(value=[1,3])
     root_node = c * 5
 
@@ -15,7 +16,7 @@ def test_load_save_constant(tmpdir):
     expected = [[[[5,15]]]]
     assert np.allclose(result, expected)
 
-    filename = str(tmpdir / 'c_plus_c.onnx')
+    filename = os.path.join(str(tmpdir), R'c_plus_c.onnx')
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
@@ -29,7 +30,7 @@ def test_dense_layer(tmpdir):
     x = C.input_variable(img.shape)
     root_node = C.layers.Dense(5, activation=C.softmax)(x)
     
-    filename = str(tmpdir / 'dense_layer.onnx')
+    filename = os.path.join(str(tmpdir), R'dense_layer.onnx')
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
