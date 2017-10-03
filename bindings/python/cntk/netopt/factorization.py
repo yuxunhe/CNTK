@@ -42,8 +42,7 @@ def factor_dense(model, projection_function, filter_function = None, factor_func
         projection_function     : function to return the new size (K) of the dense model
         filter_function         : function to filter layers in the model to apply the factorization
         factor_function         : function to factor the dense model (e.g. svd)   
-        
-        
+                
     Returns:
         a model that is factored and projected (reduced).
     '''
@@ -56,7 +55,6 @@ def factor_dense(model, projection_function, filter_function = None, factor_func
         if filter_function and not filter_function(W):
             return model
 
-        print(W.shape)
         ht, wdth = W.shape
         k = projection_function(W)       
         W1, W2 = factor_function(W) if factor_function else svd_subprojection(W, k)
