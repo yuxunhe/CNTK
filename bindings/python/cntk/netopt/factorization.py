@@ -34,7 +34,7 @@ def svd_subprojection(matrix, k):
 
 def factor_dense(model, projection_function, filter_function = None, factor_function = None):
     '''
-    Factor a dense model to reduce its size based on the provided factor_function and the 
+    Factor a dense model into subprojection based on the provided factor_function and the 
     projection_function. If no projection_funciton is specified, use svd decomposition. 
 
     Args:
@@ -58,7 +58,7 @@ def factor_dense(model, projection_function, filter_function = None, factor_func
         ht, wdth = W.shape
         k = projection_function(W)       
         W1, W2 = factor_function(W) if factor_function else svd_subprojection(W, k)
-       
+
         Ws = {'W1': W1, 'W2': W2}
         dfl = _dense_factored((k, wdth),
             init=Ws,
