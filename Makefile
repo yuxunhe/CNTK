@@ -528,7 +528,7 @@ CNTKLIBRARY:=Cntk.Core-$(CNTK_COMPONENT_VERSION)
 
 CNTKLIBRARY_OBJ:=\
 	$(patsubst %.cu, $(OBJDIR)/%.o, $(filter %.cu, $(CNTKLIBRARY_SRC))) \
-	$(patsubst %.pb.cc, $(OBJDIR)/%.pb.o, $(filter %.pb.cc, $(CNTKLIBRARY_SRC))) \
+	$(patsubst %.cc, $(OBJDIR)/%.o, $(filter %.pb.cc, $(CNTKLIBRARY_SRC))) \
 	$(patsubst %.cpp, $(OBJDIR)/%.o, $(filter %.cpp, $(CNTKLIBRARY_SRC)))
 
 CNTKLIBRARY_LIB:=$(LIBDIR)/lib$(CNTKLIBRARY).so
