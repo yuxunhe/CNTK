@@ -395,7 +395,6 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
         {
             auto input = src->Inputs()[inputIndex];
 
-            // TODO: why place holder is not input?
             if (input.IsPlaceholder())
             {
                 input = input.BlockFunctionVariableMapping();
