@@ -44,23 +44,6 @@ void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
     PrintGraph(src, 0, false);
     std::unique_ptr<LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
 
-    // Liqun: experiment Create CNTK function from ONNX graph
-    bool runExperiment = false;
-    if (runExperiment)
-    {
-        LotusIR::Status status = graph->Resolve();
-        if(status.Ok())
-        {
-        }
-        FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
-        PrintGraph(cntkFunction->RootFunction(), 0, true);
-
-        size_t pos = filepath.find(L".model");
-        std::wstring convertedModelFile = filepath.substr(0, pos) + L".CNTKFromONNX.model";
-
-        cntkFunction->Save(convertedModelFile, ModelFormat::CNTKv2);
-    }
-
     LotusIR::Graph::Save(graph->ToGraphProto(), filepath);
 }
 
@@ -76,8 +59,7 @@ FunctionPtr ONNX::Load(const std::wstring& filepath, const DeviceDescriptor& com
     std::unique_ptr<LotusIR::Graph> graph(new LotusIR::Graph(grapu));
     graph->Resolve();
 
-    // TODO: use device
-    FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph);
+    FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph, computeDevice);
     return cntkFunction;
 }
 
