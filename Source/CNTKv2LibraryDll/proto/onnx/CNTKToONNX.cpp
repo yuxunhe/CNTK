@@ -7,7 +7,7 @@
 #include "proto/onnx/core/graph.h"
 #include "Utils.h"
 #include "Operators.h"
-
+#include "BlockFunction.h"
 #include <vector>
 
 using namespace CNTK::ONNX;
@@ -76,7 +76,15 @@ private:
     static LotusIR::Node* CreateNode(const FunctionPtr& src,
                                      std::unique_ptr<LotusIR::Graph>& graph,
                                      std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
-                                     std::unordered_map<Variable, LotusIR::Node*>& variableNodes);
+                                     std::unordered_map<Variable, LotusIR::Node*>& variableNodes,
+                                     const std::unordered_map<Variable, Variable>& compositeOutputsMap);
+
+    //
+    // Traverse the entire graph and collect variable mapping between graph inside and outside the block.
+    //
+    static void TraverseGraph(const FunctionPtr& src,
+                              std::set<FunctionPtr>& visited,
+                              std::unordered_map<Variable, Variable>& compositeOutputsMap);
 
     //
     // Copy the content of NDArrayView to TensorProto, and do the needed
@@ -149,14 +157,22 @@ std::unique_ptr<LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
 
 void CNTKToONNXHelper::Copy(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& dst)
 {
+    std::set<FunctionPtr> visited;
+    std::unordered_map<Variable, Variable> compositeOutputsMap;
     std::unordered_map<FunctionPtr, LotusIR::Node*> functionNodes;
     std::unordered_map<Variable, LotusIR::Node*> variableNodes;
+
+
+    //
+    // Traverse the graph and collect some information.
+    //
+    TraverseGraph(src, visited, compositeOutputsMap);
 
     //
     // Iterate through each node in CNTK graph and create an equivalent node
     // in ONNX graph.
     //
-    CreateNode(src, dst, functionNodes, variableNodes);
+    CreateNode(src, dst, functionNodes, variableNodes, compositeOutputsMap);
 }
 
 void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto& dst)
@@ -357,7 +373,8 @@ bool CNTKToONNXHelper::FilterInput(const FunctionPtr& src, const CNTK::Variable&
 LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                                             std::unique_ptr<LotusIR::Graph>& graph,
                                             std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
-                                            std::unordered_map<Variable, LotusIR::Node*>& variableNodes)
+                                            std::unordered_map<Variable, LotusIR::Node*>& variableNodes, 
+                                            const std::unordered_map<Variable, Variable>& compositeOutputsMap)
 {
     auto iter = functionNodes.find(src);
     if (iter != functionNodes.end())
@@ -372,10 +389,12 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
     //
     if (src->IsBlock())
     {
-        if (!Operators::IsSupportedCNTKOP(src->OpName()) || 
-            (src->OpName() == L"Convolution") || 
+        if (!Operators::IsSupportedCNTKOP(src->OpName()) ||
+            (src->OpName() == L"Convolution") ||
             (src->OpName() == L"ConvolutionTranspose"))
-            functionNode = CreateNode(src->BlockRoot(), graph, functionNodes, variableNodes);
+        {
+            functionNode = CreateNode(src->BlockRoot(), graph, functionNodes, variableNodes, compositeOutputsMap);
+        }
     }
     //
     // For compatibility of other framework that support ONNX, we will limit the list of OPs to the one
@@ -408,7 +427,12 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             if (src->IsBlock() && FilterInput(src, input, inputIndex))
                 continue;
 
-            LotusIR::NodeArg inputArg(ToString(input.Uid()),
+            std::string inputName = ToString(input.Uid());
+            auto inputItr = compositeOutputsMap.find(input);
+            if (inputItr != compositeOutputsMap.end())
+                inputName = ToString(inputItr->second.Uid());
+
+            LotusIR::NodeArg inputArg(inputName,
                                       ToONNXType(input.GetDataType()),
                                       ToTensorShape(input.Shape()));
 
@@ -444,12 +468,22 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             // Pretty much, we are doing DFS.
             //
             else if (input.IsOutput())
-                CreateNode(input.Owner(), graph, functionNodes, variableNodes);
+                CreateNode(input.Owner(), graph, functionNodes, variableNodes, compositeOutputsMap);
         }
 
         //
         // Finally add a new node to ONNX graph.
         //
+        /*
+        opName = ToString(src->OpName());
+        string inputName;
+        string outputName;
+
+        for (auto i : inputs)
+            inputName += i.Name() + ", ";
+        for (auto o : outputs)
+            outputName += o.Name() + ", ";
+        */
         functionNode = AddNode(src, graph, inputs, outputs);
     }
     else
@@ -457,6 +491,46 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
 
     functionNodes.emplace(src, functionNode);
     return functionNode;
+}
+
+void CNTKToONNXHelper::TraverseGraph(const FunctionPtr& src, 
+                                     std::set<FunctionPtr>& visited,
+                                     std::unordered_map<Variable, Variable>& compositeOutputsMap)
+{
+    auto iter = visited.find(src);
+    if (iter != visited.end())
+        return;
+
+    std::string opName = ToString(src->OpName());
+    if (src->IsBlock())
+    {
+        if (!Operators::IsSupportedCNTKOP(src->OpName()) ||
+            (src->OpName() == L"Convolution") ||
+            (src->OpName() == L"ConvolutionTranspose"))
+        {
+            auto blockSrc = dynamic_cast<BlockFunction*>(src.get());
+            for (auto map : blockSrc->CompositeOutputsMap())
+                compositeOutputsMap.insert(map);
+            TraverseGraph(src->BlockRoot(), visited, compositeOutputsMap);
+        }
+    }
+    else
+    {
+        for (auto input : src->Inputs())
+        {
+            if (input.IsPlaceholder())
+            {
+                input = input.BlockFunctionVariableMapping();
+                if (input.IsPlaceholder())
+                    LogicError("Node '%S': Placeholder isn't supported currently.", src->AsString().c_str());
+            }
+
+            if (input.IsOutput())
+                TraverseGraph(input.Owner(), visited, compositeOutputsMap);
+        }
+    }
+
+    visited.emplace(src);
 }
 
 void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* node)
