@@ -116,7 +116,7 @@ namespace CNTK
     Constant ONNXToCNTKHelper::CreateConvKernelConstant(const Node *node)
     {
         // TODO: create Constant from Node attribute and initializer
-        NOT_IMPLEMENTED;
+        return Constant::Scalar(0);
     }
 
     Constant ONNXToCNTKHelper::CreateConstant(const Node *node, const DeviceDescriptor& computeDevice)
@@ -250,11 +250,7 @@ namespace CNTK
     void CheckForAxes(const string &nodeName, const std::vector<Axis> &axes, int requiredAxes)
     {
         if (axes.size() != requiredAxes)
-        {
-            string message = nodeName + " has " + std::to_string(axes.size()) + " input axis/axes. " +
-                "It should has " + std::to_string(requiredAxes) + ".";
-            throw exception(message.c_str());
-        }
+            LogicError("%s has %d input axis/axes. It should has %d .", nodeName.c_str(), (int)axes.size(), requiredAxes);
     }
 
     std::vector<Axis> ONNXToCNTKHelper::GetNamedAttributeAsAxis(const Node *node, const string &attributeName)
