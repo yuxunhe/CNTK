@@ -221,7 +221,11 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape, 
 
     auto dimensions = reverse(shape.Dimensions());
     for (auto dimension : dimensions)
+    {
+        if (dimension == NDShape::InferredDimension)
+            LogicError("Incomplete graph isn't supported.");
         newShape.add_dim()->set_dim_value(dimension);
+    }
 
     return newShape;
 }
@@ -394,8 +398,8 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             if (input.IsPlaceholder())
             {
                 input = input.BlockFunctionVariableMapping();
-                // if (input == nullptr)
-                //    LogicError("Node '%S': Placeholder isn't supported currently.", src->AsString().c_str());
+                if (input.IsPlaceholder())
+                    LogicError("Node '%S': Placeholder isn't supported currently.", src->AsString().c_str());
             }
 
             if (src->IsBlock() && FilterInput(src, input, inputIndex))
@@ -410,7 +414,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             //
             // Leaf nodes are data entry to the graph and need their own node with only output arg.
             //
-            if (input.IsInput() || input.IsParameter() || input.IsConstant())
+            if (input.IsParameter() || input.IsConstant())
             {
                 if (variableNodes.find(input) == variableNodes.end())
                 {
