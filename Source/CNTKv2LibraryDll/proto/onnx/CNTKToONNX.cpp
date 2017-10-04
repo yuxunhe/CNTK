@@ -370,9 +370,12 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
     // If this block node equivalent to a primitive ONNX OP, then treated as such.
     // And just maps its argument to ONNX node.
     //
-    if (src->IsBlock() && !Operators::IsSupportedCNTKOP(src->OpName()))
+    if (src->IsBlock())
     {
-        functionNode = CreateNode(src->BlockRoot(), graph, functionNodes, variableNodes);
+        if (!Operators::IsSupportedCNTKOP(src->OpName()) || 
+            (src->OpName() == L"Convolution") || 
+            (src->OpName() == L"ConvolutionTranspose"))
+            functionNode = CreateNode(src->BlockRoot(), graph, functionNodes, variableNodes);
     }
     //
     // For compatibility of other framework that support ONNX, we will limit the list of OPs to the one
