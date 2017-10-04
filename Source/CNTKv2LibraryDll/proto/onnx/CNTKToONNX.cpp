@@ -393,7 +393,11 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
 
             // TODO: why place holder is not input?
             if (input.IsPlaceholder())
-                LogicError("Node '%S': Placeholder isn't supported currently.", src->AsString().c_str());
+            {
+                input = input.BlockFunctionVariableMapping();
+                // if (input == nullptr)
+                //    LogicError("Node '%S': Placeholder isn't supported currently.", src->AsString().c_str());
+            }
 
             if (src->IsBlock() && FilterInput(src, input, inputIndex))
                 continue;
