@@ -116,7 +116,7 @@ namespace CNTK
     Constant ONNXToCNTKHelper::CreateConvKernelConstant(const Node *node)
     {
         // TODO: create Constant from Node attribute and initializer
-        return nullptr;
+        NOT_IMPLEMENTED;
     }
 
     Constant ONNXToCNTKHelper::CreateConstant(const Node *node, const DeviceDescriptor& computeDevice)
@@ -422,7 +422,10 @@ namespace CNTK
                 groups,
                 maxTempMemSizeInSamples,
                 ToWString(node->Name()));
-            Trace2(onnxOpName, cntkFunction, inputs[0], inputs[1]);
+            if (inputs.size() == 1)
+                Trace1(onnxOpName, cntkFunction, inputs[0]);
+            else if (inputs.size() == 2)
+                Trace2(onnxOpName, cntkFunction, inputs[0], inputs[1]);
             return cntkFunction;
         }
         else if (onnxOpName == "ConvTranspose")
