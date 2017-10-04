@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "../protobuf/graph.pb.h"
+#include "proto/onnx/protobuf/graph.pb.h"
 #include "constants.h"
 #include "status.h"
 #include "utils.h"
@@ -20,6 +20,7 @@ namespace LotusIR
     typedef std::unordered_map<std::string, AttributeProto> NodeAttributes;
     typedef ArgInfoProto NodeArgInfo;
 
+    class Node;
     class Graph;
     class OperatorSchema;
 
@@ -516,7 +517,7 @@ namespace LotusIR
         // edge.
         // <p_nodesInToplogicalOrder> returns nodes' indexes in toplogical
         // order if <Status> returned is "OK", otherwise it's undefined.
-        Status Graph::CheckIsAcyclic(
+        Status CheckIsAcyclic(
             /*out*/std::vector<NODEINDEX>& p_nodesInToplogicalOrder);
 
         // Depth-first graph access.
@@ -550,7 +551,7 @@ namespace LotusIR
         void AddSourceSinkNodes();
 
         // Set graph inputs/outputs when serializing to proto.
-        void Graph::SetGraphInputsOutputs();
+        void SetGraphInputsOutputs();
 
         // Graph nodes.
         // Element in <m_nodes> may be nullptr due to graph optimization.

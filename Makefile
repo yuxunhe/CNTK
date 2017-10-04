@@ -505,10 +505,10 @@ CNTKLIBRARY_COMMON_SRC =\
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/reduction/defs.cc \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/rnn/defs.cc \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/tensor/defs.cc \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/graph.cc \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/op.cc \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/status.cc \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/utils.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/op.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/graph.cc \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/Operators.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/CNTKToONNX.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/ONNXToCNTK.cpp \

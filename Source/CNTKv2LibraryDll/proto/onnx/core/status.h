@@ -1,7 +1,7 @@
 #ifndef CORE_GRAPH_STATUS_H
 #define CORE_GRAPH_STATUS_H
 
-#include <xstring>
+#include <string>
 
 namespace LotusIR
 {

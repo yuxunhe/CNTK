@@ -4,7 +4,7 @@
 //
 
 #include "CNTKToONNX.h"
-#include "./core/graph.h"
+#include "proto/onnx/core/graph.h"
 #include "Utils.h"
 #include "Operators.h"
 
@@ -24,6 +24,41 @@ ItrType reverse(ItrType v)
 {
     std::reverse(std::begin(v), std::end(v));
     return v;
+}
+
+//
+// Helper function to reduce the rank of a shape.
+//
+LotusIR::TensorShapeProto ReduceRank(LotusIR::TensorShapeProto inputShape, int reductionRank, bool rightReduction)
+{
+    int inputRank = inputShape.dim_size();
+    assert(inputRank > reductionRank);
+
+    LotusIR::TensorShapeProto newShape;
+    int64_t reduceDim = 1;
+
+    if (rightReduction)
+    {
+        for (int index = 0; index < (inputRank - reductionRank); index++)
+            newShape.add_dim()->set_dim_value(inputShape.dim(index).dim_value());
+
+        for (int index = (inputRank - reductionRank); index < inputRank; index++)
+            reduceDim *= inputShape.dim(index).dim_value();
+
+        newShape.add_dim()->set_dim_value(reduceDim);
+    }
+    else
+    {
+        for (int index = 0; index < reductionRank; index++)
+            reduceDim *= inputShape.dim(index).dim_value();
+
+        newShape.add_dim()->set_dim_value(reduceDim);
+
+        for (int index = reductionRank; index < inputRank; index++)
+            newShape.add_dim()->set_dim_value(inputShape.dim(index).dim_value());
+    }
+
+    return newShape;
 }
 
 class CNTKToONNXHelper
@@ -95,6 +130,11 @@ private:
     // Argument orders between CNTK and ONNX aren't always the same.
     //
     static std::vector<LotusIR::NodeArg> MapInputsOrderToONNX(const FunctionPtr& src, const std::vector<LotusIR::NodeArg>& inputs);
+
+    //
+    // Add current CNTK node to ONNX graph.
+    //
+    static LotusIR::Node* AddNode(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& graph, const std::vector<LotusIR::NodeArg>& inputs, const std::vector<LotusIR::NodeArg>& outputs);
 };
 
 std::unique_ptr<LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
@@ -397,9 +437,10 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 CreateNode(input.Owner(), graph, functionNodes, variableNodes);
         }
 
-        inputs = MapInputsOrderToONNX(src, inputs);
-        functionNode = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", inputs, outputs);
-        CopyAttributes(src, functionNode);
+        //
+        // Finally add a new node to ONNX graph.
+        //
+        functionNode = AddNode(src, graph, inputs, outputs);
     }
     else
         LogicError("Node '%S': Unsupported node.", src->AsString().c_str());
@@ -566,6 +607,12 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
             node->AddAttribute("broadcast", (int64_t)1);
             node->AddAttribute("axis", (int64_t)1);
         }
+        else if (src->OpName() == L"Times")
+        {
+            size_t outputRank = src->Attributes()[L"outputRank"].Value<size_t>();
+            if (outputRank > 1)
+                LogicError("Output ranke other than 1 is not supported.");
+        }
     }
     else
     {
@@ -604,6 +651,56 @@ std::vector<LotusIR::NodeArg> CNTKToONNXHelper::MapInputsOrderToONNX(const Funct
     }
 
     return inputs;
+}
+
+LotusIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& graph, const std::vector<LotusIR::NodeArg>& inputs, const std::vector<LotusIR::NodeArg>& outputs)
+{
+    LotusIR::Node* node = nullptr;
+    auto orderedInputs = MapInputsOrderToONNX(src, inputs);
+
+    //
+    // CNTK Times OP is way more flexible for ONNX, so depend on the inputs and output shape,
+    // we will need to insert some reshapes.
+    //
+    if (src->OpName() == L"Times")
+    {
+        auto input1Shape = orderedInputs[0].Shape();
+        auto input2Shape = orderedInputs[1].Shape();
+        auto outputShape = outputs[0].Shape();
+
+        int input1Rank = input1Shape.dim_size();
+        int input2Rank = input2Shape.dim_size();
+        int outputRank = outputShape.dim_size();
+        int reductionRank = (input1Rank + input2Rank - outputRank) / 2;
+
+        if (reductionRank > 1) // We need to insert reshape.
+        {
+            auto input1Reshape = ReduceRank(input1Shape, reductionRank, true);
+            auto input2Reshape = ReduceRank(input2Shape, reductionRank, false);
+
+            LotusIR::NodeArg inputOutput1Arg(orderedInputs[0].Name() + string("_reshape0"), ToONNXType(src->Inputs()[1].GetDataType()), input1Reshape);
+            LotusIR::NodeArg inputOutput2Arg(orderedInputs[1].Name() + string("_reshape1"), ToONNXType(src->Inputs()[0].GetDataType()), input2Reshape);
+
+            auto reshapeNode1 = graph->AddNode(ToString(src->Uid()) + string("_reshape0"), "Reshape", "", { orderedInputs[0] }, { inputOutput1Arg });
+            auto reshapeNode2 = graph->AddNode(ToString(src->Uid()) + string("_reshape1"), "Reshape", "", { orderedInputs[1] }, { inputOutput2Arg });
+
+            reshapeNode1->AddAttribute("shape", ToINTS(input1Reshape));
+            reshapeNode2->AddAttribute("shape", ToINTS(input2Reshape));
+
+            node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", { inputOutput1Arg , inputOutput2Arg }, outputs);
+        }
+        else
+            node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", orderedInputs, outputs);
+    }
+    else
+        node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", orderedInputs, outputs);
+
+    //
+    // Copy and validate attributes.
+    //
+    CopyAttributes(src, node);
+
+    return node;
 }
 
 }

@@ -3,7 +3,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
-#include <xstring>
+#include <string>
 
 class TensorProto;
 class TypeProto;

@@ -5,7 +5,7 @@
 
 #include "ONNX.h"
 #include "CNTKToONNX.h"
-#include "./core/graph.h"
+#include "proto/onnx/core/graph.h"
 #include "Utils.h"
 
 #include <iostream>
