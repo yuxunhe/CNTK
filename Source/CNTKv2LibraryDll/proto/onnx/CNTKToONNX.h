@@ -18,6 +18,6 @@ namespace CNTK
     class CNTKToONNX
     {
     public:
-        static std::unique_ptr<LotusIR::Graph> CreateGraph(const FunctionPtr& src);
+        static std::unique_ptr<::LotusIR::Graph> CreateGraph(const FunctionPtr& src);
     };
 }

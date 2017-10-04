@@ -29,12 +29,12 @@ ItrType reverse(ItrType v)
 //
 // Helper function to reduce the rank of a shape.
 //
-LotusIR::TensorShapeProto ReduceRank(LotusIR::TensorShapeProto inputShape, int reductionRank, bool rightReduction)
+::LotusIR::TensorShapeProto ReduceRank(::LotusIR::TensorShapeProto inputShape, int reductionRank, bool rightReduction)
 {
     int inputRank = inputShape.dim_size();
     assert(inputRank > reductionRank);
 
-    LotusIR::TensorShapeProto newShape;
+    ::LotusIR::TensorShapeProto newShape;
     int64_t reduceDim = 1;
 
     if (rightReduction)
@@ -67,16 +67,16 @@ public:
     //
     // Copy the entire CNTK graph to ONNX graph.
     //
-    static void Copy(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& dst);
+    static void Copy(const FunctionPtr& src, std::unique_ptr<::LotusIR::Graph>& dst);
 
 private:
     //
     // Recursively create ONNX nodes corresponding to each CNTK node.
     //
-    static LotusIR::Node* CreateNode(const FunctionPtr& src,
-                                     std::unique_ptr<LotusIR::Graph>& graph,
-                                     std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
-                                     std::unordered_map<Variable, LotusIR::Node*>& variableNodes,
+    static ::LotusIR::Node* CreateNode(const FunctionPtr& src,
+                                     std::unique_ptr<::LotusIR::Graph>& graph,
+                                     std::unordered_map<FunctionPtr, ::LotusIR::Node*>& functionNodes,
+                                     std::unordered_map<Variable, ::LotusIR::Node*>& variableNodes,
                                      const std::unordered_map<Variable, Variable>& compositeOutputsMap);
 
     //
@@ -90,12 +90,12 @@ private:
     // Copy the content of NDArrayView to TensorProto, and do the needed
     // convergence.
     //
-    static void CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto& dst);
+    static void CopyTensor(const NDArrayViewPtr src, ::LotusIR::TensorProto& dst);
 
     //
     // Copy supported attributes from CNTK node to corresponding ONNX node.
     //
-    static void CopyAttributes(const FunctionPtr& src, LotusIR::Node* node);
+    static void CopyAttributes(const FunctionPtr& src, ::LotusIR::Node* node);
 
     //
     // Convert Axis object to actual tensor index.
@@ -105,15 +105,15 @@ private:
     //
     // Convert NDShape and various std::vector types to TensorShape
     //
-    static LotusIR::TensorShapeProto ToTensorShape(const NDShape& shape, bool hasBatchAxis = false);
-    static LotusIR::TensorShapeProto ToTensorShape(const std::vector<bool>& shape);
-    static LotusIR::TensorShapeProto ToTensorShape(const std::vector<int>& shape);
-    static LotusIR::TensorShapeProto ToTensorShape(const std::vector<Axis>& axes);
+    static ::LotusIR::TensorShapeProto ToTensorShape(const NDShape& shape, bool hasBatchAxis = false);
+    static ::LotusIR::TensorShapeProto ToTensorShape(const std::vector<bool>& shape);
+    static ::LotusIR::TensorShapeProto ToTensorShape(const std::vector<int>& shape);
+    static ::LotusIR::TensorShapeProto ToTensorShape(const std::vector<Axis>& axes);
 
     //
     // Convert TensorShapeProto, NDShape and various std::vector types to std::vector
     //
-    static std::vector<int64_t> ToINTS(const LotusIR::TensorShapeProto& shape);
+    static std::vector<int64_t> ToINTS(const ::LotusIR::TensorShapeProto& shape);
     static std::vector<int64_t> ToINTS(const NDShape& shape, bool hasBatchAxis = false);
     static std::vector<int64_t> ToINTS(const std::vector<bool>& shape);
     static std::vector<int64_t> ToINTS(const std::vector<int>& shape);
@@ -122,7 +122,7 @@ private:
     //
     // Convert data types.
     //
-    static LotusIR::TypeProto ToONNXType(DataType dataType);
+    static ::LotusIR::TypeProto ToONNXType(DataType dataType);
 
     //
     // Map CNTK OP names to ONNX OP Names.
@@ -137,31 +137,30 @@ private:
     //
     // Argument orders between CNTK and ONNX aren't always the same.
     //
-    static std::vector<LotusIR::NodeArg> MapInputsOrderToONNX(const FunctionPtr& src, const std::vector<LotusIR::NodeArg>& inputs);
+    static std::vector<::LotusIR::NodeArg> MapInputsOrderToONNX(const FunctionPtr& src, const std::vector<::LotusIR::NodeArg>& inputs);
 
     //
     // Add current CNTK node to ONNX graph.
     //
-    static LotusIR::Node* AddNode(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& graph, const std::vector<LotusIR::NodeArg>& inputs, const std::vector<LotusIR::NodeArg>& outputs);
+    static ::LotusIR::Node* AddNode(const FunctionPtr& src, std::unique_ptr<::LotusIR::Graph>& graph, const std::vector<::LotusIR::NodeArg>& inputs, const std::vector<::LotusIR::NodeArg>& outputs);
 };
 
-std::unique_ptr<LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
+std::unique_ptr<::LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
 {
-    std::unique_ptr<LotusIR::Graph> dstGraph(new LotusIR::Graph("CNTKGraph", 1, 1, "CNTK"));
+    std::unique_ptr<::LotusIR::Graph> dstGraph(new ::LotusIR::Graph("CNTKGraph", 1, 1, "CNTK"));
     CNTKToONNXHelper::Copy(src, dstGraph);
-    LotusIR::Status status = dstGraph->Resolve();
+    ::LotusIR::Status status = dstGraph->Resolve();
     if (!status.Ok())
         LogicError("%s", status.ErrorMsg().c_str());
     return dstGraph;
 }
 
-void CNTKToONNXHelper::Copy(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& dst)
+void CNTKToONNXHelper::Copy(const FunctionPtr& src, std::unique_ptr<::LotusIR::Graph>& dst)
 {
     std::set<FunctionPtr> visited;
     std::unordered_map<Variable, Variable> compositeOutputsMap;
-    std::unordered_map<FunctionPtr, LotusIR::Node*> functionNodes;
-    std::unordered_map<Variable, LotusIR::Node*> variableNodes;
-
+    std::unordered_map<FunctionPtr, ::LotusIR::Node*> functionNodes;
+    std::unordered_map<Variable, ::LotusIR::Node*> variableNodes;
 
     //
     // Traverse the graph and collect some information.
@@ -175,7 +174,7 @@ void CNTKToONNXHelper::Copy(const FunctionPtr& src, std::unique_ptr<LotusIR::Gra
     CreateNode(src, dst, functionNodes, variableNodes, compositeOutputsMap);
 }
 
-void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto& dst)
+void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, ::LotusIR::TensorProto& dst)
 {
     auto dataType = src->GetDataType();
     auto srcTemp = src->DeepClone();
@@ -189,7 +188,7 @@ void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto
     {
         case DataType::Float:
         {
-            dst.set_data_type(LotusIR::TensorProto_DataType_FLOAT);
+            dst.set_data_type(::LotusIR::TensorProto_DataType_FLOAT);
             auto data = srcTemp->DataBuffer<float>();
             for (size_t index = 0; index < totalSize; index++)
                 *(dst.mutable_float_data()->Add()) = data[index];
@@ -198,7 +197,7 @@ void CNTKToONNXHelper::CopyTensor(const NDArrayViewPtr src, LotusIR::TensorProto
         }
         case DataType::Double:
         {
-            dst.set_data_type(LotusIR::TensorProto_DataType_DOUBLE);
+            dst.set_data_type(::LotusIR::TensorProto_DataType_DOUBLE);
             auto data = srcTemp->DataBuffer<double>();
             for (size_t index = 0; index < totalSize; index++)
                 *(dst.mutable_double_data()->Add()) = data[index];
@@ -228,9 +227,9 @@ int CNTKToONNXHelper::ToIndex(const Axis& axis)
     return axis.StaticAxisIndex() + 1;
 }
 
-LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape, bool hasBatchAxis)
+::LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape, bool hasBatchAxis)
 {
-    LotusIR::TensorShapeProto newShape;
+    ::LotusIR::TensorShapeProto newShape;
 
     if (hasBatchAxis)
         newShape.add_dim()->set_dim_value(-1);
@@ -246,9 +245,9 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const NDShape& shape, 
     return newShape;
 }
 
-LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<bool>& shape)
+::LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<bool>& shape)
 {
-    LotusIR::TensorShapeProto newShape;
+    ::LotusIR::TensorShapeProto newShape;
     auto dimensions = reverse(shape);
     for (auto dimension : dimensions)
         newShape.add_dim()->set_dim_value(dimension ? 1:0);
@@ -256,9 +255,9 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<bool
     return newShape;
 }
 
-LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<int>& shape)
+::LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<int>& shape)
 {
-    LotusIR::TensorShapeProto newShape;
+    ::LotusIR::TensorShapeProto newShape;
     auto dimensions = reverse(shape);
     for (auto dimension : dimensions)
         newShape.add_dim()->set_dim_value(dimension);
@@ -266,7 +265,7 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<int>
     return newShape;
 }
 
-LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<Axis>& axes)
+::LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<Axis>& axes)
 {
     std::vector<int> axesValue;
     for (auto axis : axes)
@@ -275,14 +274,14 @@ LotusIR::TensorShapeProto CNTKToONNXHelper::ToTensorShape(const std::vector<Axis
     }
     std::sort(axesValue.begin(), axesValue.end());
 
-    LotusIR::TensorShapeProto newShape;
+    ::LotusIR::TensorShapeProto newShape;
     for (auto dimension : axesValue)
         newShape.add_dim()->set_dim_value(dimension);
 
     return newShape;
 }
 
-std::vector<int64_t> CNTKToONNXHelper::ToINTS(const LotusIR::TensorShapeProto& shape)
+std::vector<int64_t> CNTKToONNXHelper::ToINTS(const ::LotusIR::TensorShapeProto& shape)
 {
     std::vector<int64_t> newShape;
 
@@ -312,16 +311,16 @@ std::vector<int64_t> CNTKToONNXHelper::ToINTS(const std::vector<Axis>& axes)
     return ToINTS(ToTensorShape(axes));
 }
 
-LotusIR::TypeProto CNTKToONNXHelper::ToONNXType(DataType dataType)
+::LotusIR::TypeProto CNTKToONNXHelper::ToONNXType(DataType dataType)
 {
-    LotusIR::TypeProto type;
+    ::LotusIR::TypeProto type;
     switch (dataType)
     {
     case DataType::Float:
-        type.mutable_tensor_type()->set_elem_type(LotusIR::TensorProto_DataType_FLOAT);
+        type.mutable_tensor_type()->set_elem_type(::LotusIR::TensorProto_DataType_FLOAT);
         break;
     case DataType::Double:
-        type.mutable_tensor_type()->set_elem_type(LotusIR::TensorProto_DataType_DOUBLE);
+        type.mutable_tensor_type()->set_elem_type(::LotusIR::TensorProto_DataType_DOUBLE);
         break;
     default:
         NOT_IMPLEMENTED;
@@ -370,17 +369,17 @@ bool CNTKToONNXHelper::FilterInput(const FunctionPtr& src, const CNTK::Variable&
 // This is the main horsepower, it navigate CNTK graph recursivley while keep track of all visited nodes and variables, 
 // and create the corresponding ONNX graph.
 //
-LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
-                                            std::unique_ptr<LotusIR::Graph>& graph,
-                                            std::unordered_map<FunctionPtr, LotusIR::Node*>& functionNodes,
-                                            std::unordered_map<Variable, LotusIR::Node*>& variableNodes, 
+::LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
+                                            std::unique_ptr<::LotusIR::Graph>& graph,
+                                            std::unordered_map<FunctionPtr, ::LotusIR::Node*>& functionNodes,
+                                            std::unordered_map<Variable, ::LotusIR::Node*>& variableNodes, 
                                             const std::unordered_map<Variable, Variable>& compositeOutputsMap)
 {
     auto iter = functionNodes.find(src);
     if (iter != functionNodes.end())
         return iter->second;
 
-    LotusIR::Node* functionNode = nullptr;
+    ::LotusIR::Node* functionNode = nullptr;
     std::string opName = ToString(src->OpName());
 
     //
@@ -402,12 +401,12 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
     //
     else if (Operators::IsSupportedCNTKOP(src->OpName()))
     {
-        std::vector<LotusIR::NodeArg> inputs;
-        std::vector<LotusIR::NodeArg> outputs;
+        std::vector<::LotusIR::NodeArg> inputs;
+        std::vector<::LotusIR::NodeArg> outputs;
 
         for (const auto& output : src->Outputs())
         {
-            LotusIR::NodeArg outputArg(ToString(output.Uid()),
+            ::LotusIR::NodeArg outputArg(ToString(output.Uid()),
                                        ToONNXType(output.GetDataType()),
                                        ToTensorShape(output.Shape()));
             outputs.push_back(outputArg);
@@ -432,7 +431,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             if (inputItr != compositeOutputsMap.end())
                 inputName = ToString(inputItr->second.Uid());
 
-            LotusIR::NodeArg inputArg(inputName,
+            ::LotusIR::NodeArg inputArg(inputName,
                                       ToONNXType(input.GetDataType()),
                                       ToTensorShape(input.Shape()));
 
@@ -445,17 +444,17 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             {
                 if (variableNodes.find(input) == variableNodes.end())
                 {
-                    std::vector<LotusIR::NodeArg> varInputs;
-                    std::vector<LotusIR::NodeArg> varOutputs;
+                    std::vector<::LotusIR::NodeArg> varInputs;
+                    std::vector<::LotusIR::NodeArg> varOutputs;
 
                     varOutputs.push_back({ inputArg });
-                    LotusIR::Node* variableNode = nullptr;
+                    ::LotusIR::Node* variableNode = nullptr;
                     if (input.IsParameter() || input.IsConstant())
                     {
                         variableNode = graph->AddNode(ToString(input.Uid()), "Constant", "", varInputs, varOutputs);
                         auto srcTensor = input.IsParameter() ? Parameter(input).Value() : Constant(input).Value();
                         
-                        LotusIR::TensorProto dstTensor;
+                        ::LotusIR::TensorProto dstTensor;
                         CopyTensor(srcTensor, dstTensor);
 
                         variableNode->AddAttribute("value", dstTensor);
@@ -533,7 +532,7 @@ void CNTKToONNXHelper::TraverseGraph(const FunctionPtr& src,
     visited.emplace(src);
 }
 
-void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* node)
+void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ::LotusIR::Node* node)
 {
     auto lookup = Operators::CntkToONNXLookup();
     assert(lookup.count(src->OpName()) != 0);
@@ -714,18 +713,18 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, LotusIR::Node* nod
     }
 }
 
-std::vector<LotusIR::NodeArg> CNTKToONNXHelper::MapInputsOrderToONNX(const FunctionPtr& src, const std::vector<LotusIR::NodeArg>& inputs)
+std::vector<::LotusIR::NodeArg> CNTKToONNXHelper::MapInputsOrderToONNX(const FunctionPtr& src, const std::vector<::LotusIR::NodeArg>& inputs)
 {
     if (Operators::HasInputIndexMap(src->OpName()))
     {
-        std::vector<LotusIR::NodeArg> orderedInputs;
-        std::map<int, LotusIR::NodeArg> orderedInputsMap;
+        std::vector<::LotusIR::NodeArg> orderedInputs;
+        std::map<int, ::LotusIR::NodeArg> orderedInputsMap;
         auto map = Operators::ToONNXInputIndexMap(src->OpName());
 
         for (size_t inputIndex = 0; inputIndex < inputs.size(); ++inputIndex)
         {
             if (map[inputIndex] >= 0)
-                orderedInputsMap.insert(std::pair<int, LotusIR::NodeArg>(map[inputIndex], inputs[inputIndex]));
+                orderedInputsMap.insert(std::pair<int, ::LotusIR::NodeArg>(map[inputIndex], inputs[inputIndex]));
         }
 
         for (const auto& item : orderedInputsMap)
@@ -737,9 +736,9 @@ std::vector<LotusIR::NodeArg> CNTKToONNXHelper::MapInputsOrderToONNX(const Funct
     return inputs;
 }
 
-LotusIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, std::unique_ptr<LotusIR::Graph>& graph, const std::vector<LotusIR::NodeArg>& inputs, const std::vector<LotusIR::NodeArg>& outputs)
+::LotusIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, std::unique_ptr<::LotusIR::Graph>& graph, const std::vector<::LotusIR::NodeArg>& inputs, const std::vector<::LotusIR::NodeArg>& outputs)
 {
-    LotusIR::Node* node = nullptr;
+    ::LotusIR::Node* node = nullptr;
     auto orderedInputs = MapInputsOrderToONNX(src, inputs);
 
     //
@@ -762,8 +761,8 @@ LotusIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, std::unique_ptr
             auto input1Reshape = ReduceRank(input1Shape, reductionRank, true);
             auto input2Reshape = ReduceRank(input2Shape, reductionRank, false);
 
-            LotusIR::NodeArg inputOutput1Arg(orderedInputs[0].Name() + string("_reshape0"), ToONNXType(src->Inputs()[1].GetDataType()), input1Reshape);
-            LotusIR::NodeArg inputOutput2Arg(orderedInputs[1].Name() + string("_reshape1"), ToONNXType(src->Inputs()[0].GetDataType()), input2Reshape);
+            ::LotusIR::NodeArg inputOutput1Arg(orderedInputs[0].Name() + string("_reshape0"), ToONNXType(src->Inputs()[1].GetDataType()), input1Reshape);
+            ::LotusIR::NodeArg inputOutput2Arg(orderedInputs[1].Name() + string("_reshape1"), ToONNXType(src->Inputs()[0].GetDataType()), input2Reshape);
 
             auto reshapeNode1 = graph->AddNode(ToString(src->Uid()) + string("_reshape0"), "Reshape", "", { orderedInputs[0] }, { inputOutput1Arg });
             auto reshapeNode2 = graph->AddNode(ToString(src->Uid()) + string("_reshape1"), "Reshape", "", { orderedInputs[1] }, { inputOutput2Arg });

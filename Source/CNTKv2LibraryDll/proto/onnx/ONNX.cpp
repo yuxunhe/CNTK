@@ -42,21 +42,21 @@ void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
     PrintGraph(src, 0, true);
     PrintGraph(src, 0, false);
-    std::unique_ptr<LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
+    std::unique_ptr<::LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
 
-    LotusIR::Graph::Save(graph->ToGraphProto(), filepath);
+    ::LotusIR::Graph::Save(graph->ToGraphProto(), filepath);
 }
 
 FunctionPtr ONNX::Load(const std::wstring& filepath, const DeviceDescriptor& computeDevice)
 {
-    LotusIR::GraphProto grapu;
-    bool loadStatus = LotusIR::Graph::Load(filepath, &grapu);
+    ::LotusIR::GraphProto grapu;
+    bool loadStatus = ::LotusIR::Graph::Load(filepath, &grapu);
     if (!loadStatus)
     {
         return nullptr;
     }
 
-    std::unique_ptr<LotusIR::Graph> graph(new LotusIR::Graph(grapu));
+    std::unique_ptr<::LotusIR::Graph> graph(new ::LotusIR::Graph(grapu));
     graph->Resolve();
 
     FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph, computeDevice);

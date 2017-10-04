@@ -32,10 +32,10 @@ namespace CNTK
         static FunctionPtr CreateFunction(const Node *node, const std::vector<Variable> &inputs);
 
         static std::vector<Axis> FromINTSToAxes(const std::vector<int64_t> &ints);
-        static LotusIR::TensorShapeProto FromINTS(const std::vector<int64_t> &shape);
+        static ::LotusIR::TensorShapeProto FromINTS(const std::vector<int64_t> &shape);
         static NDShape FromTensorShape(const TensorShapeProto& tensorShape);
         static std::vector<bool> FromTensorShapeAsBool(const TensorShapeProto& tensorShape);
-        static DataType FromONNXType(LotusIR::TypeProto type);
+        static DataType FromONNXType(::LotusIR::TypeProto type);
 
         static std::vector<Axis> GetNamedAttributeAsAxis(const Node *node, const string &attributeName);
         static NDShape GetNamedAttributeAsShape(const Node *node, const string &attributeName);
@@ -56,9 +56,9 @@ namespace CNTK
         return axes;
     }
 
-    LotusIR::TensorShapeProto ONNXToCNTKHelper::FromINTS(const std::vector<int64_t> &shape)
+    ::LotusIR::TensorShapeProto ONNXToCNTKHelper::FromINTS(const std::vector<int64_t> &shape)
     {
-        LotusIR::TensorShapeProto newShape;
+        ::LotusIR::TensorShapeProto newShape;
 
         for (std::vector<int64_t>::const_iterator it = shape.begin(); it != shape.end(); it++)
         {
@@ -99,13 +99,13 @@ namespace CNTK
         return dimensions;
     }
 
-    DataType ONNXToCNTKHelper::FromONNXType(LotusIR::TypeProto type)
+    DataType ONNXToCNTKHelper::FromONNXType(::LotusIR::TypeProto type)
     {
         switch (type.mutable_tensor_type()->elem_type())
         {
-        case LotusIR::TensorProto_DataType_FLOAT:
+        case ::LotusIR::TensorProto_DataType_FLOAT:
             return DataType::Float;
-        case LotusIR::TensorProto_DataType_DOUBLE:
+        case ::LotusIR::TensorProto_DataType_DOUBLE:
             return DataType::Double;
             break;
         default:
@@ -122,12 +122,12 @@ namespace CNTK
     Constant ONNXToCNTKHelper::CreateConstant(const Node *node, const DeviceDescriptor& computeDevice)
     {
         NodeAttributes::const_iterator itValue = node->GetAttributes().find("value");
-        const LotusIR::TensorProto valueProto = itValue->second.t();
+        const ::LotusIR::TensorProto valueProto = itValue->second.t();
         auto dataType = valueProto.data_type();
         NDShape shape(std::vector<size_t>(valueProto.dims().begin(), valueProto.dims().end()));
 
-        //////LotusIR::NodeArg inputArg = node->OutputDefs()[0];
-        //////const LotusIR::TensorShapeProto shapeProto = inputArg.Shape();
+        //////::LotusIR::NodeArg inputArg = node->OutputDefs()[0];
+        //////const ::LotusIR::TensorShapeProto shapeProto = inputArg.Shape();
         //////NDShape shape = FromTensorShape(shapeProto);
 
         // CNTK transpose does switch between row major and column major.
@@ -204,7 +204,7 @@ namespace CNTK
         // TODO: how to get the datatype?
         auto dataType = TensorProto_DataType_FLOAT;
 
-        const LotusIR::TensorShapeProto shapeProto = nodeArg->Shape();
+        const ::LotusIR::TensorShapeProto shapeProto = nodeArg->Shape();
 
         NDShape shape = FromTensorShape(shapeProto);
 
@@ -228,8 +228,8 @@ namespace CNTK
         // TODO: how to get the datatype?
         auto dataType = TensorProto_DataType_FLOAT;
 
-        LotusIR::NodeArg inputArg = node->OutputDefs()[0];
-        const LotusIR::TensorShapeProto shapeProto = inputArg.Shape();
+        ::LotusIR::NodeArg inputArg = node->OutputDefs()[0];
+        const ::LotusIR::TensorShapeProto shapeProto = inputArg.Shape();
         NDShape shape = FromTensorShape(shapeProto);
 
         switch (dataType)
@@ -843,7 +843,7 @@ FunctionPtr ONNXToCNTKHelper::CreateCNTKNode(const Node *node, const std::vector
     }
 }
 
-FunctionPtr ONNXToCNTK::CreateGraph(const std::unique_ptr<LotusIR::Graph>& src, const DeviceDescriptor& computeDevice)
+FunctionPtr ONNXToCNTK::CreateGraph(const std::unique_ptr<::LotusIR::Graph>& src, const DeviceDescriptor& computeDevice)
 {
     FunctionPtr cntkModel;    
     ONNXToCNTKMap constructedFunctions;
