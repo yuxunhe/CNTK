@@ -152,25 +152,10 @@ namespace CNTK
             // TODO: for onnx tensfor the first 1 or 2 are probably batch and channel. the last 2 are kernal size
             if (shape.Rank() <= 2)
             {
-                // TODO: data has to be allocated on the specified 'device'?
-                if (false)
-                {
-                    NDArrayViewPtr reshaped(new NDArrayView(DataType::Float, reversedShape, data,
-                        totalSize * sizeof(float), computeDevice));
-                    NDArrayViewPtr transposed = reshaped->Transpose();
-                    NDArrayViewPtr dstFinal = transposed->AsShape(shape);
-
-                    Constant constantVariable(dstFinal, ToWString(node->Name()));
-
-                    return constantVariable;
-                }
-                else
-                {
-                    NDArrayViewPtr dstFinal(new NDArrayView(DataType::Float, reversedShape, &data[0],
-                        totalSize * sizeof(float), computeDevice));
-                    Constant constantVariable(dstFinal, ToWString(node->Name()));
-                    return constantVariable;
-                }
+                NDArrayViewPtr dstFinal(new NDArrayView(DataType::Float, reversedShape, &data[0],
+                    totalSize * sizeof(float), computeDevice));
+                Constant constantVariable(dstFinal, ToWString(node->Name()));
+                return constantVariable;
             }
             else
             {
