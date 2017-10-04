@@ -12,6 +12,8 @@
 
 #include "ONNXToCNTK.h"
 
+using namespace CNTK;
+
 namespace CNTK
 {
     static void PrintGraph(FunctionPtr function, int spaces, bool useName = false)
@@ -22,13 +24,13 @@ namespace CNTK
             return;
         }
 
-        for(auto input: function->Inputs())
+        for (auto input : function->Inputs())
         {
             cout << string(spaces, '.') + "(" + ToString(useName ? function->Name() : function->Uid()) + ")" + "->" +
                 "(" + ToString(useName ? input.Name() : input.Uid()) + ")" + ToString(input.AsString()) << std::endl;
         }
 
-        for(auto input: function->Inputs())
+        for (auto input : function->Inputs())
         {
             if (input.Owner() != NULL)
             {
@@ -37,6 +39,7 @@ namespace CNTK
             }
         }
     }
+}
 
 void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
@@ -61,6 +64,4 @@ FunctionPtr ONNX::Load(const std::wstring& filepath, const DeviceDescriptor& com
 
     FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph, computeDevice);
     return cntkFunction;
-}
-
 }

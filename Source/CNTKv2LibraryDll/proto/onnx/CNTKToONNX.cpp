@@ -5,15 +5,15 @@
 
 #include "CNTKToONNX.h"
 #include "proto/onnx/core/graph.h"
+
 #include "Utils.h"
 #include "Operators.h"
 #include "BlockFunction.h"
 #include <vector>
 
 using namespace CNTK::ONNX;
+using namespace CNTK;
 
-namespace CNTK
-{
 
 //
 // A helper function, to reverse any iterable container and return a copy
@@ -61,6 +61,9 @@ ItrType reverse(ItrType v)
     return newShape;
 }
 
+namespace CNTK
+{
+
 class CNTKToONNXHelper
 {
 public:
@@ -74,10 +77,10 @@ private:
     // Recursively create ONNX nodes corresponding to each CNTK node.
     //
     static ::LotusIR::Node* CreateNode(const FunctionPtr& src,
-                                     std::unique_ptr<::LotusIR::Graph>& graph,
-                                     std::unordered_map<FunctionPtr, ::LotusIR::Node*>& functionNodes,
-                                     std::unordered_map<Variable, ::LotusIR::Node*>& variableNodes,
-                                     const std::unordered_map<Variable, Variable>& compositeOutputsMap);
+                                       std::unique_ptr<::LotusIR::Graph>& graph,
+                                       std::unordered_map<FunctionPtr, ::LotusIR::Node*>& functionNodes,
+                                       std::unordered_map<Variable, ::LotusIR::Node*>& variableNodes,
+                                       const std::unordered_map<Variable, Variable>& compositeOutputsMap);
 
     //
     // Traverse the entire graph and collect variable mapping between graph inside and outside the block.
@@ -144,6 +147,7 @@ private:
     //
     static ::LotusIR::Node* AddNode(const FunctionPtr& src, std::unique_ptr<::LotusIR::Graph>& graph, const std::vector<::LotusIR::NodeArg>& inputs, const std::vector<::LotusIR::NodeArg>& outputs);
 };
+}
 
 std::unique_ptr<::LotusIR::Graph> CNTKToONNX::CreateGraph(const FunctionPtr& src)
 {
@@ -370,10 +374,10 @@ bool CNTKToONNXHelper::FilterInput(const FunctionPtr& src, const CNTK::Variable&
 // and create the corresponding ONNX graph.
 //
 ::LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
-                                            std::unique_ptr<::LotusIR::Graph>& graph,
-                                            std::unordered_map<FunctionPtr, ::LotusIR::Node*>& functionNodes,
-                                            std::unordered_map<Variable, ::LotusIR::Node*>& variableNodes, 
-                                            const std::unordered_map<Variable, Variable>& compositeOutputsMap)
+                                              std::unique_ptr<::LotusIR::Graph>& graph,
+                                              std::unordered_map<FunctionPtr, ::LotusIR::Node*>& functionNodes,
+                                              std::unordered_map<Variable, ::LotusIR::Node*>& variableNodes, 
+                                              const std::unordered_map<Variable, Variable>& compositeOutputsMap)
 {
     auto iter = functionNodes.find(src);
     if (iter != functionNodes.end())
@@ -784,6 +788,4 @@ std::vector<::LotusIR::NodeArg> CNTKToONNXHelper::MapInputsOrderToONNX(const Fun
     CopyAttributes(src, node);
 
     return node;
-}
-
 }
