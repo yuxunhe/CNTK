@@ -250,11 +250,7 @@ namespace CNTK
     void CheckForAxes(const string &nodeName, const std::vector<Axis> &axes, int requiredAxes)
     {
         if (axes.size() != requiredAxes)
-        {
-            string message = nodeName + " has " + std::to_string(axes.size()) + " input axis/axes. " +
-                "It should has " + std::to_string(requiredAxes) + ".";
-            throw exception(message.c_str());
-        }
+            LogicError("%s has %d input axis/axes. It should has %d .", nodeName.c_str(), axes.size(), requiredAxes);
     }
 
     std::vector<Axis> ONNXToCNTKHelper::GetNamedAttributeAsAxis(const Node *node, const string &attributeName)
