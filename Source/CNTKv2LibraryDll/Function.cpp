@@ -11,7 +11,7 @@
 #include "Utils.h"
 #include "UserFunctionFactory.h"
 #include "TrainingNodes.h"
-#include "./proto/onnx/ONNX.h"
+#include "proto/onnx/ONNX.h"
 
 using namespace Microsoft::MSR::CNTK;
 
