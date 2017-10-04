@@ -4,7 +4,7 @@
 //
 
 #include "Operators.h"
-#include "./core/graph.h"
+#include "proto/onnx/core/graph.h"
 #include "Utils.h"
 
 namespace CNTK

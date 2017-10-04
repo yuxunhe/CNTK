@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "../protobuf/graph.pb.h"
+#include "proto/onnx/protobuf/graph.pb.h"
 #include "constants.h"
 #include "status.h"
 #include "utils.h"

@@ -6,9 +6,9 @@
 #include <iostream>
 #include <sstream>
 
-#include "../protobuf/Data.pb.h"
-#include "../protobuf/graph.pb.h"
-#include "../protobuf/Type.pb.h"
+#include "proto/onnx/protobuf/Data.pb.h"
+#include "proto/onnx/protobuf/graph.pb.h"
+#include "proto/onnx/protobuf/Type.pb.h"
 #include "constants.h"
 #include "utils.h"
 
