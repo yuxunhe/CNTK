@@ -116,7 +116,7 @@ namespace CNTK
     Constant ONNXToCNTKHelper::CreateConvKernelConstant(const Node *node)
     {
         // TODO: create Constant from Node attribute and initializer
-        return nullptr;
+        return Constant::Scalar(0);
     }
 
     Constant ONNXToCNTKHelper::CreateConstant(const Node *node, const DeviceDescriptor& computeDevice)
