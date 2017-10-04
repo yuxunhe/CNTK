@@ -229,7 +229,6 @@ namespace LotusIR
         m_shapeInferFunc(p_setter.m_shapeInferFunc),
         m_parser(p_setter.m_parser)
     {
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         m_onnxMinInput = p_setter.m_onnxMinInput;
         m_onnxMaxInput = p_setter.m_onnxMaxInput;
         m_onnxMinOutput = p_setter.m_onnxMinOutput;
@@ -237,7 +236,6 @@ namespace LotusIR
         m_onnxNumInputsAllowed = p_setter.m_onnxNumInputsAllowed;
         m_onnxNumOutputsAllowed = p_setter.m_onnxNumOutputsAllowed;
         m_onnxNumInputsOutputsAllowed = p_setter.m_onnxNumInputsOutputsAllowed;
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
         // Process type constraints.
         for (const auto& constraint : p_setter.m_constraints)
@@ -272,7 +270,6 @@ namespace LotusIR
             std::tie(name, desc, type) = input;
             m_inputs.push_back(FormalParameter(name, type, desc, m_typeConstraintMap));
         }
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         if (0 == m_inputs.size()
             && m_onnxMinInput == m_onnxMaxInput
             && m_onnxMinInput > 0)
@@ -284,7 +281,6 @@ namespace LotusIR
                 m_inputs.push_back(FormalParameter(name, "", desc, m_typeConstraintMap));
             }
         }
-#endif
 
         m_outputs.reserve(p_setter.m_outputs.size());
         for (const auto& output : p_setter.m_outputs)
@@ -295,7 +291,6 @@ namespace LotusIR
             std::tie(name, desc, type) = output;
             m_outputs.push_back(FormalParameter(name, type, desc, m_typeConstraintMap));
         }
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         if (0 == m_outputs.size()
             && m_onnxMinOutput== m_onnxMaxOutput
             && m_onnxMinOutput > 0)
@@ -307,7 +302,6 @@ namespace LotusIR
                 m_outputs.push_back(FormalParameter(name, "", desc, m_typeConstraintMap));
             }
         }
-#endif
 
         m_attributes.reserve(p_setter.m_attributes.size());
         for (const auto& attr : p_setter.m_attributes)
@@ -521,7 +515,6 @@ namespace LotusIR
         return Status::OK();
     }
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
     size_t ReplaceAll(std::string& s, const char* from, const char* to)
     {
         size_t numReplaced = 0;
@@ -534,7 +527,6 @@ namespace LotusIR
         }
         return numReplaced;
     }
-#endif
 }
 
 #pragma warning(pop)

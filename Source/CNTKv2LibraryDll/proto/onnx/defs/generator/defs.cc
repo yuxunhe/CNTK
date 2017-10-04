@@ -1,8 +1,7 @@
 // Copyright (c) Facebook Inc. and Microsoft Corporation.
 // Licensed under the MIT license.
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
-#include "../../core/op.h"
+#include "proto/onnx/core/op.h"
 
 namespace LotusIR
 {
@@ -168,4 +167,3 @@ TensorProto message.
             "Output tensor of random values drawn from normal distribution");
 
 }
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT

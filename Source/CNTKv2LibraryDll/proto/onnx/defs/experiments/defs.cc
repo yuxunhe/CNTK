@@ -1,8 +1,7 @@
 // Copyright (c) Facebook Inc. and Microsoft Corporation.
 // Licensed under the MIT license.
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
-#include "../../core/op.h"
+#include "proto/onnx/core/op.h"
 
 using SupportType = LotusIR::OpSchema::SupportType;
 namespace LotusIR {
@@ -328,4 +327,3 @@ Experimental allowing ATen operations to be accessed directly from Caffe2
 to allow for quick prototyping when ONNX is missing standard versions of
 and op)DOC");
 }
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT

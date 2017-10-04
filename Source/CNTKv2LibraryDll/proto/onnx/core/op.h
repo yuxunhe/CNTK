@@ -13,10 +13,8 @@
 namespace LotusIR
 {
     class OperatorSchema;
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
     class OperatorSchemaSetter;
     typedef OperatorSchemaSetter OpSchema;
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
     enum class AttrType {
         NONE,
@@ -171,7 +169,6 @@ namespace LotusIR
         OperatorSchemaSetter& SetAttributeParser(
             AttributeParser p_attrParser);
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         enum class SupportType {
             COMMON,
             EXPERIMENTAL,
@@ -253,7 +250,6 @@ namespace LotusIR
         {
             return Description(doc);
         }
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
     private:
 
@@ -284,7 +280,6 @@ namespace LotusIR
         // Attribute parser.
         AttributeParser m_parser;
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         // To support ONNX variable input/output compatibility.
         // Min and Max num arguments of last input/output.
         int m_onnxMinInput = 0;
@@ -297,7 +292,6 @@ namespace LotusIR
             [](int) { return true; };
         std::function<bool(int, int)> m_onnxNumInputsOutputsAllowed =
             [](int, int) { return true; };
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
     };
 
 
@@ -439,7 +433,6 @@ namespace LotusIR
         // Get type constraint map.
         const TypeConstraintMap& GetTypeConstraintMap() const;
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         // To support ONNX variable input/output compatibility.
         // Min and Max num arguments of last input/output.
         int GetOnnxMinInput() const { return m_onnxMinInput; }
@@ -458,7 +451,6 @@ namespace LotusIR
         {
             return m_onnxNumInputsOutputsAllowed;
         }
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
     private:
 
@@ -487,7 +479,6 @@ namespace LotusIR
         // Attribute parser.
         AttributeParser m_parser;
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         int m_onnxMinInput;
         int m_onnxMaxInput;
         int m_onnxMinOutput;
@@ -495,7 +486,6 @@ namespace LotusIR
         std::function<bool(int)> m_onnxNumInputsAllowed;
         std::function<bool(int)> m_onnxNumOutputsAllowed;
         std::function<bool(int, int)> m_onnxNumInputsOutputsAllowed;
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
     };
 
     // Operator schema registry. A singleton registry to manage all operator
@@ -531,11 +521,9 @@ namespace LotusIR
         std::unordered_map<std::string, OperatorSchema> m_operatorRegistryMap;
     };
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
     // utility function used by ONNX v1 op registration defs.
     size_t ReplaceAll(std::string& s, const char* from, const char* to);
 #define OPERATOR_SCHEMA(OpName) REGISTER_OP(OpName)
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
 #define REGISTER_OP(OpName) REGISTER_OP_UNIQ_HELPER(__COUNTER__, OpName)
 #define REGISTER_OP_UNIQ_HELPER(Counter, OpName) REGISTER_OP_UNIQ(Counter, OpName)
