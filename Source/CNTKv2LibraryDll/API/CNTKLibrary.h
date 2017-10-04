@@ -1802,6 +1802,7 @@ namespace CNTK
         friend class Trainer;
         friend class PrimitiveFunction;
         friend class Utils;
+        friend class CNTKToONNXHelper;
 
         template <typename T>
         friend struct std::hash;
