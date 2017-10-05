@@ -1,8 +1,8 @@
 // Copyright (c) Facebook Inc. and Microsoft Corporation.
 // Licensed under the MIT license.
 
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
 #include "proto/onnx/core/op.h"
-
 #include <functional>
 
 namespace LotusIR {
@@ -29,32 +29,32 @@ False instead of True.)DOC";
     };
 }
   
-OPERATOR_SCHEMA(ReduceMax)
+REGISTER_OPERATOR_SCHEMA(ReduceMax)
     .NumInputs(1)
     .NumOutputs(1)
     .FillUsing(ReduceDocGenerator("max"));
 
-OPERATOR_SCHEMA(ReduceMin)
+REGISTER_OPERATOR_SCHEMA(ReduceMin)
     .NumInputs(1)
     .NumOutputs(1)
     .FillUsing(ReduceDocGenerator("min"));
 
-OPERATOR_SCHEMA(ReduceSum)
+REGISTER_OPERATOR_SCHEMA(ReduceSum)
     .NumInputs(1)
     .NumOutputs(1)
     .FillUsing(ReduceDocGenerator("sum"));
 
-OPERATOR_SCHEMA(ReduceMean)
+REGISTER_OPERATOR_SCHEMA(ReduceMean)
     .NumInputs(1)
     .NumOutputs(1)
     .FillUsing(ReduceDocGenerator("mean"));
 
-OPERATOR_SCHEMA(ReduceProd)
+REGISTER_OPERATOR_SCHEMA(ReduceProd)
     .NumInputs(1)
     .NumOutputs(1)
     .FillUsing(ReduceDocGenerator("product"));
 
-OPERATOR_SCHEMA(ReduceLogSumExp)
+REGISTER_OPERATOR_SCHEMA(ReduceLogSumExp)
     .NumInputs(1)
     .NumOutputs(1)
     .FillUsing(ReduceDocGenerator("log sum exponent"));
@@ -79,14 +79,15 @@ The type of the output tensor is integer.)DOC";
     };
 }
 
-OPERATOR_SCHEMA(ArgMax)
+REGISTER_OPERATOR_SCHEMA(ArgMax)
     .NumInputs(1)
     .NumOutputs(1)
     .FillUsing(ArgReduceDocGenerator("max"));
 
-OPERATOR_SCHEMA(ArgMin)
+REGISTER_OPERATOR_SCHEMA(ArgMin)
     .NumInputs(1)
     .NumOutputs(1)
     .FillUsing(ArgReduceDocGenerator("min"));
 
 }  // namespace LotusIR
+#endif //#ifdef ONNX_V1_OPSCHEMA_COMPAT

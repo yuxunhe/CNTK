@@ -26,7 +26,7 @@ namespace LotusIR
             static void FromString(const std::string& p_src, TensorProto::DataType& p_type);
             static bool IsValidDataTypeString(const std::string &p_dataType);
         private:
-            static std::unordered_map<std::string, TypeProto> s_typeStrToProtoMap;
+            static std::unordered_map<std::string, TypeProto>& GetTypeStrToProtoMap();
         };
 
         class StringRange

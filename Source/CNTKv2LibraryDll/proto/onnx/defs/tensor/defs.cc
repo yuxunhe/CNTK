@@ -1,11 +1,12 @@
 // Copyright (c) Facebook Inc. and Microsoft Corporation.
 // Licensed under the MIT license.
 
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
 #include "proto/onnx/core/op.h"
 
 namespace LotusIR
 {
-    OPERATOR_SCHEMA(Cast)
+    REGISTER_OPERATOR_SCHEMA(Cast)
         .NumInputs(1)
         .NumOutputs(1)
         .SetDoc(R"DOC(
@@ -30,7 +31,7 @@ NOTE: Casting to and from strings is not supported yet.
             "Output tensor with the same shape as input with type "
             "specified by the 'to' argument");
 
-    OPERATOR_SCHEMA(Reshape)
+    REGISTER_OPERATOR_SCHEMA(Reshape)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -47,7 +48,7 @@ from the shape argument.)DOC")
 .Input(0, "data", "An input tensor.")
 .Output(0, "reshaped", "Reshaped data.");
 
-    OPERATOR_SCHEMA(Concat)
+    REGISTER_OPERATOR_SCHEMA(Concat)
         .NumInputs(1, INT_MAX)
         .NumOutputs(2)
         .Attr("axis",
@@ -56,7 +57,7 @@ from the shape argument.)DOC")
         .SetDoc("Concatenate a list of tensors into a single tensor")
         .Output(0, "concat_result", "Concatenated tensor");
 
-    OPERATOR_SCHEMA(Split)
+    REGISTER_OPERATOR_SCHEMA(Split)
         .NumInputs(1, 2)
         .NumOutputs(1, INT_MAX)
         .Input(0, "input", "The tensor to split")
@@ -73,7 +74,7 @@ optional second input blob to the operator. Otherwise, the tensor is split
 to equal sized parts.
 )DOC");
 
-    OPERATOR_SCHEMA(Slice)
+    REGISTER_OPERATOR_SCHEMA(Slice)
         .NumInputs(1, 3)
         .NumOutputs(1)
         .SetDoc(R"DOC(
@@ -97,7 +98,7 @@ reverse order.
             AttrType::INTS)
         .Output(0, "output", "Sliced data tensor.");
 
-    OPERATOR_SCHEMA(Transpose)
+    REGISTER_OPERATOR_SCHEMA(Transpose)
         .NumInputs(1)
         .NumOutputs(1)
         .SetDoc(R"DOC(
@@ -112,7 +113,7 @@ will be (2, 1, 3).
         .Input(0, "data", "An input tensor.")
         .Output(0, "transposed", "Transposed output.");
 
-    OPERATOR_SCHEMA(Gather)
+    REGISTER_OPERATOR_SCHEMA(Gather)
         .NumInputs(2)
         .NumOutputs(1)
         .SetDoc(R"DOC(
@@ -145,7 +146,7 @@ Example:
 .Input(1, "INDICES", "Tensor of int32/int64 indices, of any rank q.")
 .Output(0, "OUTPUT", "Tensor of rank q + (r - 1).");
 
-    OPERATOR_SCHEMA(Squeeze)
+    REGISTER_OPERATOR_SCHEMA(Squeeze)
         .NumInputs(1)
         .NumOutputs(1)
         .Attr("axes",
@@ -160,3 +161,4 @@ Takes a  parameter `axes` with a list of axes to squeeze.
 .Output(0, "squeezed", "Reshaped tensor with same data as input.");
 
 }
+#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT

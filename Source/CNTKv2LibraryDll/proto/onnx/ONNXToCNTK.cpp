@@ -34,10 +34,11 @@ private:
     static FunctionPtr CreateFunction(const Node *node, const std::vector<Variable> &inputs);
 
     static std::vector<Axis> FromINTSToAxes(const std::vector<int64_t> &ints);
-    static ::LotusIR::TensorShapeProto FromINTS(const std::vector<int64_t> &shape);
-    static NDShape FromTensorShape(const TensorShapeProto& tensorShape);
-    static std::vector<bool> FromTensorShapeAsBool(const TensorShapeProto& tensorShape);
-    static DataType FromONNXType(::LotusIR::TypeProto type);
+    static LotusIR::TypeProto FromINTS(const std::vector<int64_t> &shape);
+    static NDShape FromTypeProto(const LotusIR::TypeProto& tensorShape);
+    static NDShape FromTensorShapeProto(const LotusIR::TypeProto::TensorShapeProto& tensorShape);
+    static std::vector<bool> FromTypeProtoAsBool(const LotusIR::TypeProto& tensorShape);
+    static DataType FromONNXType(LotusIR::TypeProto type);
 
     static std::vector<Axis> GetNamedAttributeAsAxis(const Node *node, const string &attributeName);
     static NDShape GetNamedAttributeAsShape(const Node *node, const string &attributeName, bool hasBatchAxis = false);
@@ -60,19 +61,24 @@ std::vector<Axis> ONNXToCNTKHelper::FromINTSToAxes(const std::vector<int64_t> &i
     return axes;
 }
 
-::LotusIR::TensorShapeProto ONNXToCNTKHelper::FromINTS(const std::vector<int64_t> &shape)
+LotusIR::TypeProto ONNXToCNTKHelper::FromINTS(const std::vector<int64_t> &shape)
 {
-    ::LotusIR::TensorShapeProto newShape;
+    LotusIR::TypeProto newShape;
 
     for (std::vector<int64_t>::const_iterator it = shape.begin(); it != shape.end(); it++)
     {
-        newShape.add_dim()->set_dim_value(*it);
+        newShape.mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(*it);
     }
 
     return newShape;
 }
 
-NDShape ONNXToCNTKHelper::FromTensorShape(const TensorShapeProto& tensorShape)
+NDShape ONNXToCNTKHelper::FromTypeProto(const LotusIR::TypeProto& tensorShape)
+{
+    return FromTensorShapeProto(tensorShape.tensor_type().shape());
+}
+
+NDShape ONNXToCNTKHelper::FromTensorShapeProto(const LotusIR::TypeProto::TensorShapeProto& tensorShape)
 {
     std::vector<size_t> dimensions;
     for (int index = 0; index < tensorShape.dim_size(); index++)
@@ -92,24 +98,24 @@ NDShape ONNXToCNTKHelper::ReverseShape(const NDShape &shape)
     return dimensions;
 }
 
-std::vector<bool> ONNXToCNTKHelper::FromTensorShapeAsBool(const TensorShapeProto& tensorShape)
+std::vector<bool> ONNXToCNTKHelper::FromTypeProtoAsBool(const LotusIR::TypeProto& tensorShape)
 {
     std::vector<bool> dimensions;
-    for (int index = 0; index < tensorShape.dim_size(); index++)
-        dimensions.push_back(tensorShape.dim(index).dim_value() == 0 ? false : true);
+    for (int index = 0; index < tensorShape.tensor_type().shape().dim_size(); index++)
+        dimensions.push_back(tensorShape.tensor_type().shape().dim(index).dim_value() == 0 ? false : true);
 
     // CNTKToONNX ToTensorShape does reverse, need to reverse to restore CNTK shape
     std::reverse(dimensions.begin(), dimensions.end());
     return dimensions;
 }
 
-DataType ONNXToCNTKHelper::FromONNXType(::LotusIR::TypeProto type)
+DataType ONNXToCNTKHelper::FromONNXType(LotusIR::TypeProto type)
 {
-    switch (type.mutable_tensor_type()->elem_type())
+    switch (type.tensor_type().elem_type())
     {
-    case ::LotusIR::TensorProto_DataType_FLOAT:
+    case LotusIR::TensorProto_DataType_FLOAT:
         return DataType::Float;
-    case ::LotusIR::TensorProto_DataType_DOUBLE:
+    case LotusIR::TensorProto_DataType_DOUBLE:
         return DataType::Double;
         break;
     default:
@@ -201,20 +207,17 @@ Constant ONNXToCNTKHelper::CreateConstant(const Node *node, const DeviceDescript
 
 Variable ONNXToCNTKHelper::CreateVariable(const NodeArg *nodeArg)
 {
-    // TODO: how to get the datatype?
-    auto dataType = TensorProto_DataType_FLOAT;
+    auto dataType = FromONNXType(nodeArg->ToProto().type());
+    auto shapeProto = nodeArg->Shape();
 
-    const ::LotusIR::TensorShapeProto shapeProto = nodeArg->Shape();
-
-    NDShape shape = FromTensorShape(shapeProto);
-
+    NDShape shape = FromTensorShapeProto(*shapeProto);
     switch (dataType)
     {
-    case TensorProto_DataType_FLOAT:
+    case DataType::Float:
     {
         return InputVariable(shape, DataType::Float, ToWString(nodeArg->Name()));
     }
-    case TensorProto_DataType_DOUBLE:
+    case DataType::Double:
     {
         return InputVariable(shape, DataType::Double, ToWString(nodeArg->Name()));
     }
@@ -225,20 +228,19 @@ Variable ONNXToCNTKHelper::CreateVariable(const NodeArg *nodeArg)
 
 Variable ONNXToCNTKHelper::CreateVariable(const Node *node)
 {
-    // TODO: how to get the datatype?
-    auto dataType = TensorProto_DataType_FLOAT;
+    LotusIR::NodeArg inputArg = node->OutputDefs()[0];
 
-    ::LotusIR::NodeArg inputArg = node->OutputDefs()[0];
-    const ::LotusIR::TensorShapeProto shapeProto = inputArg.Shape();
-    NDShape shape = FromTensorShape(shapeProto);
+    auto dataType = FromONNXType(inputArg.ToProto().type());
+    auto shapeProto = inputArg.Shape();
+    NDShape shape = FromTensorShapeProto(*shapeProto);
 
     switch (dataType)
     {
-    case TensorProto_DataType_FLOAT:
+    case DataType::Float:
     {
         return InputVariable(shape, DataType::Float, ToWString(node->Name()));
     }
-    case TensorProto_DataType_DOUBLE:
+    case DataType::Double:
     {
         return InputVariable(shape, DataType::Double, ToWString(node->Name()));
     }
@@ -273,7 +275,7 @@ NDShape ONNXToCNTKHelper::GetNamedAttributeAsShape(const Node *node, const strin
     if (hasBatchAxis)
         itBegin++;
     std::vector<int64_t> shape(itBegin, attributeProto.ints().end());
-    return FromTensorShape(FromINTS(shape));
+    return FromTypeProto(FromINTS(shape));
 }
 
 std::vector<bool> ONNXToCNTKHelper::GetNamedAttributeAsShapeBool(const Node *node, const string &attributeName)
@@ -281,7 +283,7 @@ std::vector<bool> ONNXToCNTKHelper::GetNamedAttributeAsShapeBool(const Node *nod
     NodeAttributes::const_iterator itValue = node->GetAttributes().find(attributeName);
     const AttributeProto &attributeProto = itValue->second;
     std::vector<int64_t> shape(attributeProto.ints().begin(), attributeProto.ints().end());
-    return FromTensorShapeAsBool(FromINTS(shape));
+    return FromTypeProtoAsBool(FromINTS(shape));
 }
 
 size_t ONNXToCNTKHelper::GetNamedAttributeAsInt64(const Node *node, const string &attributeName)
@@ -853,7 +855,7 @@ FunctionPtr ONNXToCNTKHelper::CreateCNTKNode(const Node *node, const std::vector
     }
 }
 
-FunctionPtr ONNXToCNTK::CreateGraph(const std::unique_ptr<::LotusIR::Graph>& src, const DeviceDescriptor& computeDevice)
+FunctionPtr ONNXToCNTK::CreateGraph(LotusIR::Graph* src, const DeviceDescriptor& computeDevice)
 {
     FunctionPtr cntkModel;    
     ONNXToCNTKMap constructedFunctions;

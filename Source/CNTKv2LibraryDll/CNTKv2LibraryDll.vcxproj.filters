@@ -43,9 +43,6 @@
     <ClCompile Include="proto\onnx\protobuf\graph.pb.cc.VS_wrapper.cpp">
       <Filter>proto\onnx\protobuf</Filter>
     </ClCompile>
-    <ClCompile Include="proto\onnx\protobuf\TensorShape.pb.cc.VS_wrapper.cpp">
-      <Filter>proto\onnx\protobuf</Filter>
-    </ClCompile>
     <ClCompile Include="proto\onnx\protobuf\Type.pb.cc.VS_wrapper.cpp">
       <Filter>proto\onnx\protobuf</Filter>
     </ClCompile>
@@ -85,10 +82,22 @@
     <ClCompile Include="proto\onnx\defs\nn\defs.cc">
       <Filter>proto\onnx\defs\nn</Filter>
     </ClCompile>
+    <ClCompile Include="proto\onnx\core\constants.cpp">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
     <ClCompile Include="proto\onnx\core\graph.cpp">
       <Filter>proto\onnx\core</Filter>
     </ClCompile>
+    <ClCompile Include="proto\onnx\core\model.cpp">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
     <ClCompile Include="proto\onnx\core\op.cpp">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\opsignature.cpp">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\shape_inference.cpp">
       <Filter>proto\onnx\core</Filter>
     </ClCompile>
     <ClCompile Include="proto\onnx\core\status.cpp">
@@ -138,22 +147,31 @@
     <ClInclude Include="proto\onnx\ONNXToCNTK.h">
       <Filter>proto\onnx</Filter>
     </ClInclude>
+    <ClInclude Include="proto\onnx\Operators.h">
+      <Filter>proto\onnx</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\core\constants.h">
+      <Filter>proto\onnx\core</Filter>
+    </ClInclude>
     <ClInclude Include="proto\onnx\core\graph.h">
       <Filter>proto\onnx\core</Filter>
     </ClInclude>
+    <ClInclude Include="proto\onnx\core\model.h">
+      <Filter>proto\onnx\core</Filter>
+    </ClInclude>
     <ClInclude Include="proto\onnx\core\op.h">
+      <Filter>proto\onnx\core</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\core\opsignature.h">
+      <Filter>proto\onnx\core</Filter>
+    </ClInclude>
+    <ClInclude Include="proto\onnx\core\shape_inference.h">
       <Filter>proto\onnx\core</Filter>
     </ClInclude>
     <ClInclude Include="proto\onnx\core\status.h">
       <Filter>proto\onnx\core</Filter>
     </ClInclude>
     <ClInclude Include="proto\onnx\core\utils.h">
-      <Filter>proto\onnx\core</Filter>
-    </ClInclude>
-    <ClInclude Include="proto\onnx\Operators.h">
-      <Filter>proto\onnx</Filter>
-    </ClInclude>
-    <ClInclude Include="proto\onnx\core\constants.h">
       <Filter>proto\onnx\core</Filter>
     </ClInclude>
   </ItemGroup>
@@ -215,9 +233,6 @@
       <Filter>proto\onnx\protobuf</Filter>
     </Proto>
     <Proto Include="proto\onnx\protobuf\graph.proto">
-      <Filter>proto\onnx\protobuf</Filter>
-    </Proto>
-    <Proto Include="proto\onnx\protobuf\TensorShape.proto">
       <Filter>proto\onnx\protobuf</Filter>
     </Proto>
     <Proto Include="proto\onnx\protobuf\Type.proto">

@@ -1,6 +1,7 @@
 // Copyright (c) Facebook Inc. and Microsoft Corporation.
 // Licensed under the MIT license.
 
+#ifdef ONNX_V1_OPSCHEMA_COMPAT
 #include "proto/onnx/core/op.h"
 
 namespace LotusIR {
@@ -39,7 +40,7 @@ namespace LotusIR {
         };
     }
 
-    OPERATOR_SCHEMA(AveragePool)
+    REGISTER_OPERATOR_SCHEMA(AveragePool)
         .FillUsing(AveragePoolOpSchemaGenerator("AveragePool"));
 
     std::function<void(OpSchema&)> MaxPoolOpSchemaGenerator(const char* name) {
@@ -80,7 +81,7 @@ namespace LotusIR {
         };
     }
 
-    OPERATOR_SCHEMA(MaxPool)
+    REGISTER_OPERATOR_SCHEMA(MaxPool)
         .FillUsing(MaxPoolOpSchemaGenerator("MaxPool"));
 
     std::function<void(OpSchema&)> ConvOpSchemaGenerator(const char* filter_desc) {
@@ -126,7 +127,7 @@ computes the output.)DOC";
         };
     }
 
-    OPERATOR_SCHEMA(Conv)
+    REGISTER_OPERATOR_SCHEMA(Conv)
         .FillUsing(ConvOpSchemaGenerator("a filter"));
 
 
@@ -173,7 +174,7 @@ and computes the output.)DOC";
         };
     }
 
-    OPERATOR_SCHEMA(ConvTranspose)
+    REGISTER_OPERATOR_SCHEMA(ConvTranspose)
         .FillUsing(ConvTransposeOpSchemaGenerator("a filter"));
 
 
@@ -201,12 +202,12 @@ and computes the output.)DOC";
             schema.SetDoc(doc);
         };
     }
-    OPERATOR_SCHEMA(GlobalAveragePool)
+    REGISTER_OPERATOR_SCHEMA(GlobalAveragePool)
         .FillUsing(GlobalPoolingOpSchemaGenerator("AveragePool", "average"));
-    OPERATOR_SCHEMA(GlobalMaxPool)
+    REGISTER_OPERATOR_SCHEMA(GlobalMaxPool)
         .FillUsing(GlobalPoolingOpSchemaGenerator("MaxPool", "max"));
 
-    OPERATOR_SCHEMA(BatchNormalization)
+    REGISTER_OPERATOR_SCHEMA(BatchNormalization)
         .NumInputs(5)
         .NumOutputs({ 1, 5 })
         .EnforceConsumed({ {3, 1}, {4, 2} })
@@ -269,7 +270,7 @@ Output case #2: Y (test mode)
             "Saved variance used during training to speed up "
             "gradient computation. Should not be used for testing.");
 
-    OPERATOR_SCHEMA(Dropout)
+    REGISTER_OPERATOR_SCHEMA(Dropout)
         .NumInputs(1)
         .NumOutputs(2)
         .AllowConsumed({ {0, 0} })
@@ -292,7 +293,7 @@ the training phase, so during testing nothing needs to be done.
         .Output(1, "mask",
             "The output mask. If is_test is nonzero, this output is not filled.");
 
-    OPERATOR_SCHEMA(Flatten)
+    REGISTER_OPERATOR_SCHEMA(Flatten)
         .NumInputs(1)
         .NumOutputs(1)
         .SetDoc(R"DOC(
@@ -307,3 +308,4 @@ unchanged.
     "with first dimension equal first dimension of input, and remaining "
     "input dimensions flatenned into the inner dimension of the output.");
 }
+#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
