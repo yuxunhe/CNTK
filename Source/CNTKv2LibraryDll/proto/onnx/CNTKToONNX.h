@@ -18,6 +18,6 @@ namespace CNTK
     class CNTKToONNX
     {
     public:
-        static std::unique_ptr<LotusIR::Model> CNTKToONNX::CreateModel(const FunctionPtr& src);
+        static std::unique_ptr<LotusIR::Model> CreateModel(const FunctionPtr& src);
     };
 }
