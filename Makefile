@@ -505,13 +505,13 @@ CNTKLIBRARY_COMMON_SRC =\
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/rnn/defs.cc \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/tensor/defs.cc \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/constants.cpp \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/status.cpp \    
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/status.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/utils.cpp \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/opsignature.cpp \    
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/opsignature.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/op.cpp \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/shape_inference.cpp \    
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/shape_inference.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/graph.cpp \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/model.cpp \    
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/model.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/Operators.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/CNTKToONNX.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/ONNXToCNTK.cpp \
