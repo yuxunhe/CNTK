@@ -1,7 +1,6 @@
 // Copyright (c) Facebook Inc. and Microsoft Corporation.
 // Licensed under the MIT license.
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
 #include "proto/onnx/core/op.h"
 
 namespace LotusIR {
@@ -22,4 +21,3 @@ The result is a tensor of type integer in which `0` mean false and `1` mean true
 }
 
 }  // namespace LotusIR
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT

@@ -1,7 +1,6 @@
 // Copyright (c) Facebook Inc. and Microsoft Corporation.
 // Licensed under the MIT license.
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
 #include "proto/onnx/core/op.h"
 
 namespace LotusIR
@@ -161,4 +160,3 @@ Takes a  parameter `axes` with a list of axes to squeeze.
 .Output(0, "squeezed", "Reshaped tensor with same data as input.");
 
 }
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT

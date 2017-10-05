@@ -197,7 +197,6 @@ namespace LotusIR
                     opSchema.m_opSignature.m_typeConstraintMap));
         }
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         auto& opSignature = p_opSchemaSetter.m_opSchema.m_opSignature;
         if (0 == opSignature.m_inputs.size())
         {
@@ -220,7 +219,7 @@ namespace LotusIR
                     OpSignature::FormalParameter(name, "", desc, opSignature.m_typeConstraintMap));
             }
         }
-#endif
+
         OperatorSchemaRegistry::Get()->Register(p_opSchemaSetter.m_opSchema);
     }
 
@@ -338,7 +337,6 @@ namespace LotusIR
         return Status::OK();
     }
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
     size_t ReplaceAll(std::string& s, const char* from, const char* to)
     {
         size_t numReplaced = 0;
@@ -351,7 +349,6 @@ namespace LotusIR
         }
         return numReplaced;
     }
-#endif
 }
 
 #pragma warning(pop)

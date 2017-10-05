@@ -10,10 +10,8 @@
 namespace LotusIR
 {
     class OpSignature;
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
     class OperatorSchemaSetter;
     typedef OperatorSchemaSetter OpSchema;
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
     class TypeUtils
     {
@@ -114,7 +112,6 @@ namespace LotusIR
         OperatorSchemaSetter& SetAttributeParser(
             AttributeParser p_attrParser);
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         enum class SupportType {
             COMMON,
             EXPERIMENTAL,
@@ -196,7 +193,6 @@ namespace LotusIR
         {
             return Description(doc);
         }
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
     private:
 
@@ -248,10 +244,8 @@ namespace LotusIR
         std::unordered_map<std::string, OperatorSchema> m_opNameToOpSchemaMap;
     };
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
     // utility function used by ONNX v1 op registration defs.
     size_t ReplaceAll(std::string& s, const char* from, const char* to);
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
 #define REGISTER_OPERATOR_SCHEMA(OpName) OPERATOR_SCHEMA_UNIQ_HELPER(__COUNTER__, OpName)
 #define OPERATOR_SCHEMA_UNIQ_HELPER(Counter, OpName) OPERATOR_SCHEMA_UNIQ(Counter, OpName)

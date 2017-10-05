@@ -1,7 +1,6 @@
 // Copyright (c) Facebook Inc. and Microsoft Corporation.
 // Licensed under the MIT license.
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
 #include "proto/onnx/core/op.h"
 
 namespace LotusIR {
@@ -308,4 +307,3 @@ unchanged.
     "with first dimension equal first dimension of input, and remaining "
     "input dimensions flatenned into the inner dimension of the output.");
 }
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT

@@ -178,7 +178,6 @@ namespace LotusIR
         // Get type constraint map.
         const TypeConstraintMap& GetTypeConstraintMap() const;
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         // To support ONNX variable input/output compatibility.
         // Min and Max num arguments of last input/output.
         int GetOnnxMinInput() const { return m_onnxMinInput; }
@@ -197,7 +196,6 @@ namespace LotusIR
         {
             return m_onnxNumInputsOutputsAllowed;
         }
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
 
     private:
 
@@ -222,7 +220,6 @@ namespace LotusIR
         // Map from constraint name to DataTypeSet
         TypeConstraintMap m_typeConstraintMap;
 
-#ifdef ONNX_V1_OPSCHEMA_COMPAT
         // To support ONNX variable input/output compatibility.
         // Min and Max num arguments of last input/output.
         int m_onnxMinInput = 0;
@@ -235,7 +232,6 @@ namespace LotusIR
             [](int) { return true; };
         std::function<bool(int, int)> m_onnxNumInputsOutputsAllowed =
             [](int, int) { return true; };
-#endif // #ifdef ONNX_V1_OPSCHEMA_COMPAT
     };
 }
 #endif
