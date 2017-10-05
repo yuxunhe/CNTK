@@ -14,33 +14,19 @@ using namespace LotusIR::Utils;
 namespace LotusIR
 {
     NodeArg::NodeArg(const std::string& p_name,
-        const NodeArgInfo* p_nodeProtoInputOutput)
-        : m_name(p_name)
+        const TypeProto* p_nodeArgType)
     {
-        if (nullptr != p_nodeProtoInputOutput)
+        m_nodeArgInfo.set_name(p_name);
+        if (nullptr != p_nodeArgType)
         {
-            m_nodeArgTypeAndShape = *p_nodeProtoInputOutput;
+            (*m_nodeArgInfo.mutable_type()) = *p_nodeArgType;
+            m_type = OpUtils::ToType(m_nodeArgInfo.type());
         }
-
-        if (m_nodeArgTypeAndShape.has_type())
-        {
-            m_type = OpUtils::ToType(m_nodeArgTypeAndShape.type());
-        }
-    }
-
-    NodeArg::NodeArg(const std::string& p_name,
-        const TypeProto& p_type,
-        const TensorShapeProto& p_shape)
-        : m_name(p_name)
-    {
-        *(m_nodeArgTypeAndShape.mutable_type()) = p_type;
-        *(m_nodeArgTypeAndShape.mutable_shape()) = p_shape;
-        m_type = OpUtils::ToType(p_type);
     }
 
     const std::string& NodeArg::Name() const
     {
-        return m_name;
+        return m_nodeArgInfo.name();
     }
 
     const PTYPE& NodeArg::Type() const
@@ -48,14 +34,59 @@ namespace LotusIR
         return m_type;
     }
 
-    const TensorShapeProto& NodeArg::Shape() const
+    const TypeProto::TensorShapeProto* NodeArg::Shape() const
     {
-        return m_nodeArgTypeAndShape.shape();
+        if (!m_nodeArgInfo.has_type())
+        {
+            return nullptr;
+        }
+
+        auto typeCase = m_nodeArgInfo.type().value_case();
+        switch (typeCase)
+        {
+        case LotusIR::TypeProto::kTensorType:
+            return &(m_nodeArgInfo.type().tensor_type().shape());
+        case LotusIR::TypeProto::kSparseTensorType:
+            return &(m_nodeArgInfo.type().sparse_tensor_type().shape());
+        case LotusIR::TypeProto::kHandleType:
+        case LotusIR::TypeProto::kTupleType:
+        case LotusIR::TypeProto::kSeqType:
+        case LotusIR::TypeProto::kMapType:
+        case LotusIR::TypeProto::VALUE_NOT_SET:
+        default:
+            return nullptr;
+        }
+    }
+
+    void NodeArg::SetShape(const TypeProto::TensorShapeProto& p_shape)
+    {
+        if (!m_nodeArgInfo.has_type())
+        {
+            return;
+        }
+
+        auto typeCase = m_nodeArgInfo.type().value_case();
+        switch (typeCase)
+        {
+        case LotusIR::TypeProto::kTensorType:
+            *(m_nodeArgInfo.mutable_type()->mutable_tensor_type()->mutable_shape()) = p_shape;
+            break;
+        case LotusIR::TypeProto::kSparseTensorType:
+            *(m_nodeArgInfo.mutable_type()->mutable_sparse_tensor_type()->mutable_shape()) = p_shape;
+            break;
+        case LotusIR::TypeProto::kHandleType:
+        case LotusIR::TypeProto::kTupleType:
+        case LotusIR::TypeProto::kSeqType:
+        case LotusIR::TypeProto::kMapType:
+        case LotusIR::TypeProto::VALUE_NOT_SET:
+        default:
+            return;
+        }
     }
 
     const NodeArgInfo& NodeArg::ToProto() const
     {
-        return m_nodeArgTypeAndShape;
+        return m_nodeArgInfo;
     }
 
     void NodeArg::SetType(PTYPE p_type)
@@ -66,8 +97,14 @@ namespace LotusIR
         }
 
         m_type = p_type;
-        *(m_nodeArgTypeAndShape.mutable_type())
+        *(m_nodeArgInfo.mutable_type())
             = OpUtils::ToTypeProto(p_type);
+    }
+
+    void NodeArg::SetType(const TypeProto& p_typeProto)
+    {
+        m_type = OpUtils::ToType(p_typeProto);
+        *(m_nodeArgInfo.mutable_type()) = p_typeProto;
     }
 
     Function::Function(Node* p_node,
@@ -291,8 +328,6 @@ namespace LotusIR
         {
             auto input = p_proto.add_input();
             *input = inputDef.Name();
-            auto inputInfo = p_proto.add_input_arg_info();
-            *inputInfo = inputDef.ToProto();
         }
 
         // Set input arg count.
@@ -308,8 +343,6 @@ namespace LotusIR
         {
             auto output = p_proto.add_output();
             *output = outputDef.Name();
-            auto outputInfo = p_proto.add_output_arg_info();
-            *outputInfo = outputDef.ToProto();
         }
     }
 
@@ -320,12 +353,9 @@ namespace LotusIR
 
         for (int i = 0; i < p_nodeProto.input().size(); ++i)
         {
-            const NodeArgInfo* nodeArgInfo = nullptr;
-            if (p_nodeProto.input_arg_info_size() != 0)
-            {
-                nodeArgInfo = &(p_nodeProto.input_arg_info(i));
-            }
-            m_inputDefs.push_back(NodeArg(p_nodeProto.input(i), nodeArgInfo));
+            // There's no type information carried by <NodeProto>.
+            // Type info should be filled in when resolving a graph.
+            m_inputDefs.push_back(NodeArg(p_nodeProto.input(i), nullptr));
         }
 
         for (auto argCount : p_nodeProto.input_arg_count())
@@ -343,13 +373,9 @@ namespace LotusIR
 
         for (int i = 0; i < p_nodeProto.output().size(); ++i)
         {
-            const NodeArgInfo* nodeArgInfo = nullptr;
-            if (p_nodeProto.output_arg_info_size() != 0)
-            {
-                nodeArgInfo = &(p_nodeProto.output_arg_info(i));
-            }
-
-            m_outputDefs.push_back(NodeArg(p_nodeProto.output(i), nodeArgInfo));
+            // There's no type information carried by <NodeProto>.
+            // Type info should be filled in when resolving a graph.
+            m_outputDefs.push_back(NodeArg(p_nodeProto.output(i), nullptr));
         }
 
         for (auto control_input : p_nodeProto.control_input())
@@ -491,14 +517,14 @@ namespace LotusIR
     ADD_BASIC_ATTR_IMPL(int64_t, i)
     ADD_BASIC_ATTR_IMPL(std::string, s)
     ADD_ATTR_IMPL(TensorProto, t)
-    ADD_ATTR_IMPL(TensorShapeProto, shape)
+    ADD_ATTR_IMPL(TypeProto::TensorShapeProto, shape)
     ADD_ATTR_IMPL(GraphProto, g)
     ADD_ATTR_IMPL(TypeProto, type)
     ADD_LIST_ATTR_IMPL(float, floats)
     ADD_LIST_ATTR_IMPL(int64_t, ints)
     ADD_LIST_ATTR_IMPL(std::string, strings)
     ADD_LIST_ATTR_IMPL(TensorProto, tensors)
-    ADD_LIST_ATTR_IMPL(TensorShapeProto, shapes)
+    ADD_LIST_ATTR_IMPL(TypeProto::TensorShapeProto, shapes)
     ADD_LIST_ATTR_IMPL(GraphProto, graphs)
     ADD_LIST_ATTR_IMPL(TypeProto, types)
 
@@ -550,8 +576,17 @@ namespace LotusIR
         m_graphProtoSyncNeeded(false),
         m_graphResolveNeeded(true)
     {
-        // This is a main graph.
+        // This is a main graph, and strict type checking needed..
         m_graphType |= Type::Main;
+
+        if (m_graphProto.node_size() > 0
+            && m_graphProto.node(0).input_arg_count_size() > 0)
+        {
+            // The condition above now is used to judge
+            // whether 1) node input arg count is specified or not,
+            // to determin whether strict type checking needed or not.
+            m_graphType |= Type::Strict;
+        }
 
         // Copy function definitions to a map.
         for (auto funcDef : p_graphProto.function())
@@ -571,13 +606,6 @@ namespace LotusIR
         {
             AddNode(nodeProto);
         }
-
-        // Detect whether strict type checking needed.
-        // when loading a graph proto.
-        if (0 != p_graphProto.input_arg_info_size())
-        {
-            m_graphType |= Type::Strict;
-        }
     }
 
     Graph::Graph(Node* p_node,
@@ -586,8 +614,7 @@ namespace LotusIR
         m_graphResolveNeeded(true)
     {
         // This is a function (subgraph).
-        m_graphType |= Type::Sub;
-        m_graphType |= Type::Strict;
+        m_graphType |= (Type::Main | Type::Strict);
 
         m_node = p_node;
         m_funcDefProto = p_functionProto;
@@ -599,19 +626,24 @@ namespace LotusIR
         }
     }
 
-    Graph::Graph(const std::string& p_name,
-        GRAPH_VERSION p_irVersion,
-        GRAPH_VERSION p_producerVersion,
-        const std::string& p_producerTag)
+    Graph::Graph(const std::string& p_name)
         : m_graphProtoSyncNeeded(false),
         m_graphResolveNeeded(true)
     {
         m_graphProto.set_name(p_name);
-        m_graphProto.set_ir_version(p_irVersion);
-        m_graphProto.set_producer_version(p_producerVersion);
-        m_graphProto.set_producer_tag(p_producerTag);
-        m_graphType |= Type::Main;
-        m_graphType |= Type::Strict;
+        m_graphType |= (Type::Main | Type::Strict);
+
+        AddSourceSinkNodes();
+    }
+
+    Graph::Graph(const std::string& p_name,
+        const std::string& p_docString)
+        : m_graphProtoSyncNeeded(false),
+        m_graphResolveNeeded(true)
+    {
+        m_graphProto.set_name(p_name);
+        m_graphProto.set_doc_string(p_docString);
+        m_graphType |= (Type::Main | Type::Strict);
 
         AddSourceSinkNodes();
     }
@@ -776,20 +808,20 @@ namespace LotusIR
     }
 
     Status Graph::CheckIsAcyclic(
-        std::vector<NODEINDEX>& p_nodesInToplogicalOrder)
+        std::vector<NODEINDEX>& p_nodesInTopologicalOrder)
     {
         std::unordered_set<NODEINDEX> visitedNodes;
         std::unordered_set<NODEINDEX> ancestorNodes;
         return DepthFirstAccess(ancestorNodes,
             m_sinkNodeIndex,
             visitedNodes,
-            p_nodesInToplogicalOrder);
+            p_nodesInTopologicalOrder);
     }
 
     Status Graph::DepthFirstAccess(std::unordered_set<NODEINDEX> p_ancestors,
         NODEINDEX p_current,
         std::unordered_set<NODEINDEX>& p_visitedNodes,
-        std::vector<NODEINDEX>& p_nodesInToplogicalOrder)
+        std::vector<NODEINDEX>& p_nodesInTopologicalOrder)
     {
         if (p_visitedNodes.end() != p_visitedNodes.find(p_current))
         {
@@ -812,18 +844,25 @@ namespace LotusIR
             RETURN_IF_ERROR(DepthFirstAccess(p_ancestors,
                 (*iter)->Index(),
                 p_visitedNodes,
-                p_nodesInToplogicalOrder));
+                p_nodesInTopologicalOrder));
         }
         p_visitedNodes.insert(p_current);
-        p_nodesInToplogicalOrder.push_back(p_current);
+        p_nodesInTopologicalOrder.push_back(p_current);
 
         return Status::OK();
     }
 
     Status Graph::InferAndVerifyTypeMatch(Node* p_node,
-        const OperatorSchema* p_op,
+        const OpSignature* p_op,
         const std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs)
     {
+        // Get all graph inputs' value info.
+        std::unordered_map<std::string, ValueInfoProto> graphInputs;
+        for (auto& graphInput : m_graphProto.input())
+        {
+            graphInputs[graphInput.name()] = graphInput;
+        }
+
         auto& nodeName = p_node->Name();
 
         // <k> index used to navigate node->InputDefs().
@@ -854,27 +893,36 @@ namespace LotusIR
                     auto initialTensorIter
                         = m_nameToInitialTensor.find(inputDef.Name());
                     if (m_nameToInitialTensor.end()
-                        == initialTensorIter)
-                    {
-                        // This input is fed by callers.
-                        if (!inputDef.m_nodeArgTypeAndShape.has_type())
-                        {
-                            Status status(false,
-                                "Node (" + nodeName + ") input arg ("
-                                + inputDef.Name()
-                                + ") does not have type information.");
-                            return status;
-                        }
-                    }
-                    else
+                        != initialTensorIter)
                     {
                         // This input is fed with default value by initializer.
                         // Infer its type from initializer tensor.
                         TypeProto initialTensorType;
                         initialTensorType.mutable_tensor_type()->set_elem_type(
                             initialTensorIter->second.data_type());
-
                         inputDef.SetType(OpUtils::ToType(initialTensorType));
+                    }
+                    else
+                    {
+                        // This input is fed by callers.
+                        if (!inputDef.m_nodeArgInfo.has_type())
+                        {
+                            // The input node arg does not have type specified.
+                            auto inputIter = graphInputs.find(inputDef.Name());
+                            if (graphInputs.end() != inputIter && inputIter->second.has_type())
+                            {
+                                // Type information appears in graph inputs.
+                                inputDef.SetType(inputIter->second.type());
+                            }
+                            else
+                            {
+                                Status status(false,
+                                    "Node (" + nodeName + ") input arg ("
+                                    + inputDef.Name()
+                                    + ") does not have type information.");
+                                return status;
+                            }
+                        }
                     }
                 }
                 else
@@ -890,7 +938,6 @@ namespace LotusIR
                 // Verify the input arg type complying with operator
                 // definition.
 
-                /*
                 auto iter = opFormalParameter.GetTypes().find(inputDef.Type());
                 if (opFormalParameter.GetTypes().end() == iter)
                 {
@@ -920,11 +967,9 @@ namespace LotusIR
                     typeParameterToTypeMap[opFormalParameter.GetTypeStr()]
                         = inputDef.Type();
                 }
-                */
             }
         }
 
-        /*
         // Infer and verify node output arg type information.
         int i = 0;
         for (auto& outputDef : p_node->Mutable_OutputDefs())
@@ -947,8 +992,8 @@ namespace LotusIR
             if (typeParameterToTypeMap.empty())
             {
                 // There's no input arg.
-
                 // The output should be read from an attribute named c_constantValue.
+
                 auto nodeAttributesIter
                     = p_node->GetAttributes().find(c_constantValue);
                 if (p_node->GetAttributes().end() == nodeAttributesIter)
@@ -981,7 +1026,7 @@ namespace LotusIR
             }
 
             // For case that input arg and output arg have different types.
-            if (outputDef.m_nodeArgTypeAndShape.has_type())
+            if (outputDef.m_nodeArgInfo.has_type())
             {
                 // The output arg has already had type information.
                 // Check whether it matches operator definition.
@@ -1014,17 +1059,16 @@ namespace LotusIR
                 + outputDef.Name() + ") type inference failed");
             return status;
         }
-        */
 
         return Status::OK();
     }
 
     Status Graph::VerifyNodeAndOpMatch(
-        const std::vector<NODEINDEX>& p_nodesInToplogicalOrder,
+        const std::vector<NODEINDEX>& p_nodesInTopologicalOrder,
         std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs,
         /*out*/ std::set<std::string>& p_funcDefNames)
     {
-        for (auto nodeIndex : p_nodesInToplogicalOrder)
+        for (auto nodeIndex : p_nodesInTopologicalOrder)
         {
             if (IsSourceNode(nodeIndex)
                 || IsSinkNode(nodeIndex))
@@ -1035,11 +1079,13 @@ namespace LotusIR
             auto node = GetNode(nodeIndex);
             std::string nodeName = node->Name();
             std::string op_type = node->OpType();
-            const OperatorSchema* op = nullptr;
+            const OperatorSchema* opSchema = nullptr;
             bool success
-                = OperatorSchemaRegistry::Get()->TryGetOp(op_type, &op);
+                = OperatorSchemaRegistry::Get()->TryGetOp(op_type, &opSchema);
             if (success)
             {
+                auto& op = opSchema->GetOpSignature();
+
                 // The node refers to a primitive operator.
                 // Infer and verify node input arg type information.
                 size_t totalArgCount = std::accumulate(node->InputArgCount().begin(),
@@ -1052,9 +1098,9 @@ namespace LotusIR
                     return status;
                 }
 
-                if (totalArgCount > op->GetOnnxMaxInput() ||
-                    totalArgCount < op->GetOnnxMinInput() ||
-                    !op->GetOnnxNumInputsAllowedFunc()(totalArgCount))
+                if (totalArgCount > op.GetOnnxMaxInput() ||
+                    totalArgCount < op.GetOnnxMinInput() ||
+                    !op.GetOnnxNumInputsAllowedFunc()(totalArgCount))
                 {
                     // Number of inputs do not match.
                     Status status(false, "Error: node (" + nodeName
@@ -1065,7 +1111,7 @@ namespace LotusIR
 
                 // Verify size of node arg count is same as input number in
                 // operator definition.
-                if (op->GetInputs().size() != node->InputArgCount().size())
+                if (op.GetInputs().size() != node->InputArgCount().size())
                 {
                     if (0 == (m_graphType & Type::Strict))
                     {
@@ -1082,9 +1128,9 @@ namespace LotusIR
                         inputArgCount.clear();
                         size_t m = 0;
                         auto argCountLeft = totalArgCount;
-                        if (0 < op->GetInputs().size())
+                        if (0 < op.GetInputs().size())
                         {
-                            for (; m < op->GetInputs().size() - 1;++m)
+                            for (; m < op.GetInputs().size() - 1;++m)
                             {
                                 if (argCountLeft > 0)
                                 {
@@ -1116,9 +1162,7 @@ namespace LotusIR
 
                 // Verify node outputs have same size with operator definition.
                 size_t outputCount = node->OutputDefs().size();
-
-
-                if (op->GetOutputs().size() != node->OutputDefs().size())
+                if (op.GetOutputs().size() != node->OutputDefs().size())
                 {
                     // Number of outputs do not match.
                     Status status(false, "Error: node (" + nodeName
@@ -1131,9 +1175,9 @@ namespace LotusIR
                         // TODO: more understanding is still needed about ONNX
                         // on how to distributing the output args to output formal
                         // parameter (same as input?)
-                        if (outputCount > op->GetOnnxMaxOutput() ||
-                            outputCount < op->GetOnnxMinOutput() ||
-                            !op->GetOnnxNumOutputsAllowedFunc()(outputCount))
+                        if (outputCount > op.GetOnnxMaxOutput() ||
+                            outputCount < op.GetOnnxMinOutput() ||
+                            !op.GetOnnxNumOutputsAllowedFunc()(outputCount))
                         {
                             return status;
                         }
@@ -1144,16 +1188,18 @@ namespace LotusIR
                     }
                 }
 
+                /*
                 if (0 != (m_graphType & Type::Strict))
                 {
                     // Strict type checking needed.
 
-                    RETURN_IF_ERROR(InferAndVerifyTypeMatch(node, op, p_outputArgs));
+                    RETURN_IF_ERROR(InferAndVerifyTypeMatch(node, &op, p_outputArgs));
                 }
+                */
 
                 // Attribute verification and fill node attribute with
                 // default value defined in operator definition if needed.
-                auto attrParser = op->GetAttributeParser();
+                auto attrParser = opSchema->GetAttributeParser();
                 if (nullptr != attrParser)
                 {
                     // Attribute parser registered.
@@ -1164,7 +1210,7 @@ namespace LotusIR
                 {
                     // No attribute parser registered.
                     auto nodeAttributes = node->GetAttributes();
-                    for (auto attrDef : op->GetAttributes())
+                    for (auto attrDef : op.GetAttributes())
                     {
                         auto nodeAttrIter = nodeAttributes.find(attrDef.GetName());
                         if (nodeAttributes.end() == nodeAttrIter)
@@ -1172,22 +1218,11 @@ namespace LotusIR
                             const AttributeProto* defaultValue = nullptr;
                             bool hasDefaultValue
                                 = attrDef.HasDefaultValue(&defaultValue);
-                            if (!hasDefaultValue)
+                            if (hasDefaultValue)
                             {
-                                if (0 == (m_graphType & Type::Strict))
-                                {
-                                    // It's ONNX, which does not have default value.
-                                    continue;
-                                }
-
-                                Status status(false,
-                                    "Error: the mandatory attribute ("
-                                    + attrDef.GetName() + ") is not specified in Node ("
-                                    + nodeName + ").");
-                                return status;
+                                // Set default value to the node attributes.
+                                node->AddAttribute(attrDef.GetName(), *defaultValue);
                             }
-
-                            node->AddAttribute(attrDef.GetName(), *defaultValue);
                         }
                         else
                         {
@@ -1261,16 +1296,23 @@ namespace LotusIR
         RETURN_IF_ERROR(VerifyNoDuplicateName(outputArgs, nodeNameToIndex));
         RETURN_IF_ERROR(BuildConnections(outputArgs, nodeNameToIndex));
 
-        std::vector<NODEINDEX> nodesInToplogicalOrder;
-        RETURN_IF_ERROR(CheckIsAcyclic(nodesInToplogicalOrder));
+        RETURN_IF_ERROR(CheckIsAcyclic(m_nodesInTopologicalOrder));
 
-        //std::set<std::string> funcDefNames;
-        //RETURN_IF_ERROR(VerifyNodeAndOpMatch(nodesInToplogicalOrder,
-        //    outputArgs,
-        //    funcDefNames));
-        //CleanFunctionDefMap(funcDefNames);
+        std::set<std::string> funcDefNames;
+        RETURN_IF_ERROR(VerifyNodeAndOpMatch(m_nodesInTopologicalOrder,
+            outputArgs,
+            funcDefNames));
+        CleanFunctionDefMap(funcDefNames);
 
         m_graphResolveNeeded = false;
+        return Status::OK();
+    }
+
+    Status Graph::GetNodesInTopologicalOrder(std::vector<NODEINDEX>** nodes)
+    {
+        RETURN_IF_ERROR(Resolve());
+
+        *nodes = &m_nodesInTopologicalOrder;
         return Status::OK();
     }
 
@@ -1287,36 +1329,6 @@ namespace LotusIR
             "Sink node internally in a graph.",
             emptyArgs,
             emptyArgs)->Index();
-    }
-
-    GRAPH_VERSION Graph::IrVersion() const
-    {
-        return m_graphProto.ir_version();
-    }
-
-    void Graph::SetIrVersion(GRAPH_VERSION p_irVersion)
-    {
-        m_graphProto.set_ir_version(p_irVersion);
-    }
-
-    GRAPH_VERSION Graph::ProducerVersion() const
-    {
-        return m_graphProto.producer_version();
-    }
-
-    void Graph::SetProducerVersion(GRAPH_VERSION p_producerVersion)
-    {
-        m_graphProto.set_producer_version(p_producerVersion);
-    }
-
-    const std::string& Graph::ProducerTag() const
-    {
-        return m_graphProto.producer_tag();
-    }
-
-    void Graph::SetProducerTag(const std::string& p_producerTag)
-    {
-        m_graphProto.set_producer_tag(p_producerTag);
     }
 
     const std::string& Graph::Name() const
@@ -1353,6 +1365,11 @@ namespace LotusIR
         }
         p_value = iter->second;
         return true;
+    }
+
+    const InitialTensorSet& Graph::GetAllInitialTensors() const
+    {
+        return m_nameToInitialTensor;
     }
 
     bool Graph::AddFunctionDef(const FunctionDefProto& p_funcDef)
@@ -1578,6 +1595,8 @@ namespace LotusIR
         // Set graph inputs/outputs.
         SetGraphInputsOutputs();
 
+        // TODO: Set graph value info protos.
+
         m_graphProtoSyncNeeded = false;
 
         return m_graphProto;
@@ -1586,9 +1605,9 @@ namespace LotusIR
     void Graph::SetGraphInputsOutputs()
     {
         m_graphProto.clear_input();
-        m_graphProto.clear_input_arg_info();
+        //m_graphProto.clear_input_arg_info();
         m_graphProto.clear_output();
-        m_graphProto.clear_output_arg_info();
+        //m_graphProto.clear_output_arg_info();
 
         std::unordered_map<std::string, Node::EdgeEnd> allOutputArgs;
         for (auto nodeIter = Nodes_begin();
@@ -1634,9 +1653,7 @@ namespace LotusIR
                     // No such outputArg matching this inputArg.
                     // This input arg should be fed when running evaluation.
                     // it should be a graph input.
-                    *(m_graphProto.mutable_input()->Add()) = inputArg.Name();
-                    *(m_graphProto.mutable_input_arg_info()->Add()) = inputArg.ToProto();
-
+                    *(m_graphProto.mutable_input()->Add()) = inputArg.ToProto();
                     continue;
                 }
 
@@ -1649,9 +1666,7 @@ namespace LotusIR
         // Set graph outputs.
         for (auto& outputArg : graphOutputArgs)
         {
-            *(m_graphProto.mutable_output()->Add()) = outputArg.first;
-            *(m_graphProto.mutable_output_arg_info()->Add())
-                = outputArg.second.GetNodeArg()->ToProto();
+            *(m_graphProto.mutable_output()->Add()) = outputArg.second.GetNodeArg()->ToProto();
         }
     }
 
@@ -1707,56 +1722,6 @@ namespace LotusIR
         m_numOfNodes--;
         m_graphProtoSyncNeeded = true;
         m_graphResolveNeeded = true;
-    }
-
-    bool Graph::Save(const GraphProto& p_graphProto, const std::wstring& p_filePath)
-    {
-        std::fstream outputFileStream(p_filePath, std::ios::out | std::ios::binary);
-        bool result = p_graphProto.SerializeToOstream(&outputFileStream);
-        outputFileStream.close();
-        return result;
-    }
-
-    bool Graph::Save(Graph& p_graph, const std::wstring& p_filePath)
-    {
-        GraphProto graphProto = p_graph.ToGraphProto();
-        return Save(graphProto, p_filePath);
-    }
-
-    bool Graph::Load(const std::wstring& p_filePath, /*out*/ GraphProto* p_graphProto)
-    {
-        if (nullptr == p_graphProto)
-        {
-            return false;
-        }
-
-        std::fstream inputFileStream(p_filePath, std::ios::in | std::ios::binary);
-        if (!inputFileStream)
-        {
-            return false;
-        }
-
-        bool result = p_graphProto->ParsePartialFromIstream(&inputFileStream);
-        inputFileStream.close();
-
-        return result;
-    }
-
-    std::shared_ptr<Graph> Graph::Load(const std::wstring& p_filePath)
-    {
-        GraphProto graphProto;
-        bool result = Load(p_filePath, &graphProto);
-        if (!result)
-        {
-            return nullptr;
-        }
-        auto graph = std::shared_ptr<Graph>(new Graph(graphProto));
-        auto status = graph->Resolve();
-        if (status.Ok())
-        {
-            return graph;
-        }
-        return nullptr;
     }
 }
 

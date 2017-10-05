@@ -5,6 +5,7 @@
 
 #include "ONNX.h"
 #include "CNTKToONNX.h"
+#include "proto/onnx/core/model.h"
 #include "proto/onnx/core/graph.h"
 #include "Utils.h"
 
@@ -43,28 +44,25 @@ namespace CNTK
 
 void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
-    PrintGraph(src, 0, true);
-    PrintGraph(src, 0, false);
-    std::unique_ptr<::LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
-
-    ::LotusIR::Graph::Save(graph->ToGraphProto(), filepath);
+    auto model = CNTKToONNX::CreateModel(src);
+    LotusIR::Model::Save(*model, filepath);
 }
 
 FunctionPtr ONNX::Load(const std::wstring& filepath, const DeviceDescriptor& computeDevice)
 {
-    ::LotusIR::GraphProto grapu;
-    bool loadStatus = ::LotusIR::Graph::Load(filepath, &grapu);
+    LotusIR::ModelProto modelProto;
+    bool loadStatus = LotusIR::Model::Load(filepath, &modelProto);
     if (!loadStatus)
     {
         return nullptr;
     }
 
-    std::unique_ptr<::LotusIR::Graph> graph(new ::LotusIR::Graph(grapu));
-    graph->Resolve();
+    LotusIR::Model model(modelProto);
+    auto status = model.MainGraph()->Resolve();
+    if (!status.Ok())
+        LogicError("%s", status.ErrorMsg().c_str());
 
-    FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph, computeDevice);
-    
+    FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(model.MainGraph(), computeDevice);    
     PrintGraph(cntkFunction->RootFunction(), 0, false);
-
     return cntkFunction;
 }

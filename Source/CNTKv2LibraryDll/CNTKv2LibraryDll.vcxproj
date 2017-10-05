@@ -175,7 +175,10 @@
     <ClInclude Include="proto\onnx\CNTKToONNX.h" />
     <ClInclude Include="proto\onnx\core\constants.h" />
     <ClInclude Include="proto\onnx\core\graph.h" />
+    <ClInclude Include="proto\onnx\core\model.h" />
     <ClInclude Include="proto\onnx\core\op.h" />
+    <ClInclude Include="proto\onnx\core\opsignature.h" />
+    <ClInclude Include="proto\onnx\core\shape_inference.h" />
     <ClInclude Include="proto\onnx\core\status.h" />
     <ClInclude Include="proto\onnx\core\utils.h" />
     <ClInclude Include="proto\onnx\ONNX.h" />
@@ -213,8 +216,12 @@
     <ClCompile Include="PrimitiveFunction.cpp" />
     <ClCompile Include="proto\CNTK.pb.cc.VS_wrapper.cpp" />
     <ClCompile Include="proto\onnx\CNTKToONNX.cpp" />
+    <ClCompile Include="proto\onnx\core\constants.cpp" />
     <ClCompile Include="proto\onnx\core\graph.cpp" />
+    <ClCompile Include="proto\onnx\core\model.cpp" />
     <ClCompile Include="proto\onnx\core\op.cpp" />
+    <ClCompile Include="proto\onnx\core\opsignature.cpp" />
+    <ClCompile Include="proto\onnx\core\shape_inference.cpp" />
     <ClCompile Include="proto\onnx\core\status.cpp" />
     <ClCompile Include="proto\onnx\core\utils.cpp" />
     <ClCompile Include="proto\onnx\defs\experiments\defs.cc" />
@@ -230,7 +237,6 @@
     <ClCompile Include="proto\onnx\Operators.cpp" />
     <ClCompile Include="proto\onnx\protobuf\Data.pb.cc.VS_wrapper.cpp" />
     <ClCompile Include="proto\onnx\protobuf\graph.pb.cc.VS_wrapper.cpp" />
-    <ClCompile Include="proto\onnx\protobuf\TensorShape.pb.cc.VS_wrapper.cpp" />
     <ClCompile Include="proto\onnx\protobuf\Type.pb.cc.VS_wrapper.cpp" />
     <ClCompile Include="Serialization.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -251,7 +257,6 @@
     <Proto Include="proto\CNTK.proto" />
     <Proto Include="proto\onnx\protobuf\Data.proto" />
     <Proto Include="proto\onnx\protobuf\graph.proto" />
-    <Proto Include="proto\onnx\protobuf\TensorShape.proto" />
     <Proto Include="proto\onnx\protobuf\Type.proto" />
     <Proto Include="tensorboard\tensorboard.proto" />
   </ItemGroup>

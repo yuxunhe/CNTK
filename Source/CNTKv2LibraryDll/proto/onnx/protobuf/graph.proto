@@ -4,7 +4,6 @@ package LotusIR;
 
 import "Data.proto";
 import "Type.proto";
-import "TensorShape.proto";
 
 // Note [Protobuf compatibility]
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -34,43 +33,67 @@ import "TensorShape.proto";
 // of "namespace {Node,Graph,OperatorOrFunction,Attribute,Value,Shape}". Framework is
 // responsible for supporting the namespaces.
 
-// Defines argument information set, except argument name.
-// The argument could be an input or an output of a graph, node or function.
-message ArgInfoProto {
-  // This field MUST be present this version of the IR.  
-    optional TypeProto type = 1;
-  // This field MUST only be present if the type field is not a TensorTypeProto
-    optional TensorShapeProto shape = 2;
+
+// Defines information on value, including the name, the type, and
+// the shape of the value.
+message ValueInfoProto {
+  // This field MUST be present in this version of the IR.  
+  optional string name = 1;     // namespace Value
+  // This field MUST be present in this version of the IR.  
+  optional TypeProto type = 2;
 }
+
+
+// ModelProto is a top-level file/container format for bundling a ML model.
+// The semantics of the model are described by the GraphProto that represents
+// a parameterized computation graph against a set of named operators that are 
+// defined independently from the graph. 
+message ModelProto {
+  // The version of the IR this model targets. See Version enum above.
+  // This field MUST be present. 
+  optional int64 ir_version = 1;  
+
+  // The name of the framework or tool used to generate this model.
+  // This field SHOULD be present to indicate which implementation/tool/framework 
+  // emitted the model. 
+  optional string producer_name = 2;
+
+  // The version of the framework or tool used to generate this model.
+  // This field SHOULD be present to indicate which implementation/tool/framework 
+  // emitted the model. 
+  optional string producer_version = 3;
+
+  // Domain name of the model.
+  // We use reverse domain names as name space indicators. For example:
+  // `com.facebook.fair` or `com.microsoft.cognitiveservices`
+  //
+  // Together with `model_version` and GraphProto.name, this forms the unique identity of
+  // the graph.
+  optional string domain = 4;
+
+  // The version of the graph encoded. See Version enum below.
+  optional int64 model_version = 5;
+
+  // A human-readable documentation for this model. Markdown is allowed.
+  optional string doc_string = 6;
+  
+  // The parameterized graph that is evaluated to execute the model.
+  optional GraphProto graph = 7; 
+
+  // NOTE: ids between 8 and 49 are reserved for more ONNX fields.
+  
+  // The optional name of the author who created the graph.
+  optional string model_author = 50;
+
+  // Optional licensing information concerning use or origination of the graph.
+  // This text MAY contain Markdown markup that conforms to http://commonmark.org/. 
+  optional string model_license = 51;
+};
 
 // Defines a directed acyclic computation graph.
 // All the input/output tensors are explicitly named so a framework can
 // run any subgraph of the graph by feeding and fetching the named tensors.
 message GraphProto {
-//BUG:13806896,onnx: 
-//          Format/protocol design 101. We need to put the version info
-//          at the front of the format.  In the current layout, one has to 
-//          parse past the entire graph + all initial tensor values prior
-//          to knowing (a) if the IR_VERSION is supported and (b) whether
-//          to quirk based on the producer_version/producer_tag.
-//          The best layout would be:
-//
-//      ir_version
-//      producer_version
-//      producer_tag
-//      model_version
-//      model_author
-//      model_license
-//      model_information
-//      name
-//      attributes
-//      namespace
-//      doc_string (can go anywhere before node and initializer)
-//      input
-//      output
-//      node
-//      initializer
-//
 
   // The nodes in the graph.
   repeated NodeProto node = 1;
@@ -78,11 +101,13 @@ message GraphProto {
   // The name of the graph.
   optional string name = 2;   // namespace Graph
 
-  // The inputs and outputs of the graph. The list input must be input names
-  // of some nodes in the graph. The list output must be output names of some
-  // nodes in the graph. For names in input, their types and shapes are required.
-  repeated string input = 3;  // namespace Value
-  repeated string output = 4; // namespace Value
+  // DO NOT USE the following fields which were deprecated.
+  // repeated string input = 3;  // namespace Tensor
+  // repeated string output = 4; // namespace Tensor
+  // optional int64 ir_version = 6;
+  // optional int64 producer_version = 7;
+  // optional string producer_tag = 8;
+  // optional string domain = 9;
 
   // A list of named tensor values (constants), used to specify default
   // values for some of the inputs of the graph.
@@ -92,61 +117,25 @@ message GraphProto {
   // user specifies no value for the corresponding input parameter.
   // May be used to pass serialized parameters for networks.
   repeated TensorProto initializer = 5;
-
-  // The version of the IR this graph targets. See Version enum below.
-  // This field MUST be present this version of the IR.  
-  optional int64 ir_version = 6;
-
-  // The optional version of the framework runtime that generates this graph.
-  // This producer_version has the same format as ir_version. 
-  optional int64 producer_version = 7;
-
-  // The optional name of the framework used to generate this graph in the form
-  // "framework_name[-tag]". Tag is optional and provides additional
-  // information such as `alpha` or `beta` or `rc3`.
-  optional string producer_tag = 8;
-
-  // Domain of the graph.
-  // We use reverse domain names as name space indicators. For example:
-  // `com.facebook.fair` or `com.microsoft.cognitiveservices`
-  //
-  // Together with `name` and `model_version`, this forms the unique identity of
-  // the graph.
-  optional string domain = 9;
-
-  // An optional human-readable documentation for this graph.
-  // This text MAY contain Markdown markup that conforms to http://commonmark.org/. 
+  
+  // A human-readable documentation for this graph. Markdown is allowed.
   optional string doc_string = 10;
+  
+  // The inputs and outputs of the graph.
+  repeated ValueInfoProto input = 11;
+  repeated ValueInfoProto output = 12;
+
+  // Information for the values in the graph. The ValueInfoProto.name's
+  // must be distinct. It is optional for a value to appear in value_info list.
+  repeated ValueInfoProto value_info = 13;
 
   // The function definitions of the graph. They can only only be used
   // (i.e., called) in this graph.
   // Each FunctionDefProto in function MUST have a unique name. 
-  repeated FunctionDefProto function = 11;
+  repeated FunctionDefProto function = 50;
 
   // The externally defined operators declared by this graph. 
-  repeated OperatorDeclProto operator = 17;
-    
-    
-  // Argument information for input/output of this graph.
-  // Each ArgInfoProto corresponds one-to-one by position with the 
-  // input or output tensor of the graph.
-  // The number of elements in input_arg_info MUST match the number 
-  // of elements in the input field.
-  // The number of elements in output_arg_info MUST match the number 
-  // of elements in the output field.
-  repeated ArgInfoProto input_arg_info = 12;
-  repeated ArgInfoProto output_arg_info = 13;
-
-  // An optional version identifier used to track evolution of this graph.
-  // This model_version has the same format as ir_version. 
-  optional int64 model_version = 14;
-
-  // The optional name of the author who created the graph.
-  optional string model_author = 15;
-
-  // Optional licensing information concerning use or origination of the graph.
-  // This text MAY contain Markdown markup that conforms to http://commonmark.org/. 
-  optional string model_license = 16;
+  repeated OperatorDeclProto operator = 51;
 
   // TODO: When the map type is added, provide for the "model_information"
   // field which holds name/value pairs of strings with additional devops
@@ -156,7 +145,7 @@ message GraphProto {
   // Imported libraries are referenced as a collection of strings in the form of absolute
   // URIs or relative paths. Where such relative paths are rooted is defined by tools and
   // runtime implementations.
-  repeated string imported_libraries = 18;  
+  repeated string imported_libraries = 52;  
   
   reserved 100 to 200; // for future extensions.
 }
@@ -217,11 +206,9 @@ message NodeProto {
   // This text MAY contain Markdown markup that conforms to http://commonmark.org/. 
   optional string doc_string = 6;
 
-  // Information including type and shape for each input and output
-  // argument of the operator/function called by the node.
-  //ISSUE:13806939,dbox: Mail thread pending on type inferencing model. 
-  repeated ArgInfoProto input_arg_info = 7;
-  repeated ArgInfoProto output_arg_info = 8;
+  // Following fields were deprecated.
+  // repeated ArgInfoProto input_arg_info = 7;
+  // repeated ArgInfoProto output_arg_info = 8;
 
   // The number of inputs for each argument of the operator/function.
   // A formal parameter of the op may take a variable number of inputs
@@ -231,18 +218,18 @@ message NodeProto {
   //          the graph to figure out the input counts, yes? COnfirm and I'll
   //          make clear.  Otherwise, we need to require it to be present
   //          and accurate.
-  repeated int32 input_arg_count = 9;
+  repeated int32 input_arg_count = 50;
 
   // Specify a list of named nodes that must be executed before this node.
   // Framework may use this to give users the ability to impose additional
   // execution orders for the operations.
-  repeated string control_input = 10;
+  repeated string control_input = 51;
 }
 
 message ParameterDeclProto {
   optional string name = 1;
   optional TypeProto type = 2;
-  optional TensorShapeProto shape = 3;
+  optional TypeProto.TensorShapeProto shape = 3;
 // An optional human-readable documentation for this parameter.
   optional string doc_string = 4;
 };
@@ -317,8 +304,8 @@ message AttributeProto {
   repeated TypeProto types = 13;
   //ISSUE:13807134,dbox: Do we ever see shape showing up as an attribute value?
   //            If so, won't it always be accompanied by a TypeProto?
-  optional TensorShapeProto shape = 14;
-  repeated TensorShapeProto shapes = 15;
+  optional TypeProto.TensorShapeProto shape = 14;
+  repeated TypeProto.TensorShapeProto shapes = 15;
 }
 
 

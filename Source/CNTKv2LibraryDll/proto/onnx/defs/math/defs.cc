@@ -2,7 +2,6 @@
 // Licensed under the MIT license.
 
 #include "proto/onnx/core/op.h"
-
 #include <functional>
 
 using AttrType = LotusIR::AttrType;
@@ -55,31 +54,31 @@ Performs element-wise binary {name} (with limited broadcast support).
         };
     }
 
-    OPERATOR_SCHEMA(Add)
+    REGISTER_OPERATOR_SCHEMA(Add)
         .NumInputs(2)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0}, {1, 0} })
         .FillUsing(MathDocGenerator("addition"));
 
-    OPERATOR_SCHEMA(Sub)
+    REGISTER_OPERATOR_SCHEMA(Sub)
         .NumInputs(2)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0}, {1, 0} })
         .FillUsing(MathDocGenerator("subtraction"));
 
-    OPERATOR_SCHEMA(Mul)
+    REGISTER_OPERATOR_SCHEMA(Mul)
         .NumInputs(2)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0}, {1, 0} })
         .FillUsing(MathDocGenerator("multiplication"));
 
-    OPERATOR_SCHEMA(Div)
+    REGISTER_OPERATOR_SCHEMA(Div)
         .NumInputs(2)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0}, {1, 0} })
         .FillUsing(MathDocGenerator("division"));
 
-    OPERATOR_SCHEMA(Neg)
+    REGISTER_OPERATOR_SCHEMA(Neg)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -91,7 +90,7 @@ the tensor elementwise.
 .Input(0, "X", "Input tensor")
 .Output(0, "Y", "Output tensor");
 
-    OPERATOR_SCHEMA(Abs)
+    REGISTER_OPERATOR_SCHEMA(Abs)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -103,7 +102,7 @@ the tensor elementwise.
 .Input(0, "X", "Input tensor")
 .Output(0, "Y", "Output tensor");
 
-    OPERATOR_SCHEMA(Reciprocal)
+    REGISTER_OPERATOR_SCHEMA(Reciprocal)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -115,7 +114,7 @@ the tensor elementwise.
 .Input(0, "X", "Input tensor")
 .Output(0, "Y", "Output tensor");
 
-    OPERATOR_SCHEMA(Floor)
+    REGISTER_OPERATOR_SCHEMA(Floor)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -127,7 +126,7 @@ the tensor elementwise.
 .Input(0, "X", "Input tensor")
 .Output(0, "Y", "Output tensor");
 
-    OPERATOR_SCHEMA(Ceil)
+    REGISTER_OPERATOR_SCHEMA(Ceil)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -139,7 +138,7 @@ the tensor elementwise.
 .Input(0, "X", "Input tensor")
 .Output(0, "Y", "Output tensor");
 
-    OPERATOR_SCHEMA(Sqrt)
+    REGISTER_OPERATOR_SCHEMA(Sqrt)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -151,7 +150,7 @@ the tensor elementwise. If x is negative, then it will return NaN.
 .Input(0, "X", "Input tensor")
 .Output(0, "Y", "Output tensor");
 
-    OPERATOR_SCHEMA(Relu)
+    REGISTER_OPERATOR_SCHEMA(Relu)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -163,7 +162,7 @@ the tensor elementwise.
 .Input(0, "X", "Input tensor")
 .Output(0, "Y", "Output tensor");
 
-    OPERATOR_SCHEMA(LeakyRelu)
+    REGISTER_OPERATOR_SCHEMA(LeakyRelu)
         .NumInputs(1)
         .NumOutputs(1)
         .Attr("alpha",
@@ -178,7 +177,7 @@ output data (Tensor<T>) where the function `f(x) = alpha * x for x < 0`,
 .Input(0, "X", "Input tensor")
 .Output(0, "Y", "Output tensor");
 
-    OPERATOR_SCHEMA(Selu)
+    REGISTER_OPERATOR_SCHEMA(Selu)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -197,7 +196,7 @@ is applied to the tensor elementwise.
 .Input(0, "X", "Input tensor")
 .Output(0, "Y", "Output tensor");
 
-    OPERATOR_SCHEMA(Elu)
+    REGISTER_OPERATOR_SCHEMA(Elu)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -211,7 +210,7 @@ Elu takes one input data (Tensor<T>) and produces one output data
 .Input(0, "X", "1D input tensor")
 .Output(0, "Y", "1D input tensor");
 
-    OPERATOR_SCHEMA(Exp)
+    REGISTER_OPERATOR_SCHEMA(Exp)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -227,7 +226,7 @@ and output blobs.
     "The exponential of the input tensor computed "
     "element-wise");
 
-    OPERATOR_SCHEMA(Log)
+    REGISTER_OPERATOR_SCHEMA(Log)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -243,7 +242,7 @@ and output blobs.
     "The natural log of the input tensor computed "
     "element-wise");
 
-    OPERATOR_SCHEMA(Tanh)
+    REGISTER_OPERATOR_SCHEMA(Tanh)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -256,7 +255,7 @@ and output blobs.
 .Output(0, "output", "The hyperbolic tangent values of the input tensor "
     "computed element-wise");
 
-    OPERATOR_SCHEMA(Pow)
+    REGISTER_OPERATOR_SCHEMA(Pow)
         .NumInputs(1)
         .NumOutputs(1)
         .Attr("exponent",
@@ -271,7 +270,7 @@ is applied to the data tensor elementwise.
 .Input(0, "X", "Input tensor of any shape")
 .Output(0, "Y", "Output tensor (same size as X)");
 
-    OPERATOR_SCHEMA(Dot)
+    REGISTER_OPERATOR_SCHEMA(Dot)
         .NumInputs(2)
         .NumOutputs(1)
         .SetDoc(R"DOC(
@@ -282,7 +281,7 @@ https://docs.scipy.org/doc/numpy/reference/generated/numpy.dot.html
 .Input(1, "Y", "Input tensor of any shape")
 .Output(0, "Z", "Output tensor the dot product between X and Y.");
 
-    OPERATOR_SCHEMA(PRelu)
+    REGISTER_OPERATOR_SCHEMA(PRelu)
         .NumInputs(2)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -301,7 +300,7 @@ output data (Tensor<T>) where the function `f(x) = slope * x for x < 0`,
     "across different channels")
         .Output(0, "Y", "Input tensor");
 
-    OPERATOR_SCHEMA(Sigmoid)
+    REGISTER_OPERATOR_SCHEMA(Sigmoid)
         .NumInputs(1)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -313,7 +312,7 @@ tensor elementwise.
 .Input(0, "X", "Input tensor")
 .Output(0, "Y", "Output tensor");
 
-    OPERATOR_SCHEMA(Max)
+    REGISTER_OPERATOR_SCHEMA(Max)
         .NumInputs(1, INT_MAX)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -326,7 +325,7 @@ have the same shape and data type.
 .Input(0, "data_0", "First of the input tensors. Can be inplace.")
 .Output(0, "max", "Output tensor. Same dimension as inputs.");
 
-    OPERATOR_SCHEMA(Min)
+    REGISTER_OPERATOR_SCHEMA(Min)
         .NumInputs(1, INT_MAX)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -339,7 +338,7 @@ have the same shape and data type.
 .Input(0, "data_0", "First of the input tensors. Can be inplace.")
 .Output(0, "max", "Output tensor. Same dimension as inputs.");
 
-    OPERATOR_SCHEMA(Sum)
+    REGISTER_OPERATOR_SCHEMA(Sum)
         .NumInputs(1, INT_MAX)
         .NumOutputs(1)
         .AllowConsumed({ {0, 0} })
@@ -352,7 +351,7 @@ have the same shape and data type.
 .Input(0, "data_0", "First of the input tensors. Can be inplace.")
 .Output(0, "sum", "Output tensor. Same dimension as inputs.");
 
-    OPERATOR_SCHEMA(Softmax)
+    REGISTER_OPERATOR_SCHEMA(Softmax)
         .NumInputs(1)
         .NumOutputs(1)
         .SetDoc(R"DOC(

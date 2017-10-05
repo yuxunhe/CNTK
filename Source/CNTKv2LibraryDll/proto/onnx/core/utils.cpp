@@ -6,27 +6,31 @@
 #include <iostream>
 #include <sstream>
 
+#include "constants.h"
 #include "proto/onnx/protobuf/Data.pb.h"
 #include "proto/onnx/protobuf/graph.pb.h"
 #include "proto/onnx/protobuf/Type.pb.h"
-#include "constants.h"
 #include "utils.h"
-
 
 namespace LotusIR
 {
     namespace Utils
     {
-        std::unordered_map<std::string, TypeProto> OpUtils::s_typeStrToProtoMap;
+        std::unordered_map<std::string, TypeProto>& OpUtils::GetTypeStrToProtoMap()
+        {
+            static std::unordered_map<std::string, TypeProto>* typeStrToProtoMap =
+                new std::unordered_map<std::string, TypeProto>();
+            return *typeStrToProtoMap;
+        }
 
         PTYPE OpUtils::ToType(const TypeProto& p_type)
         {
             auto typeStr = ToString(p_type);
-            if (s_typeStrToProtoMap.find(typeStr) == s_typeStrToProtoMap.end())
+            if (GetTypeStrToProtoMap().find(typeStr) == GetTypeStrToProtoMap().end())
             {
-                s_typeStrToProtoMap[typeStr] = p_type;
+                GetTypeStrToProtoMap()[typeStr] = p_type;
             }
-            return &(s_typeStrToProtoMap.find(typeStr)->first);
+            return &(GetTypeStrToProtoMap().find(typeStr)->first);
         }
 
         PTYPE OpUtils::ToType(const std::string& p_type)
@@ -38,8 +42,8 @@ namespace LotusIR
 
         const TypeProto& OpUtils::ToTypeProto(const PTYPE& p_type)
         {
-            auto it = s_typeStrToProtoMap.find(*p_type);
-            if (it != s_typeStrToProtoMap.end())
+            auto it = GetTypeStrToProtoMap().find(*p_type);
+            if (it != GetTypeStrToProtoMap().end())
             {
                 return it->second;
             }
@@ -87,38 +91,39 @@ namespace LotusIR
 
         std::string OpUtils::ToString(const TensorProto::DataType& p_type)
         {
+            TypesWrapper& t = TypesWrapper::GetTypesWrapper();
             switch (p_type)
             {
             case TensorProto::DataType::TensorProto_DataType_BOOL:
-                return c_bool;
+                return t.c_bool;
             case TensorProto::DataType::TensorProto_DataType_STRING:
-                return c_string;
+                return t.c_string;
             case TensorProto::DataType::TensorProto_DataType_FLOAT16:
-                return c_float16;
+                return t.c_float16;
             case TensorProto::DataType::TensorProto_DataType_FLOAT:
-                return c_float;
+                return t.c_float;
             case TensorProto::DataType::TensorProto_DataType_DOUBLE:
-                return c_double;
+                return t.c_double;
             case TensorProto::DataType::TensorProto_DataType_INT8:
-                return c_int8;
+                return t.c_int8;
             case TensorProto::DataType::TensorProto_DataType_INT16:
-                return c_int16;
+                return t.c_int16;
             case TensorProto::DataType::TensorProto_DataType_INT32:
-                return c_int32;
+                return t.c_int32;
             case TensorProto::DataType::TensorProto_DataType_INT64:
-                return c_int64;
+                return t.c_int64;
             case TensorProto::DataType::TensorProto_DataType_UINT8:
-                return c_uint8;
+                return t.c_uint8;
             case TensorProto::DataType::TensorProto_DataType_UINT16:
-                return c_uint16;
+                return t.c_uint16;
             case TensorProto::DataType::TensorProto_DataType_UINT32:
-                return c_uint32;
+                return t.c_uint32;
             case TensorProto::DataType::TensorProto_DataType_UINT64:
-                return c_uint64;
+                return t.c_uint64;
             case TensorProto::DataType::TensorProto_DataType_COMPLEX64:
-                return c_complex64;
+                return t.c_complex64;
             case TensorProto::DataType::TensorProto_DataType_COMPLEX128:
-                return c_complex128;
+                return t.c_complex128;
             }
 
             throw std::invalid_argument("Unknown DataType");
@@ -186,7 +191,8 @@ namespace LotusIR
 
         bool OpUtils::IsValidDataTypeString(const std::string& p_dataType)
         {
-            return (s_allowedDataTypes.find(p_dataType) != s_allowedDataTypes.end());
+            TypesWrapper& t = TypesWrapper::GetTypesWrapper();
+            return (t.GetAllowedDataTypes().find(p_dataType) != t.GetAllowedDataTypes().end());
         }
 
         void OpUtils::FromString(const std::string& p_typeStr, TensorProto::DataType& p_type)
@@ -196,63 +202,64 @@ namespace LotusIR
                 throw std::invalid_argument("Unknown DataType: " + p_typeStr);
             }
 
-            if (p_typeStr == c_bool)
+            TypesWrapper& t = TypesWrapper::GetTypesWrapper();
+            if (p_typeStr == t.c_bool)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_BOOL;
             }
-            else if (p_typeStr == c_float)
+            else if (p_typeStr == t.c_float)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_FLOAT;
             }
-            else if (p_typeStr == c_float16)
+            else if (p_typeStr == t.c_float16)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_FLOAT16;
             }
-            else if (p_typeStr == c_double)
+            else if (p_typeStr == t.c_double)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_DOUBLE;
             }
-            else if (p_typeStr == c_int8)
+            else if (p_typeStr == t.c_int8)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_INT8;
             }
-            else if (p_typeStr == c_int16)
+            else if (p_typeStr == t.c_int16)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_INT16;
             }
-            else if (p_typeStr == c_int32)
+            else if (p_typeStr == t.c_int32)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_INT32;
             }
-            else if (p_typeStr == c_int64)
+            else if (p_typeStr == t.c_int64)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_INT64;
             }
-            else if (p_typeStr == c_string)
+            else if (p_typeStr == t.c_string)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_STRING;
             }
-            else if (p_typeStr == c_uint8)
+            else if (p_typeStr == t.c_uint8)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_UINT8;
             }
-            else if (p_typeStr == c_uint16)
+            else if (p_typeStr == t.c_uint16)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_UINT16;
             }
-            else if (p_typeStr == c_uint32)
+            else if (p_typeStr == t.c_uint32)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_UINT32;
             }
-            else if (p_typeStr == c_uint64)
+            else if (p_typeStr == t.c_uint64)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_UINT64;
             }
-            else if (p_typeStr == c_complex64)
+            else if (p_typeStr == t.c_complex64)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_COMPLEX64;
             }
-            else if (p_typeStr == c_complex128)
+            else if (p_typeStr == t.c_complex128)
             {
                 p_type = TensorProto::DataType::TensorProto_DataType_COMPLEX128;
             }

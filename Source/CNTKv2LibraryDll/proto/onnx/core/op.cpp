@@ -2,53 +2,44 @@
 #pragma warning(disable : 4800 4610 4512 4510 4267 4127 4125 4100 4456)
 
 #include "op.h"
+#include "opsignature.h"
 #include "utils.h"
-#include <cstring>
 
 namespace LotusIR
 {
-    InferenceContext::InferenceContext(const Node* p_node,
-        const OperatorSchema* p_opSchema,
-        const std::vector<NodeArg>* p_inputs,
-        std::vector<NodeArg>* p_outputs)
-        : m_node(p_node),
-        m_opSchema(p_opSchema),
-        m_inputs(p_inputs),
-        m_outputs(p_outputs)
+    const std::string& OperatorSchema::GetName() const
     {
+        return m_opSignature.GetName();
     }
 
-    const Node* InferenceContext::GetNode() const
+    const OpSignature& OperatorSchema::GetOpSignature() const
     {
-        return m_node;
+        return m_opSignature;
     }
 
-    const OperatorSchema* InferenceContext::GetOp() const
+    ShapeInferenceFunc OperatorSchema::GetShapeInferenceFn() const
     {
-        return m_opSchema;
+        return m_shapeInferenceFunc;
     }
 
-    const std::vector<NodeArg>* InferenceContext::GetInputs() const
+    AttributeParser OperatorSchema::GetAttributeParser() const
     {
-        return m_inputs;
-    }
-
-    std::vector<NodeArg>* InferenceContext::Mutable_Outputs()
-    {
-        return m_outputs;
+        return m_attrParser;
     }
 
     OperatorSchemaSetter&
         OperatorSchemaSetter::Name(const std::string& p_opName)
     {
-        m_name = p_opName;
+        m_opSchema.m_opSignature.m_name = p_opName;
         return *this;
     }
+
+
 
     OperatorSchemaSetter&
         OperatorSchemaSetter::Description(const std::string& p_description)
     {
-        m_description = p_description;
+        m_opSchema.m_opSignature.m_description = p_description;
         return *this;
     }
 
@@ -75,13 +66,15 @@ namespace LotusIR
             const std::string& p_description,
             AttrType p_attrType, bool required)
     {
-        m_attributes.push_back(make_tuple(p_attrName, p_description, p_attrType, AttributeProto()));
+        m_opSchema.m_opSignature.m_attributes.push_back(
+            OpSignature::Attribute(p_attrName, p_attrType, p_description));
+
         return *this;
     }
 
 #define ATTR_SETTER_BASIC_IMPL(type, field)                                               \
-    OperatorSchemaSetter&                                                                 \
-        OperatorSchemaSetter::Attr(const std::string& p_attrName,                         \
+    OperatorSchemaSetter&                                                         \
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,                 \
             const std::string& p_description,                                             \
             AttrType p_attrType,                                                          \
             const type& p_defaultValue)                                                   \
@@ -89,13 +82,19 @@ namespace LotusIR
         AttributeProto a;                                                                 \
         a.set_name(p_attrName);                                                           \
         a.set_##field(p_defaultValue);                                                    \
-        m_attributes.push_back(make_tuple(p_attrName, p_description, p_attrType, a));     \
+                                                                                          \
+        m_opSchema.m_opSignature.m_attributes.push_back(                                    \
+            OpSignature::Attribute(p_attrName,                                         \
+                                        p_attrType,                                       \
+                                        p_description,                                    \
+                                        a));                                              \
+                                                                                          \
         return *this;                                                                     \
     }                                                                                     \
 
 #define ATTR_SETTER_LIST_IMPL(type, field)                                                \
-    OperatorSchemaSetter&                                                                 \
-        OperatorSchemaSetter::Attr(const std::string& p_attrName,                         \
+    OperatorSchemaSetter&                                                         \
+        OperatorSchemaSetter::Attr(const std::string& p_attrName,                 \
             const std::string& p_description,                                             \
             AttrType p_attrType,                                                          \
             const std::vector<type>& p_defaultValue)                                      \
@@ -106,7 +105,12 @@ namespace LotusIR
         {                                                                                 \
             a.add_##field(v);                                                             \
         }                                                                                 \
-        m_attributes.push_back(make_tuple(p_attrName, p_description, p_attrType, a));     \
+                                                                                          \
+        m_opSchema.m_opSignature.m_attributes.push_back(                                    \
+        OpSignature::Attribute(p_attrName,                                             \
+            p_attrType,                                                                   \
+            p_description,                                                                \
+            a));                                                                          \
         return *this;                                                                     \
     }                                                                                     \
 
@@ -130,7 +134,7 @@ namespace LotusIR
         OperatorSchemaSetter::SetShapeInferenceFunc(
             ShapeInferenceFunc p_shapeInferFunc)
     {
-        m_shapeInferFunc = p_shapeInferFunc;
+        m_opSchema.m_shapeInferenceFunc = p_shapeInferFunc;
         return *this;
     }
 
@@ -138,123 +142,31 @@ namespace LotusIR
         OperatorSchemaSetter::SetAttributeParser(
             AttributeParser p_attrParser)
     {
-        m_parser = p_attrParser;
+        m_opSchema.m_attrParser = p_attrParser;
         return *this;
     }
 
-    OperatorSchema::FormalParameter::FormalParameter(
-        const std::string& p_name, const std::string& p_type,
-        const std::string& p_description,
-        const TypeConstraintMap& p_constraintMap)
-        : m_name(p_name), m_typeStr(p_type), m_description(p_description)
+    OperatorSchemaRegistry::RegisterOnce::RegisterOnce(
+        OperatorSchemaSetter& p_opSchemaSetter)
     {
-        auto it = p_constraintMap.find(p_type);
-        if (it != p_constraintMap.end())
-        {
-            m_types = it->second.first;
-        }
-        else
-        {
-            if (!p_type.empty())
-            {
-                m_types.emplace(Utils::OpUtils::ToType(m_typeStr));
-            }
-        }
-    }
-
-    const std::string& OperatorSchema::FormalParameter::GetName() const
-    {
-        return m_name;
-    }
-
-    const DataTypeSet& OperatorSchema::FormalParameter::GetTypes() const
-    {
-        return m_types;
-    }
-
-    const std::string& OperatorSchema::FormalParameter::GetTypeStr() const
-    {
-        return m_typeStr;
-    }
-
-    const std::string& OperatorSchema::FormalParameter::GetDescription() const
-    {
-        return m_description;
-    }
-
-    OperatorSchema::Attribute::Attribute(
-        const std::string& p_attrName,
-        AttrType p_type,
-        const std::string& p_description,
-        const AttributeProto& p_defaultVal)
-        : m_name(p_attrName), m_type(p_type), m_description(p_description),
-        m_hasDefaultValue(true)
-    {
-        m_allowedValues.push_back(p_defaultVal);
-    }
-
-    OperatorSchema::Attribute::Attribute(
-        const std::string& p_attrName,
-        AttrType p_type,
-        const std::string& p_description)
-        : m_name(p_attrName), m_type(p_type), m_description(p_description),
-        m_hasDefaultValue(false)
-    {
-    }
-
-    const std::string& OperatorSchema::Attribute::GetName() const
-    {
-        return m_name;
-    }
-
-    AttrType OperatorSchema::Attribute::GetType() const
-    {
-        return m_type;
-    }
-
-    bool OperatorSchema::Attribute::HasDefaultValue(
-        const AttributeProto** p_value) const
-    {
-        if (m_hasDefaultValue
-            && nullptr != p_value)
-        {
-            *p_value = &(m_allowedValues[0]);
-        }
-
-        return m_hasDefaultValue;
-    }
-
-    OperatorSchema::OperatorSchema(const OperatorSchemaSetter& p_setter)
-        : m_name(p_setter.m_name),
-        m_description(p_setter.m_description),
-        m_shapeInferFunc(p_setter.m_shapeInferFunc),
-        m_parser(p_setter.m_parser)
-    {
-        m_onnxMinInput = p_setter.m_onnxMinInput;
-        m_onnxMaxInput = p_setter.m_onnxMaxInput;
-        m_onnxMinOutput = p_setter.m_onnxMinOutput;
-        m_onnxMaxOutput = p_setter.m_onnxMaxOutput;
-        m_onnxNumInputsAllowed = p_setter.m_onnxNumInputsAllowed;
-        m_onnxNumOutputsAllowed = p_setter.m_onnxNumOutputsAllowed;
-        m_onnxNumInputsOutputsAllowed = p_setter.m_onnxNumInputsOutputsAllowed;
-
+        auto& opSchema = p_opSchemaSetter.m_opSchema;
         // Process type constraints.
-        for (const auto& constraint : p_setter.m_constraints)
+        for (const auto& constraint : p_opSchemaSetter.m_constraints)
         {
             std::string name;
             std::vector<std::string> types;
             std::string desc;
             std::tie(name, types, desc) = constraint;
 
-            auto it = m_typeConstraintMap.find(name);
-            if (it == m_typeConstraintMap.end())
+            auto it = opSchema.m_opSignature.m_typeConstraintMap.find(name);
+            if (it == opSchema.m_opSignature.m_typeConstraintMap.end())
             {
                 DataTypeSet d;
                 for (const auto& t : types)
                 {
                     d.insert(Utils::OpUtils::ToType(t));
                 }
-                m_typeConstraintMap.insert(std::make_pair(name, std::make_pair(d, desc)));
+                opSchema.m_opSignature.m_typeConstraintMap.insert(std::make_pair(name, std::make_pair(d, desc)));
             }
             else
             {
@@ -262,168 +174,77 @@ namespace LotusIR
             }
         }
 
-        m_inputs.reserve(p_setter.m_inputs.size());
-        for (const auto& input : p_setter.m_inputs)
+        opSchema.m_opSignature.m_inputs.reserve(p_opSchemaSetter.m_inputs.size());
+        for (const auto& input : p_opSchemaSetter.m_inputs)
         {
             std::string name;
             std::string type;
             std::string desc;
             std::tie(name, desc, type) = input;
-            m_inputs.push_back(FormalParameter(name, type, desc, m_typeConstraintMap));
-        }
-        if (0 == m_inputs.size()
-            && m_onnxMinInput == m_onnxMaxInput
-            && m_onnxMinInput > 0)
-        {
-            for (int i = 0; i < m_onnxMinInput; ++i)
-            {
-                std::string name = "p" + std::to_string(i);
-                std::string desc = "Input Parameter " + std::to_string(i);
-                m_inputs.push_back(FormalParameter(name, "", desc, m_typeConstraintMap));
-            }
+            opSchema.m_opSignature.m_inputs.push_back(
+                OpSignature::FormalParameter(name, type, desc, opSchema.m_opSignature.m_typeConstraintMap));
         }
 
-        m_outputs.reserve(p_setter.m_outputs.size());
-        for (const auto& output : p_setter.m_outputs)
+        opSchema.m_opSignature.m_outputs.reserve(p_opSchemaSetter.m_outputs.size());
+        for (const auto& output : p_opSchemaSetter.m_outputs)
         {
             std::string name;
             std::string type;
             std::string desc;
             std::tie(name, desc, type) = output;
-            m_outputs.push_back(FormalParameter(name, type, desc, m_typeConstraintMap));
+            opSchema.m_opSignature.m_outputs.push_back(
+                OpSignature::FormalParameter(name, type, desc,
+                    opSchema.m_opSignature.m_typeConstraintMap));
         }
-        if (0 == m_outputs.size()
-            && m_onnxMinOutput== m_onnxMaxOutput
-            && m_onnxMinOutput > 0)
+
+        auto& opSignature = p_opSchemaSetter.m_opSchema.m_opSignature;
+        if (0 == opSignature.m_inputs.size())
         {
-            for (int i = 0; i < m_onnxMinOutput; ++i)
+            for (int i = 0; i < opSignature.m_onnxMinInput; ++i)
+            {
+                std::string name = "p" + std::to_string(i);
+                std::string desc = "Input Parameter " + std::to_string(i);
+                opSignature.m_inputs.push_back(
+                    OpSignature::FormalParameter(name, "", desc, opSignature.m_typeConstraintMap));
+            }
+        }
+
+        if (0 == opSignature.m_outputs.size())
+        {
+            for (int i = 0; i < opSignature.m_onnxMinOutput; ++i)
             {
                 std::string name = "p" + std::to_string(i);
                 std::string desc = "Output Result " + std::to_string(i);
-                m_outputs.push_back(FormalParameter(name, "", desc, m_typeConstraintMap));
+                opSignature.m_outputs.push_back(
+                    OpSignature::FormalParameter(name, "", desc, opSignature.m_typeConstraintMap));
             }
         }
 
-        m_attributes.reserve(p_setter.m_attributes.size());
-        for (const auto& attr : p_setter.m_attributes)
-        {
-            std::string name;
-            AttrType type;
-            std::string desc;
-            AttributeProto a;
-            std::tie(name, desc, type, a) = attr;
-            if (a.name() == name)
-            {
-                m_attributes.push_back(Attribute(name, type, desc, a));
-            }
-            else
-            {
-                m_attributes.push_back(Attribute(name, type, desc));
-            }
-        }
-    }
-
-    const std::string& OperatorSchema::GetName() const
-    {
-        return m_name;
-    }
-
-    const std::string& OperatorSchema::GetDescription() const
-    {
-        return m_description;
-    }
-
-    const std::vector<OperatorSchema::FormalParameter>&
-        OperatorSchema::GetInputs() const
-    {
-        return m_inputs;
-    }
-
-    const std::vector<OperatorSchema::FormalParameter>&
-        OperatorSchema::GetOutputs() const
-    {
-        return m_outputs;
-    }
-
-    const std::vector<OperatorSchema::Attribute>&
-        OperatorSchema::GetAttributes() const
-    {
-        return m_attributes;
-    }
-
-    ShapeInferenceFunc OperatorSchema::GetShapeInferenceFunc() const
-    {
-        return m_shapeInferFunc;
-    }
-
-    AttributeParser OperatorSchema::GetAttributeParser() const
-    {
-        return m_parser;
-    }
-
-    const TypeConstraintMap& OperatorSchema::GetTypeConstraintMap() const
-    {
-        return m_typeConstraintMap;
-    }
-
-    bool OperatorSchema::IsValidAttribute(const AttributeProto& p_attr)
-    {
-        if (p_attr.name().empty())
-        {
-            return false;
-        }
-
-        int num_fields =
-            p_attr.has_f() +
-            p_attr.has_i() +
-            p_attr.has_s() +
-            p_attr.has_t() +
-            p_attr.has_g() +
-            (p_attr.floats_size() > 0) +
-            (p_attr.ints_size() > 0) +
-            (p_attr.strings_size() > 0) +
-            (p_attr.tensors_size() > 0) +
-            (p_attr.graphs_size() > 0) +
-            p_attr.has_type() +
-            (p_attr.types_size() > 0) +
-            p_attr.has_shape() +
-            (p_attr.shapes_size() > 0);
-
-        if (num_fields == 1)
-        {
-            return true;
-        }
-        return false;
-    }
-
-    OperatorSchemaRegistry::RegisterOnce::RegisterOnce(
-        const OperatorSchemaSetter& p_opSchema)
-    {
-        OperatorSchemaRegistry::Get()->Register(p_opSchema);
+        OperatorSchemaRegistry::Get()->Register(p_opSchemaSetter.m_opSchema);
     }
 
     bool OperatorSchemaRegistry::TryGetOp(const std::string& p_name,
-        const OperatorSchema** p_opRegistry) const
+        const OperatorSchema** p_opSchema) const
     {
-        if (nullptr == p_opRegistry)
+        if (nullptr == p_opSchema)
         {
             return false;
         }
 
-        auto iter = m_operatorRegistryMap.find(p_name);
-        if (m_operatorRegistryMap.end() == iter)
+        auto iter = m_opNameToOpSchemaMap.find(p_name);
+        if (m_opNameToOpSchemaMap.end() == iter)
         {
             return false;
         }
-        *p_opRegistry = &(iter->second);
+        *p_opSchema = &(iter->second);
         return true;
     }
 
     Status OperatorSchemaRegistry::Register(
         const OperatorSchema& p_opSchema)
     {
-        auto iter = m_operatorRegistryMap.find(p_opSchema.GetName());
-        if (m_operatorRegistryMap.end() != iter)
+        auto iter = m_opNameToOpSchemaMap.find(p_opSchema.GetName());
+        if (m_opNameToOpSchemaMap.end() != iter)
         {
             Status status(false,
                 "Error: operator schema with same name ("
@@ -432,7 +253,7 @@ namespace LotusIR
         }
         else
         {
-            m_operatorRegistryMap[p_opSchema.GetName()] = p_opSchema;
+            m_opNameToOpSchemaMap[p_opSchema.GetName()] = p_opSchema;
             return Status::OK();
         }
     }
@@ -446,7 +267,7 @@ namespace LotusIR
 
     Status TypeUtils::GetType(const AttributeProto& p_attr, AttrType& p_type)
     {
-        if (!OperatorSchema::IsValidAttribute(p_attr))
+        if (!OpSignature::IsValidAttribute(p_attr))
         {
             return Status(false, "Invalid AttributeProto.");
         }

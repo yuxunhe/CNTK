@@ -5,7 +5,7 @@
 
 using SupportType = LotusIR::OpSchema::SupportType;
 namespace LotusIR {
-    OPERATOR_SCHEMA(ConstantFill)
+    REGISTER_OPERATOR_SCHEMA(ConstantFill)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(0, 1)
         .NumOutputs(1)
@@ -61,7 +61,7 @@ NOTE: Currently, it supports data type of float, int32, int64, and bool.
             "Output tensor of constant values specified by 'value'"
             "argument and its type is specified by the 'dtype' argument");
 
-    OPERATOR_SCHEMA(Caffe2ConvTranspose)
+    REGISTER_OPERATOR_SCHEMA(Caffe2ConvTranspose)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(3)
         .NumOutputs(1)
@@ -108,7 +108,7 @@ NOTE: Currently, it supports data type of float, int32, int64, and bool.
         .Attr("group", "", AttrType::INT)
         .Attr("strides", "", AttrType::INTS);
 
-    OPERATOR_SCHEMA(SpatialBN)
+    REGISTER_OPERATOR_SCHEMA(SpatialBN)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(5)
         .NumOutputs({ 1, 5 })
@@ -168,7 +168,7 @@ Output case #2: Y (test mode)
             "Saved variance used during training to speed up "
             "gradient computation. Should not be used for testing.");
 
-    OPERATOR_SCHEMA(LRN)
+    REGISTER_OPERATOR_SCHEMA(LRN)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(1)
         .NumOutputs(1, 2)
@@ -177,7 +177,7 @@ Output case #2: Y (test mode)
         .Attr("beta", "", AttrType::FLOAT)
         .Attr("bias", "", AttrType::FLOAT);
 
-    OPERATOR_SCHEMA(GivenTensorFill)
+    REGISTER_OPERATOR_SCHEMA(GivenTensorFill)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(0, 1)
         .NumOutputs(1)
@@ -189,7 +189,7 @@ Output case #2: Y (test mode)
         .Attr("extra_shape", "", AttrType::INTS)
         .AllowConsumed({ {0, 0} });
 
-    OPERATOR_SCHEMA(FC)
+    REGISTER_OPERATOR_SCHEMA(FC)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(3)
         .NumOutputs(1)
@@ -237,7 +237,7 @@ will throw errors.
         .Input(2, "b", "1D blob containing bias vector")
         .Output(0, "Y", "2D output tensor");
 
-    OPERATOR_SCHEMA(Normalize)
+    REGISTER_OPERATOR_SCHEMA(Normalize)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(1)
         .NumOutputs(1)
@@ -245,7 +245,7 @@ will throw errors.
 Given a matrix, apply L2-normalization along the last dimension.
 )DOC");
 
-    OPERATOR_SCHEMA(Scale)
+    REGISTER_OPERATOR_SCHEMA(Scale)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(1)
         .NumOutputs(1)
@@ -258,7 +258,7 @@ Scale takes one input data (Tensor<float>) and produces one output data
     "(float, default 1.0) the scale to apply.",
     AttrType::FLOAT);
 
-    OPERATOR_SCHEMA(ChannelShuffle)
+    REGISTER_OPERATOR_SCHEMA(ChannelShuffle)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(1)
         .NumOutputs(1)
@@ -269,7 +269,7 @@ Scale takes one input data (Tensor<float>) and produces one output data
             "Number of channel groups",
             AttrType::INT);
 
-    OPERATOR_SCHEMA(RecurrentNetwork)
+    REGISTER_OPERATOR_SCHEMA(RecurrentNetwork)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(1, INT_MAX)
         .NumOutputs(2, INT_MAX)
@@ -288,7 +288,7 @@ dynamic_rnn, Theano scan, etc).
 See the usage examples for a flavor of how to use it.
 )DOC");
 
-    OPERATOR_SCHEMA(GRUUnit)
+    REGISTER_OPERATOR_SCHEMA(GRUUnit)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(4)
         .NumOutputs(1)
@@ -319,7 +319,7 @@ value at X[t][n] >= seqLengths[n].
         .Input(3, "t", "The timestep for this operation.")
         .Output(0, "hidden", "The new GRU hidden state calculated by this op.");
 
-    OPERATOR_SCHEMA(ATen)
+    REGISTER_OPERATOR_SCHEMA(ATen)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .AllowUncheckedAttributes()
         .SetDoc(R"DOC(
