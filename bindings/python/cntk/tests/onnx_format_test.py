@@ -34,4 +34,6 @@ def test_dense_layer(tmpdir):
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
-    assert np.allclose(loaded_result.eval({x:img}), root_node.eval({x:img}))
+    x_ = loaded_node.arguments[0];
+    assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
+

@@ -38,7 +38,7 @@ namespace CNTK
         static DataType FromONNXType(LotusIR::TypeProto type);
 
         static std::vector<Axis> GetNamedAttributeAsAxis(const Node *node, const string &attributeName);
-        static NDShape GetNamedAttributeAsShape(const Node *node, const string &attributeName);
+        static NDShape GetNamedAttributeAsShape(const Node *node, const string &attributeName, bool hasBatchAxis = false);
         static std::vector<bool> GetNamedAttributeAsShapeBool(const Node *node, const string &attributeName);
         static size_t GetNamedAttributeAsInt64(const Node *node, const string &attributeName);
         static float GetNamedAttributeAsFloat(const Node *node, const string &attributeName);
@@ -124,19 +124,12 @@ namespace CNTK
         NodeAttributes::const_iterator itValue = node->GetAttributes().find("value");
         const LotusIR::TensorProto valueProto = itValue->second.t();
         auto dataType = valueProto.data_type();
+
         NDShape shape(std::vector<size_t>(valueProto.dims().begin(), valueProto.dims().end()));
 
-        //////LotusIR::NodeArg inputArg = node->OutputDefs()[0];
-        //////const LotusIR::TensorShapeProto shapeProto = inputArg.Shape();
-        //////NDShape shape = FromTensorShape(shapeProto);
-
-        // CNTK transpose does switch between row major and column major.
-        // However it does not change the shape. This makes second transpose
-        // wrong. Here we have to construct with unchanged data layout
-        // but transposed reshape. Then transpose and reshape to recover
-        // the transpose operation. That is to make 2 transpose operation
-        // an identity transform.
+        // the following code is to revert CNTKToONNXHelper::ToTensorShape.to restore a CNTK NDArray
         NDShape reversedShape = ReverseShape(shape);
+
         auto totalSize = shape.TotalSize();
 
         switch (dataType)
@@ -144,22 +137,17 @@ namespace CNTK
         case TensorProto_DataType_FLOAT:
         {
             float *data = new float[totalSize];
-            for (size_t index = 0; index < totalSize; index++)
-            {
-                data[index] = valueProto.float_data()[index];
-            }
 
             // TODO: for onnx tensfor the first 1 or 2 are probably batch and channel. the last 2 are kernal size
             if (shape.Rank() <= 2)
             {
-                NDArrayViewPtr dstFinal(new NDArrayView(DataType::Float, reversedShape, &data[0],
-                    totalSize * sizeof(float), computeDevice));
-                Constant constantVariable(dstFinal, ToWString(node->Name()));
-                return constantVariable;
+                for (size_t index = 0; index < totalSize; index++)
+                {
+                    data[index] = valueProto.float_data()[index];
+                }
             }
             else
             {
-                float *fullKernekData = new float[totalSize];
                 int outputChannels = shape[0], inputChanndels = shape[1];
                 NDShape channelKernelShape(std::vector<size_t>(shape.Dimensions().begin() + 2, shape.Dimensions().end()));
                 NDShape channelReversedShape = ReverseShape(channelKernelShape);
@@ -170,20 +158,28 @@ namespace CNTK
                     for (int iC = 0; iC < inputChanndels; iC++)
                     {
                         int channelIndex = (oC * inputChanndels + iC);
-
-                        const float *channelData; 
-                        channelData = &data[channelIndex * channelKernelSize];
-
                         for (int pixel = 0; pixel < channelKernelSize; pixel++)
                         {
-                            fullKernekData[channelIndex * channelKernelSize + pixel] = channelData[pixel];
+                            data[channelIndex * channelKernelSize + pixel] = 
+                                valueProto.float_data()[channelIndex * channelKernelSize + pixel];
                         }
                     }
                 }
-                NDArrayViewPtr dstFinal(new  NDArrayView(DataType::Float, reversedShape, &fullKernekData[0],
-                    totalSize * sizeof(float), computeDevice));
+            }
+
+            NDArrayViewPtr dstFinal(new NDArrayView(DataType::Float, reversedShape, &data[0], 
+                totalSize * sizeof(float), computeDevice.CPUDevice()));
+                
+            if (computeDevice.Type() == DeviceKind::CPU)
+            {
                 Constant constantVariable(dstFinal, ToWString(node->Name()));
-                NDArrayViewPtr ndview = constantVariable.Value();
+                return constantVariable;
+            }
+            else
+            {
+                NDArrayViewPtr dstFinalGPU(new NDArrayView(DataType::Float, StorageFormat::Dense, reversedShape, computeDevice));
+                dstFinalGPU->CopyFrom(*dstFinal);
+                Constant constantVariable(dstFinalGPU, ToWString(node->Name()));
                 return constantVariable;
             }
         }
@@ -261,11 +257,15 @@ namespace CNTK
         return FromINTSToAxes(axes);
     }
 
-    NDShape ONNXToCNTKHelper::GetNamedAttributeAsShape(const Node *node, const string &attributeName)
+    NDShape ONNXToCNTKHelper::GetNamedAttributeAsShape(const Node *node, const string &attributeName, bool hasBatchAxis)
     {
         NodeAttributes::const_iterator itValue = node->GetAttributes().find(attributeName);
         const AttributeProto &attributeProto = itValue->second;
-        std::vector<int64_t> shape(attributeProto.ints().begin(), attributeProto.ints().end());
+        ::google::protobuf::RepeatedField<::google::protobuf::int64>::const_iterator itBegin =
+            attributeProto.ints().begin();
+        if (hasBatchAxis)
+            itBegin++;
+        std::vector<int64_t> shape(itBegin, attributeProto.ints().end());
         return FromTensorShape(FromINTS(shape));
     }
 

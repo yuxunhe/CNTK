@@ -61,7 +61,7 @@ FunctionPtr ONNX::Load(const std::wstring& filepath, const DeviceDescriptor& com
 
     FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph, computeDevice);
     
-    PrintGraph(cntkFunction, 0, false);
+    PrintGraph(cntkFunction->RootFunction(), 0, false);
 
     return cntkFunction;
 }
