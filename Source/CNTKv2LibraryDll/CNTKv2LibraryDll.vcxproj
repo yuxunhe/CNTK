@@ -213,10 +213,10 @@
     <ClCompile Include="PrimitiveFunction.cpp" />
     <ClCompile Include="proto\CNTK.pb.cc.VS_wrapper.cpp" />
     <ClCompile Include="proto\onnx\CNTKToONNX.cpp" />
-    <ClCompile Include="proto\onnx\core\graph.cc" />
-    <ClCompile Include="proto\onnx\core\op.cc" />
-    <ClCompile Include="proto\onnx\core\status.cc" />
-    <ClCompile Include="proto\onnx\core\utils.cc" />
+    <ClCompile Include="proto\onnx\core\graph.cpp" />
+    <ClCompile Include="proto\onnx\core\op.cpp" />
+    <ClCompile Include="proto\onnx\core\status.cpp" />
+    <ClCompile Include="proto\onnx\core\utils.cpp" />
     <ClCompile Include="proto\onnx\defs\experiments\defs.cc" />
     <ClCompile Include="proto\onnx\defs\generator\defs.cc" />
     <ClCompile Include="proto\onnx\defs\logical\defs.cc" />

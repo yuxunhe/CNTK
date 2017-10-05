@@ -12,6 +12,8 @@
 
 #include "ONNXToCNTK.h"
 
+using namespace CNTK;
+
 namespace CNTK
 {
     static void PrintGraph(FunctionPtr function, int spaces, bool useName = false)
@@ -22,13 +24,13 @@ namespace CNTK
             return;
         }
 
-        for(auto input: function->Inputs())
+        for (auto input : function->Inputs())
         {
             cout << string(spaces, '.') + "(" + ToString(useName ? function->Name() : function->Uid()) + ")" + "->" +
                 "(" + ToString(useName ? input.Name() : input.Uid()) + ")" + ToString(input.AsString()) << std::endl;
         }
 
-        for(auto input: function->Inputs())
+        for (auto input : function->Inputs())
         {
             if (input.Owner() != NULL)
             {
@@ -37,26 +39,27 @@ namespace CNTK
             }
         }
     }
+}
 
 void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
     PrintGraph(src, 0, true);
     PrintGraph(src, 0, false);
-    std::unique_ptr<LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
+    std::unique_ptr<::LotusIR::Graph> graph = CNTKToONNX::CreateGraph(src);
 
-    LotusIR::Graph::Save(graph->ToGraphProto(), filepath);
+    ::LotusIR::Graph::Save(graph->ToGraphProto(), filepath);
 }
 
 FunctionPtr ONNX::Load(const std::wstring& filepath, const DeviceDescriptor& computeDevice)
 {
-    LotusIR::GraphProto grapu;
-    bool loadStatus = LotusIR::Graph::Load(filepath, &grapu);
+    ::LotusIR::GraphProto grapu;
+    bool loadStatus = ::LotusIR::Graph::Load(filepath, &grapu);
     if (!loadStatus)
     {
         return nullptr;
     }
 
-    std::unique_ptr<LotusIR::Graph> graph(new LotusIR::Graph(grapu));
+    std::unique_ptr<::LotusIR::Graph> graph(new ::LotusIR::Graph(grapu));
     graph->Resolve();
 
     FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(graph, computeDevice);
@@ -64,6 +67,4 @@ FunctionPtr ONNX::Load(const std::wstring& filepath, const DeviceDescriptor& com
     PrintGraph(cntkFunction->RootFunction(), 0, false);
 
     return cntkFunction;
-}
-
 }

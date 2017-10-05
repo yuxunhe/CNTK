@@ -18,7 +18,6 @@ namespace CNTK
     class ONNXToCNTK
     {
     public:
-        static FunctionPtr CreateGraph(const std::unique_ptr<LotusIR::Graph>& src, 
-            const DeviceDescriptor& computeDevice);
+        static FunctionPtr CreateGraph(const std::unique_ptr<::LotusIR::Graph>& src, const DeviceDescriptor& computeDevice);
     };
 }

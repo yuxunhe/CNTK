@@ -58,18 +58,6 @@
     <ClCompile Include="proto\onnx\ONNXToCNTK.cpp">
       <Filter>proto\onnx</Filter>
     </ClCompile>
-    <ClCompile Include="proto\onnx\core\graph.cc">
-      <Filter>proto\onnx\core</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\core\op.cc">
-      <Filter>proto\onnx\core</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\core\status.cc">
-      <Filter>proto\onnx\core</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\core\utils.cc">
-      <Filter>proto\onnx\core</Filter>
-    </ClCompile>
     <ClCompile Include="proto\onnx\Operators.cpp">
       <Filter>proto\onnx</Filter>
     </ClCompile>
@@ -96,6 +84,18 @@
     </ClCompile>
     <ClCompile Include="proto\onnx\defs\nn\defs.cc">
       <Filter>proto\onnx\defs\nn</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\graph.cpp">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\op.cpp">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\status.cpp">
+      <Filter>proto\onnx\core</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\core\utils.cpp">
+      <Filter>proto\onnx\core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

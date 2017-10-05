@@ -3,6 +3,7 @@
 
 #include "op.h"
 #include "utils.h"
+#include <cstring>
 
 namespace LotusIR
 {
