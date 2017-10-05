@@ -1188,12 +1188,14 @@ namespace LotusIR
                     }
                 }
 
+                /*
                 if (0 != (m_graphType & Type::Strict))
                 {
                     // Strict type checking needed.
 
                     RETURN_IF_ERROR(InferAndVerifyTypeMatch(node, &op, p_outputArgs));
                 }
+                */
 
                 // Attribute verification and fill node attribute with
                 // default value defined in operator definition if needed.
