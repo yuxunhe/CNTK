@@ -87,7 +87,7 @@ def test_vgg9_model(tmpdir):
     x = C.input_variable(img.shape)
     root_node = create_model(x)
 
-    filename = os.path.join(str(tmpdir), R'conv_model.onnx')
+    filename = os.path.join(str(tmpdir), R'vgg9_model.onnx')
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
