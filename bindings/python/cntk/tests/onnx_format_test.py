@@ -37,3 +37,29 @@ def test_dense_layer(tmpdir):
     x_ = loaded_node.arguments[0];
     assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
 
+def test_conv_model(tmpdir):
+    def create_model(input):
+        with C.layers.default_options(init=C.glorot_uniform(), activation=C.relu):
+            model = C.layers.Sequential([
+                C.layers.For(range(3), lambda i: [
+                    C.layers.Convolution((5,5), [32,32,64][i], pad=True),
+                    C.layers.MaxPooling((3,3), strides=(2,2))
+                    ]),
+                C.layers.Dense(64),
+                C.layers.Dense(10, activation=None)
+            ])
+
+        return model(input)
+
+    img_shape = (3, 32, 32)
+    img = np.reshape(np.arange(float(np.prod(img_shape)), dtype=np.float32), img_shape)
+
+    x = C.input_variable(img.shape)
+    root_node = create_model(x)
+
+    filename = os.path.join(str(tmpdir), R'conv_model.onnx')
+    root_node.save(filename, format=C.ModelFormat.ONNX)
+
+    loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
+    x_ = loaded_node.arguments[0];
+    assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
