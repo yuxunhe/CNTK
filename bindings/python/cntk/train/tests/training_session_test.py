@@ -218,6 +218,52 @@ def test_session_cross_validation_3_times(tmpdir, device_id):
     assert(writer.test_summary_counter == 3)
 
 
+def test_session_cross_validation_3_times_on_minibatch_unit(tmpdir, device_id):
+    device = cntk_device(device_id)
+    writer = MockProgressWriter(expected_test_summary=[[92, 25], [92, 25], [92, 25]])
+    t, feature, label = create_sample_model(device, writer)
+    mbs = mb_source(tmpdir, "training", max_samples=INFINITELY_REPEAT)
+    mbs1 = mb_source(tmpdir, "cv")
+
+    input_map = {
+        feature: mbs.streams.features,
+        label: mbs.streams.labels
+    }
+
+    C.training_session(
+        trainer=t, mb_source=mbs,
+        mb_size=4, model_inputs_to_streams=input_map,
+        max_samples=60,
+        cv_config = C.CrossValidationConfig(mbs1, frequency=(5, C.train.DataUnit.minibatch), minibatch_size=2),
+    ).train(device)
+
+    assert(t.total_number_of_samples_seen == 61)
+    assert(writer.test_summary_counter == 3)
+
+
+def test_session_cross_validation_3_times_on_sweep_unit(tmpdir, device_id):
+    device = cntk_device(device_id)
+    writer = MockProgressWriter(expected_test_summary=[[92, 25], [92, 25], [92, 25]])
+    t, feature, label = create_sample_model(device, writer)
+    mbs = mb_source(tmpdir, "training", max_samples=INFINITELY_REPEAT)
+    mbs1 = mb_source(tmpdir, "cv")
+
+    input_map = {
+        feature: mbs.streams.features,
+        label: mbs.streams.labels
+    }
+
+    C.training_session(
+        trainer=t, mb_source=mbs,
+        mb_size=4, model_inputs_to_streams=input_map,
+        max_samples=75,
+        cv_config = C.CrossValidationConfig(mbs1, frequency=(1, C.train.DataUnit.sweep), minibatch_size=2),
+    ).train(device)
+
+    assert(t.total_number_of_samples_seen == 75)
+    assert(writer.test_summary_counter == 3)
+
+
 def test_session_cross_validation_3_times_checkpoints_2_save_all(tmpdir, device_id):
     device = cntk_device(device_id)
     writer = MockProgressWriter(expected_test_summary=[[92, 25], [92, 25], [92, 25]])
@@ -239,6 +285,82 @@ def test_session_cross_validation_3_times_checkpoints_2_save_all(tmpdir, device_
         checkpoint_config = C.CheckpointConfig(frequency=35, preserve_all=True,
                                              filename=str(tmpdir / "checkpoint_save_all")),
         cv_config = C.CrossValidationConfig(mbs1, frequency=20)
+    ).train(device)
+
+    candidates = [f for f in listdir(test_dir) if isfile(
+        join(test_dir, f)) and f.startswith("checkpoint_save_all")]
+
+    assert("checkpoint_save_all0" in candidates)
+    assert("checkpoint_save_all0.ckp" in candidates)
+
+    assert("checkpoint_save_all1" in candidates)
+    assert("checkpoint_save_all1.ckp" in candidates)
+
+    assert("checkpoint_save_all" in candidates)
+    assert("checkpoint_save_all.ckp" in candidates)
+
+    assert(writer.test_summary_counter == 3)
+
+
+def test_session_cross_validation_3_times_checkpoints_2_save_all_on_minibatch_unit(tmpdir, device_id):
+    device = cntk_device(device_id)
+    writer = MockProgressWriter(expected_test_summary=[[92, 25], [92, 25], [92, 25]])
+    t, feature, label = create_sample_model(device, writer)
+    mbs = mb_source(tmpdir, "training", max_samples=INFINITELY_REPEAT)
+    mbs1 = mb_source(tmpdir, "cv")
+
+    input_map = {
+        feature: mbs.streams.features,
+        label: mbs.streams.labels
+    }
+
+    test_dir = str(tmpdir)
+
+    C.training_session(
+        trainer=t, mb_source=mbs,
+        mb_size=4, model_inputs_to_streams=input_map,
+        max_samples=60,
+        checkpoint_config = C.CheckpointConfig(frequency=(9, C.train.DataUnit.minibatch), preserve_all=True,
+                                             filename=str(tmpdir / "checkpoint_save_all")),
+        cv_config = C.CrossValidationConfig(mbs1, frequency=20)
+    ).train(device)
+
+    candidates = [f for f in listdir(test_dir) if isfile(
+        join(test_dir, f)) and f.startswith("checkpoint_save_all")]
+
+    assert("checkpoint_save_all0" in candidates)
+    assert("checkpoint_save_all0.ckp" in candidates)
+
+    assert("checkpoint_save_all1" in candidates)
+    assert("checkpoint_save_all1.ckp" in candidates)
+
+    assert("checkpoint_save_all" in candidates)
+    assert("checkpoint_save_all.ckp" in candidates)
+
+    assert(writer.test_summary_counter == 3)
+
+
+def test_session_cross_validation_3_times_checkpoints_2_save_all_on_sweep_unit(tmpdir, device_id):
+    device = cntk_device(device_id)
+    writer = MockProgressWriter(expected_test_summary=[[92, 25], [92, 25], [92, 25]])
+    t, feature, label = create_sample_model(device, writer)
+    mbs = mb_source(tmpdir, "training", max_samples=INFINITELY_REPEAT)
+    mbs1 = mb_source(tmpdir, "cv")
+
+    input_map = {
+        feature: mbs.streams.features,
+        label: mbs.streams.labels
+    }
+
+    test_dir = str(tmpdir)
+
+    C.training_session(
+        trainer=t, mb_source=mbs,
+        mb_size=4, model_inputs_to_streams=input_map,
+        max_samples=75,
+        checkpoint_config = C.CheckpointConfig(frequency=(1, C.train.DataUnit.sweep), preserve_all=True,
+                                             filename=str(tmpdir / "checkpoint_save_all")),
+        cv_config = C.CrossValidationConfig(mbs1, frequency=25)
     ).train(device)
 
     candidates = [f for f in listdir(test_dir) if isfile(
@@ -278,6 +400,7 @@ def test_session_progress_print(tmpdir, device_id):
 
     assert(writer.training_summary_counter == 6)
 
+
 def test_session_progress_print_on_minibatch_unit(tmpdir, device_id):
     device = cntk_device(device_id)
     writer = MockProgressWriter()
@@ -300,7 +423,8 @@ def test_session_progress_print_on_minibatch_unit(tmpdir, device_id):
     #mb size = 4; num_of_mb = 60/4 = 15; output every 5 mb; at the end, 3 outputs are written:
     assert(writer.training_summary_counter == 3)
 
-def test_session_progress_print_on_epoch_unit(tmpdir, device_id):
+
+def test_session_progress_print_on_sweep_unit(tmpdir, device_id):
     device = cntk_device(device_id)
     writer = MockProgressWriter()
     #set to a higher learning rate as we don't need to have converge but just to go through all the samples
@@ -326,6 +450,7 @@ def test_session_progress_print_on_epoch_unit(tmpdir, device_id):
     assert(t.total_number_of_samples_seen == 100)
     #output every 2 epoch sweeps; 4 sweeps in total, at the end 2 outputs are written:
     assert(writer.training_summary_counter == 2)
+
 
 def test_session_restart_from_end_checkpoint(tmpdir, device_id):
     device = cntk_device(device_id)
