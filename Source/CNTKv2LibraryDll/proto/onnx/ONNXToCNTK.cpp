@@ -405,11 +405,11 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         NDShape strides = GetNamedAttributeAsShape(node, "strides");
         NDShape dilation = GetNamedAttributeAsShape(node, attributesCNTKToONNXMap.map[L"dilation"]);
         std::vector<bool> autoPadding = GetNamedAttributeAsShapeBool(node, attributesCNTKToONNXMap.map[L"autoPadding"]);
+        size_t groups = GetNamedAttributeAsInt64(node, "group");
 
         // TODO: get from node's attributes
         std::vector<bool> sharing({ true });
         size_t reductionRank = 1;
-        size_t groups = 1;
         size_t maxTempMemSizeInSamples = 0;
 
         // TODO: create the kernel node from an ONNX input if it is available.
@@ -481,7 +481,7 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         const Variable& runningMean = inputs[3];
         const Variable& runningInvStd = inputs[4];
         const Variable& runningCount = inputs[5]; 
-        bool spatial = true;
+        bool spatial = GetNamedAttributeAsInt64(node, "spatial");
         double normalizationTimeConstant = 0;
         double blendTimeConstant = 0;
         double epsilon = 0.00001;
