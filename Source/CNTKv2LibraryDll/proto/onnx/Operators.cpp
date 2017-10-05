@@ -273,6 +273,7 @@ namespace ONNX
         { L"Convolution" },
         { L"ConvolutionTranspose" },
         { L"BatchNormalization" },
+        { L"Dropout" },
     };
 
 }
