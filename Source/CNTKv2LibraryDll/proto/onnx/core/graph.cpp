@@ -938,6 +938,7 @@ namespace LotusIR
                 // Verify the input arg type complying with operator
                 // definition.
 
+                /*
                 auto iter = opFormalParameter.GetTypes().find(inputDef.Type());
                 if (opFormalParameter.GetTypes().end() == iter)
                 {
@@ -947,6 +948,7 @@ namespace LotusIR
                         + p_op->GetName() + ") definition.");
                     return status;
                 }
+                */
 
                 auto paramToTypeIter = typeParameterToTypeMap.find(opFormalParameter.GetTypeStr());
                 if (typeParameterToTypeMap.end() != paramToTypeIter)
@@ -1188,14 +1190,12 @@ namespace LotusIR
                     }
                 }
 
-                /*
                 if (0 != (m_graphType & Type::Strict))
                 {
                     // Strict type checking needed.
 
                     RETURN_IF_ERROR(InferAndVerifyTypeMatch(node, &op, p_outputArgs));
                 }
-                */
 
                 // Attribute verification and fill node attribute with
                 // default value defined in operator definition if needed.
