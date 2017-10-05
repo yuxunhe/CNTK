@@ -107,7 +107,7 @@ def test_conv3d_model(tmpdir):
                     ]),
                     C.layers.For(range(2), lambda : [
                         C.layers.Dense(1024), 
-                        C.layers.Dropout(0.5)
+                        # C.layers.Dropout(0.5)
                     ]),
                 C.layers.Dense(100, activation=None)
             ])
@@ -126,8 +126,4 @@ def test_conv3d_model(tmpdir):
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
     x_ = loaded_node.arguments[0];
 
-    import pdb;pdb.set_trace()
-    print(root_node.eval({x:video}))
-    print(loaded_node.eval({x_:video}))
-
-    #assert np.allclose(loaded_node.eval({x_:video}), root_node.eval({x:video}))
+    assert np.allclose(loaded_node.eval({x_:video}), root_node.eval({x:video}))
