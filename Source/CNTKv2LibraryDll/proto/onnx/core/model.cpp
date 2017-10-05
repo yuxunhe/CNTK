@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <fstream>
 #include <io.h>
 #include "model.h"
 
@@ -147,12 +148,17 @@ namespace LotusIR
 
     bool Model::Save(const ModelProto& p_modelProto, const std::wstring& p_filePath)
     {
+#if NOT_SUPPORTS_IOSTREAMS
         int fd;
         errno_t err = _wsopen_s(&fd, p_filePath.c_str(), _O_CREAT | _O_SEQUENTIAL | _O_BINARY | _O_WRONLY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
         if (err) return false;
         bool result = p_modelProto.SerializeToFileDescriptor(fd);
         _close(fd);
-
+#else
+        std::fstream outputFileStream(p_filePath, std::ios::out | std::ios::binary);
+        bool result = p_modelProto.SerializeToOstream(&outputFileStream);
+        outputFileStream.close();
+#endif
         return result;
     }
 
@@ -175,12 +181,22 @@ namespace LotusIR
         {
             return false;
         }
-
+#if NOT_SUPPORTS_IOSTREAMS
         int fd;
         errno_t err = _wsopen_s(&fd, p_filePath.c_str(), _O_RDONLY | _O_SEQUENTIAL | _O_BINARY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
         if (err) return false;
         bool result = p_modelProto->ParsePartialFromFileDescriptor(fd);
         _close(fd);
+#else
+        std::fstream inputFileStream(p_filePath, std::ios::in | std::ios::binary);
+        if (!inputFileStream)
+        {
+            return false;
+        }
+
+        bool result = p_modelProto->ParsePartialFromIstream(&inputFileStream);
+        inputFileStream.close();
+#endif
 
         return result;
     }
