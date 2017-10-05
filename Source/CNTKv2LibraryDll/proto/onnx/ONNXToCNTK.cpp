@@ -123,18 +123,18 @@ Constant ONNXToCNTKHelper::CreateConvKernelConstant(const Node *node)
     return Constant::Scalar(0);
 }
 
-    Constant ONNXToCNTKHelper::CreateConstant(const Node *node, const DeviceDescriptor& computeDevice)
-    {
-        NodeAttributes::const_iterator itValue = node->GetAttributes().find("value");
-        const LotusIR::TensorProto valueProto = itValue->second.t();
-        auto dataType = valueProto.data_type();
+Constant ONNXToCNTKHelper::CreateConstant(const Node *node, const DeviceDescriptor& computeDevice)
+{
+    NodeAttributes::const_iterator itValue = node->GetAttributes().find("value");
+    const LotusIR::TensorProto valueProto = itValue->second.t();
+    auto dataType = valueProto.data_type();
 
-        NDShape shape(std::vector<size_t>(valueProto.dims().begin(), valueProto.dims().end()));
+    NDShape shape(std::vector<size_t>(valueProto.dims().begin(), valueProto.dims().end()));
 
-        // the following code is to revert CNTKToONNXHelper::ToTensorShape.to restore a CNTK NDArray
-        NDShape reversedShape = ReverseShape(shape);
+    // the following code is to revert CNTKToONNXHelper::ToTensorShape.to restore a CNTK NDArray
+    NDShape reversedShape = ReverseShape(shape);
 
-        auto totalSize = shape.TotalSize();
+    auto totalSize = shape.TotalSize();
 
     switch (dataType)
     {
