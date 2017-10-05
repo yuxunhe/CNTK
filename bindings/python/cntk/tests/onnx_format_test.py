@@ -25,7 +25,7 @@ def test_load_save_constant(tmpdir):
 
 def test_dense_layer(tmpdir):
     img_shape = (1, 5, 5)
-    img = np.reshape(np.arange(float(np.prod(img_shape)), dtype=np.float32), img_shape)
+    img = np.asarray(np.random.uniform(-1, 1, img_shape), dtype=np.float32)
 
     x = C.input_variable(img.shape)
     root_node = C.layers.Dense(5, activation=C.softmax)(x)
@@ -37,32 +37,93 @@ def test_dense_layer(tmpdir):
     x_ = loaded_node.arguments[0];
     assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
 
-def test_conv_layer(tmpdir):
-    image_width = 28
-    image_height = 28
-    input_dim_model = (1, image_width, image_height)
-    input_dim = image_width * image_height
-    num_output_classes = 10
+def test_conv_model(tmpdir):
+    def create_model(input):
+        with C.layers.default_options(init=C.glorot_uniform(), activation=C.relu):
+            model = C.layers.Sequential([
+                C.layers.For(range(3), lambda i: [
+                    C.layers.Convolution((5,5), [32,32,64][i], pad=True),
+                    C.layers.MaxPooling((3,3), strides=(2,2))
+                    ]),
+                C.layers.Dense(64),
+                C.layers.Dense(10, activation=None)
+            ])
 
-    features = C.input_variable(input_dim_model)
+        return model(input)
 
-    with C.layers.default_options(init=C.glorot_uniform(), activation=C.relu):
-        convModel = features
-        convModel = C.layers.Convolution2D(filter_shape=(5,5),
-                                   num_filters=8,
-                                   strides=(2,2),
-                                   pad=True, name='first_conv')(convModel)
-        convModel = C.layers.Convolution2D(filter_shape=(5,5),
-                                   num_filters=16,
-                                   strides=(2,2),
-                                   pad=True, name='second_conv')(convModel)
-        convModel = C.layers.Dense(num_output_classes, activation=None, name='classify')(convModel)
+    img_shape = (3, 32, 32)
+    img = np.asarray(np.random.uniform(-1, 1, img_shape), dtype=np.float32)
 
-    img_data = np.random.rand(image_width * image_height).reshape(1, 1, image_width, image_height).astype('float32')
+    x = C.input_variable(img.shape)
+    root_node = create_model(x)
 
-    filename = os.path.join(str(tmpdir), R'conv_layer.onnx')
+    filename = os.path.join(str(tmpdir), R'conv_model.onnx')
+    root_node.save(filename, format=C.ModelFormat.ONNX)
 
-    convModel.save(filename, format=C.ModelFormat.ONNX)
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
+    x_ = loaded_node.arguments[0];
+    assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
 
-    assert np.allclose(loaded_node.eval(img_data), convModel.eval(img_data))
+def test_vgg9_model(tmpdir):
+    def create_model(input):
+        with C.layers.default_options(activation=C.relu, init=C.glorot_uniform()):
+            model = C.layers.Sequential([
+                C.layers.For(range(3), lambda i: [
+                    C.layers.Convolution((3,3), [64,96,128][i], pad=True),
+                    C.layers.Convolution((3,3), [64,96,128][i], pad=True),
+                    C.layers.MaxPooling((3,3), strides=(2,2))
+                ]),
+                C.layers.For(range(2), lambda : [
+                    C.layers.Dense(1024)
+                ]),
+                C.layers.Dense(10, activation=None)
+            ])
+        
+        return model(input)
+
+    img_shape = (3, 32, 32)
+    img = np.asarray(np.random.uniform(-1, 1, img_shape), dtype=np.float32)
+
+    x = C.input_variable(img.shape)
+    root_node = create_model(x)
+
+    filename = os.path.join(str(tmpdir), R'vgg9_model.onnx')
+    root_node.save(filename, format=C.ModelFormat.ONNX)
+
+    loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
+    x_ = loaded_node.arguments[0];
+    assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
+
+def test_conv3d_model(tmpdir):
+    def create_model(input):
+        with C.default_options (activation=C.relu):
+            model = C.layers.Sequential([
+                    C.layers.Convolution3D((3,3,3), 64, pad=True),
+                    C.layers.MaxPooling((1,2,2), (1,2,2)),
+                    C.layers.For(range(3), lambda i: [
+                        C.layers.Convolution3D((3,3,3), [96, 128, 128][i], pad=True),
+                        C.layers.Convolution3D((3,3,3), [96, 128, 128][i], pad=True),
+                        C.layers.MaxPooling((2,2,2), (2,2,2))
+                    ]),
+                    C.layers.For(range(2), lambda : [
+                        C.layers.Dense(1024), 
+                        # C.layers.Dropout(0.5)
+                    ]),
+                C.layers.Dense(100, activation=None)
+            ])
+
+        return model(input)
+
+    video_shape = (3, 20, 32, 32)
+    video = np.asarray(np.random.uniform(-1, 1, video_shape), dtype=np.float32)
+
+    x = C.input_variable(video.shape)
+    root_node = create_model(x)
+
+    filename = os.path.join(str(tmpdir), R'conv3d_model.onnx')
+    root_node.save(filename, format=C.ModelFormat.ONNX)
+
+    loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
+    x_ = loaded_node.arguments[0];
+
+    assert np.allclose(loaded_node.eval({x_:video}), root_node.eval({x:video}))
