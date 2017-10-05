@@ -33,6 +33,11 @@ namespace ONNX
             return _cntkToONNXOpName.find(opName) != _cntkToONNXOpName.end();
         }
 
+        static inline bool IsLayerCNTKOP(const std::wstring& opName)
+        {
+            return _cntkLayerOPName.find(opName) != _cntkLayerOPName.end();
+        }
+
         static inline const std::unordered_multimap<std::wstring, AttributesMapping>& CntkToONNXLookup()
         {
             return _cntkToONNXOpName;
@@ -61,6 +66,7 @@ namespace ONNX
         static std::unordered_multimap<std::wstring, AttributesMapping> _cntkToONNXOpName;
         static std::unordered_map<std::wstring, std::set<size_t>> _cntkBlockOPInvalidIndices;
         static std::unordered_map<std::wstring, std::vector<int>> _cntkToONNXInputIndices;
+        static std::set<std::wstring> _cntkLayerOPName;
     };
 
 }

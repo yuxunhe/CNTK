@@ -265,5 +265,15 @@ namespace ONNX
         { L"BatchNormalization", { 0, 1, 2, 3, 4, -1 } },
         { L"Times", { 1, 0 } },
     };
+
+    //
+    // CNTK Layer API needs to be treated specially.
+    //
+    std::set<std::wstring> Operators::_cntkLayerOPName = {
+        { L"Convolution" },
+        { L"ConvolutionTranspose" },
+        { L"BatchNormalization" },
+    };
+
 }
 }

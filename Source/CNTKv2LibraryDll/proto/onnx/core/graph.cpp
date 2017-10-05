@@ -346,16 +346,25 @@ namespace LotusIR
         }
     }
 
-    void Node::Init(const NodeProto& p_nodeProto)
+    void Node::Init(const NodeProto& p_nodeProto,
+        const ArgNameToTypeMap& p_nameToType)
     {
         m_name = p_nodeProto.name();
         m_opType = p_nodeProto.op_type();
 
         for (int i = 0; i < p_nodeProto.input().size(); ++i)
         {
-            // There's no type information carried by <NodeProto>.
-            // Type info should be filled in when resolving a graph.
-            m_inputDefs.push_back(NodeArg(p_nodeProto.input(i), nullptr));
+            const TypeProto* type = nullptr;
+
+            auto nameToTypeIter = p_nameToType.find(p_nodeProto.input(i));
+            if (p_nameToType.end() != nameToTypeIter)
+            {
+                // This node input arg type/shape does exist in graph proto.
+                // Assign type/shape information to node input arg.
+                type = &(nameToTypeIter->second);
+            }
+
+            m_inputDefs.push_back(NodeArg(p_nodeProto.input(i), type));
         }
 
         for (auto argCount : p_nodeProto.input_arg_count())
@@ -373,9 +382,17 @@ namespace LotusIR
 
         for (int i = 0; i < p_nodeProto.output().size(); ++i)
         {
-            // There's no type information carried by <NodeProto>.
-            // Type info should be filled in when resolving a graph.
-            m_outputDefs.push_back(NodeArg(p_nodeProto.output(i), nullptr));
+            const TypeProto* type = nullptr;
+
+            auto nameToTypeIter = p_nameToType.find(p_nodeProto.output(i));
+            if (p_nameToType.end() != nameToTypeIter)
+            {
+                // This output arg type/shape does exist in graph proto.
+                // Assign type/shape information to node output arg.
+                type = &(nameToTypeIter->second);
+            }
+
+            m_outputDefs.push_back(NodeArg(p_nodeProto.output(i), type));
         }
 
         for (auto control_input : p_nodeProto.control_input())
@@ -600,12 +617,39 @@ namespace LotusIR
             m_nameToInitialTensor[tensor.name()] = tensor;
         }
 
+        // Collect all node arg name, type, shape information in the graph.
+        // type/shape information will be assigned to each node arg when going
+        // thru all nodes later.
+        ArgNameToTypeMap nameToTypeMap;
+        for (auto& graphInput : m_graphProto.input())
+        {
+            if (graphInput.has_name() && graphInput.has_type())
+            {
+                nameToTypeMap[graphInput.name()] = graphInput.type();
+            }
+        }
+        for (auto& graphOutput : m_graphProto.output())
+        {
+            if (graphOutput.has_name() && graphOutput.has_type())
+            {
+                nameToTypeMap[graphOutput.name()] = graphOutput.type();
+            }
+        }
+        for (auto& nodeArg : m_graphProto.value_info())
+        {
+            if (nodeArg.has_name() && nodeArg.has_type())
+            {
+                nameToTypeMap[nodeArg.name()] = nodeArg.type();
+            }
+        }
+
         // Add nodes.
         AddSourceSinkNodes();
         for (auto nodeProto : p_graphProto.node())
         {
-            AddNode(nodeProto);
+            AddNode(nodeProto, nameToTypeMap);
         }
+
     }
 
     Graph::Graph(Node* p_node,
@@ -620,9 +664,27 @@ namespace LotusIR
         m_funcDefProto = p_functionProto;
 
         AddSourceSinkNodes();
+
+        ArgNameToTypeMap nameToType;
+        if (nullptr != p_node)
+        {
+            // <p_node> is the one which refers to the function <p_functionProto>.
+            // The inputs/outputs of <p_node> should also be matched with function
+            // inputs/outputs in order.
+            int i = 0;
+            for (auto inputDef : p_node->InputDefs())
+            {
+                if (nullptr != inputDef.Type())
+                {
+                    nameToType[p_functionProto.input_params(i).name()] = OpUtils::ToTypeProto(inputDef.Type());
+                }
+                ++i;
+            }
+        }
+
         for (auto& nodeProto : p_functionProto.node())
         {
-            AddNode(nodeProto);
+            AddNode(nodeProto, nameToType);
         }
     }
 
@@ -673,7 +735,7 @@ namespace LotusIR
             p_nodeNameToIndex[nodeName] = (*nodeIter)->Index();
 
             // Verify node outputs' name should be unique.
-            for (auto& outputDef : (*nodeIter)->OutputDefs())
+            for (auto& outputDef : (*nodeIter)->Mutable_OutputDefs())
             {
                 std::string outputArgname = outputDef.Name();
                 if (p_outputArgs.end() != p_outputArgs.find(outputArgname))
@@ -856,13 +918,6 @@ namespace LotusIR
         const OpSignature* p_op,
         const std::unordered_map<std::string, Node::EdgeEnd>& p_outputArgs)
     {
-        // Get all graph inputs' value info.
-        std::unordered_map<std::string, ValueInfoProto> graphInputs;
-        for (auto& graphInput : m_graphProto.input())
-        {
-            graphInputs[graphInput.name()] = graphInput;
-        }
-
         auto& nodeName = p_node->Name();
 
         // <k> index used to navigate node->InputDefs().
@@ -902,27 +957,16 @@ namespace LotusIR
                             initialTensorIter->second.data_type());
                         inputDef.SetType(OpUtils::ToType(initialTensorType));
                     }
-                    else
+                    else if (!inputDef.m_nodeArgInfo.has_type())
                     {
-                        // This input is fed by callers.
-                        if (!inputDef.m_nodeArgInfo.has_type())
-                        {
-                            // The input node arg does not have type specified.
-                            auto inputIter = graphInputs.find(inputDef.Name());
-                            if (graphInputs.end() != inputIter && inputIter->second.has_type())
-                            {
-                                // Type information appears in graph inputs.
-                                inputDef.SetType(inputIter->second.type());
-                            }
-                            else
-                            {
-                                Status status(false,
-                                    "Node (" + nodeName + ") input arg ("
-                                    + inputDef.Name()
-                                    + ") does not have type information.");
-                                return status;
-                            }
-                        }
+                        // This input is fed by callers and its type has to be specified.
+
+                        Status status(false,
+                            "Node (" + nodeName + ") input arg ("
+                            + inputDef.Name()
+                            + ") does not have type information.");
+                        return status;
+
                     }
                 }
                 else
@@ -938,6 +982,7 @@ namespace LotusIR
                 // Verify the input arg type complying with operator
                 // definition.
 
+                /*
                 auto iter = opFormalParameter.GetTypes().find(inputDef.Type());
                 if (opFormalParameter.GetTypes().end() == iter)
                 {
@@ -947,25 +992,27 @@ namespace LotusIR
                         + p_op->GetName() + ") definition.");
                     return status;
                 }
+                */
 
                 auto paramToTypeIter = typeParameterToTypeMap.find(opFormalParameter.GetTypeStr());
-                if (typeParameterToTypeMap.end() != paramToTypeIter)
-                {
-                    if (paramToTypeIter->second != inputDef.Type())
-                    {
-                        Status status(false,
-                            "Node (" + nodeName + ") has different input"
-                            " types (" + *(paramToTypeIter->second) + ","
-                            + *(inputDef.Type()) + ") matching to same "
-                            "type string (" + opFormalParameter.GetTypeStr()
-                            + ").");
-                        return status;
-                    }
-                }
-                else
+                if (typeParameterToTypeMap.end() == paramToTypeIter)
                 {
                     typeParameterToTypeMap[opFormalParameter.GetTypeStr()]
                         = inputDef.Type();
+
+                }
+                else if (paramToTypeIter->second != inputDef.Type())
+                {
+                    // This is the case.
+                    // An operator's inputs' type is "T", and T"s allowed value set is "float, int32".
+                    // However, one input is specified as "float", and another one is specified as "int".
+                    Status status(false,
+                        "Node (" + nodeName + ") has different input"
+                        " types (" + *(paramToTypeIter->second) + ","
+                        + *(inputDef.Type()) + ") matching to same "
+                        "type string (" + opFormalParameter.GetTypeStr()
+                        + ").");
+                    return status;
                 }
             }
         }
@@ -1188,14 +1235,12 @@ namespace LotusIR
                     }
                 }
 
-                /*
                 if (0 != (m_graphType & Type::Strict))
                 {
                     // Strict type checking needed.
 
                     RETURN_IF_ERROR(InferAndVerifyTypeMatch(node, &op, p_outputArgs));
                 }
-                */
 
                 // Attribute verification and fill node attribute with
                 // default value defined in operator definition if needed.
@@ -1424,10 +1469,11 @@ namespace LotusIR
         return m_numOfNodes;
     }
 
-    Node* Graph::AddNode(const NodeProto& p_nodeProto)
+    Node* Graph::AddNode(const NodeProto& p_nodeProto,
+        const ArgNameToTypeMap& p_nameToType)
     {
         auto node = AllocateNode();
-        node->Init(p_nodeProto);
+        node->Init(p_nodeProto, p_nameToType);
         return node;
     }
 
@@ -1593,9 +1639,8 @@ namespace LotusIR
         }
 
         // Set graph inputs/outputs.
+        // Set graph value_info.
         SetGraphInputsOutputs();
-
-        // TODO: Set graph value info protos.
 
         m_graphProtoSyncNeeded = false;
 
@@ -1605,9 +1650,8 @@ namespace LotusIR
     void Graph::SetGraphInputsOutputs()
     {
         m_graphProto.clear_input();
-        //m_graphProto.clear_input_arg_info();
         m_graphProto.clear_output();
-        //m_graphProto.clear_output_arg_info();
+        m_graphProto.clear_value_info();
 
         std::unordered_map<std::string, Node::EdgeEnd> allOutputArgs;
         for (auto nodeIter = Nodes_begin();
@@ -1637,14 +1681,8 @@ namespace LotusIR
                 continue;
             }
 
-            auto& inputArgs = (*nodeIter)->InputDefs();
-            if (inputArgs.size() <= 0)
-            {
-                continue;
-            }
-
-            // This node needs inputs.
-            for (auto& inputArg : inputArgs)
+            // Go thru all node's inputs.
+            for (auto& inputArg : (*nodeIter)->InputDefs())
             {
                 auto outputArgIter = allOutputArgs.find(inputArg.Name());
                 if (allOutputArgs.end()
@@ -1652,14 +1690,17 @@ namespace LotusIR
                 {
                     // No such outputArg matching this inputArg.
                     // This input arg should be fed when running evaluation.
-                    // it should be a graph input.
+                    // it should be a graph input or initializer (say, weight).
                     *(m_graphProto.mutable_input()->Add()) = inputArg.ToProto();
                     continue;
                 }
 
                 // Remove the output arg name from graph outputs since it's
                 // feeding another node as the node's input.
-                graphOutputArgs.erase(outputArgIter->first);
+                if (graphOutputArgs.erase(outputArgIter->first) >= 1)
+                {
+                    *(m_graphProto.mutable_value_info()->Add()) = inputArg.ToProto();
+                }
             }
         }
 

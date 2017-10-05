@@ -393,9 +393,7 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
     //
     if (src->IsBlock())
     {
-        if (!Operators::IsSupportedCNTKOP(src->OpName()) ||
-            (src->OpName() == L"Convolution") ||
-            (src->OpName() == L"ConvolutionTranspose"))
+        if (!Operators::IsSupportedCNTKOP(src->OpName()) || Operators::IsLayerCNTKOP(src->OpName()))
         {
             functionNode = CreateNode(src->BlockRoot(), graph, functionNodes, variableNodes, compositeOutputsMap);
         }
@@ -509,9 +507,7 @@ void CNTKToONNXHelper::TraverseGraph(const FunctionPtr& src,
     std::string opName = ToString(src->OpName());
     if (src->IsBlock())
     {
-        if (!Operators::IsSupportedCNTKOP(src->OpName()) ||
-            (src->OpName() == L"Convolution") ||
-            (src->OpName() == L"ConvolutionTranspose"))
+        if (!Operators::IsSupportedCNTKOP(src->OpName()) || Operators::IsLayerCNTKOP(src->OpName()))
         {
             auto blockSrc = dynamic_cast<BlockFunction*>(src.get());
             for (auto map : blockSrc->CompositeOutputsMap())
