@@ -64,7 +64,6 @@ def test_conv_model(tmpdir):
     x_ = loaded_node.arguments[0];
     assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
 
-
 def test_vgg9_model(tmpdir):
     def create_model(input):
         with C.layers.default_options(activation=C.relu, init=C.glorot_uniform()):
