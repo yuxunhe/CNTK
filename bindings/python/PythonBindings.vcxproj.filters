@@ -79,6 +79,9 @@
     <Filter Include="cntk\netopt">
       <UniqueIdentifier>{fb0a88e9-8033-49d1-8c7e-0431d9bc9445}</UniqueIdentifier>
     </Filter>
+    <Filter Include="cntk\netopt\tests">
+      <UniqueIdentifier>{3d015e2e-9f18-430c-af59-a3e9a1941b77}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="cntk\__init__.py">
@@ -366,6 +369,12 @@
     </None>
     <None Include="cntk\tests\onnx_format_test.py">
       <Filter>cntk\tests</Filter>
+    </None>
+    <None Include="cntk\netopt\test\__init__.py">
+      <Filter>cntk\netopt\tests</Filter>
+    </None>
+    <None Include="cntk\netopt\test\factorization_test.py">
+      <Filter>cntk\netopt\tests</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
