@@ -154,7 +154,7 @@ private:
 
 std::unique_ptr<LotusIR::Model> CNTKToONNX::CreateModel(const FunctionPtr& src)
 {
-    std::unique_ptr<LotusIR::Model> model(new LotusIR::Model("CNTKGraph"));
+    std::unique_ptr<LotusIR::Model> model(new LotusIR::Model("CNTKGraph", true));
     auto dstGraph = model->MainGraph();
     CNTKToONNXHelper::Copy(src, dstGraph);
     LotusIR::Status status = dstGraph->Resolve();

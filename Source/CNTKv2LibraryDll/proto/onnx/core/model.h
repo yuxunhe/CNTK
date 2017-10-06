@@ -14,7 +14,10 @@ namespace LotusIR
 
         const VERSION c_noVersion = INT64_MAX;
 
-        Model(const std::string& p_graphName);
+        // <p_isONNX> is a special flag to indicate whether it's
+        // going to construct a ONNX graph. With ONNX graph, strict
+        // type checking will be skiped.
+        Model(const std::string& p_graphName, bool p_isONNX = false);
 
         Model(const std::string& p_graphName,
             const std::string& p_graphDocString);
