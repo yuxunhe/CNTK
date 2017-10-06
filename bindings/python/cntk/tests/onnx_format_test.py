@@ -107,7 +107,7 @@ def test_conv3d_model(tmpdir):
                     ]),
                     C.layers.For(range(2), lambda : [
                         C.layers.Dense(1024), 
-                        # C.layers.Dropout(0.5)
+                        C.layers.Dropout(0.5)
                     ]),
                 C.layers.Dense(100, activation=None)
             ])

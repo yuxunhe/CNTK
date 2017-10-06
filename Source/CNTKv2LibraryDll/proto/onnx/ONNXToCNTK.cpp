@@ -480,7 +480,7 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         const Variable& bias = inputs[2];
         const Variable& runningMean = inputs[3];
         const Variable& runningInvStd = inputs[4];
-        const Variable& runningCount = inputs[5]; 
+        const Variable& runningCount = Constant::Scalar(0.0F);
         bool spatial = GetNamedAttributeAsInt64(node, "spatial") != 0;
         double normalizationTimeConstant = 0;
         double blendTimeConstant = 0;
