@@ -45,17 +45,24 @@ namespace CNTK
 void ONNX::Save(const FunctionPtr& src, const std::wstring& filepath)
 {
     auto model = CNTKToONNX::CreateModel(src);
+#ifdef _WIN32
     LotusIR::Model::Save(*model, filepath);
+#else
+    LotusIR::Model::Save(*model, ToString(filepath));
+#endif
 }
 
 FunctionPtr ONNX::Load(const std::wstring& filepath, const DeviceDescriptor& computeDevice)
 {
     LotusIR::ModelProto modelProto;
+
+#ifdef _WIN32
     bool loadStatus = LotusIR::Model::Load(filepath, &modelProto);
+#else
+    bool loadStatus = LotusIR::Model::Load(ToString(filepath), &modelProto);
+#endif
     if (!loadStatus)
-    {
-        return nullptr;
-    }
+        LogicError("Failed to load the model.");
 
     LotusIR::Model model(modelProto);
     auto status = model.MainGraph()->Resolve();
