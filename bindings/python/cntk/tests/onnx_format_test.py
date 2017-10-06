@@ -93,7 +93,7 @@ def test_batch_norm_model(tmpdir):
     # apply model to input
     z = create_basic_model_with_batch_normalization(input_var_norm, out_dims=10)
 
-    filename = R"e:/test.onnx"
+    filename = os.path.join(str(tmpdir), R'bn_model.onnx')
     z.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
@@ -168,3 +168,66 @@ def test_conv3d_model(tmpdir):
     x_ = loaded_node.arguments[0];
 
     assert np.allclose(loaded_node.eval({x_:video}), root_node.eval({x:video}))
+
+def test_resnet_model(tmpdir):
+    def convolution_bn(input, filter_size, num_filters, strides=(1,1), init=C.normal(0.01), activation=C.relu):
+        r = C.layers.Convolution(filter_size, 
+                                 num_filters, 
+                                 strides=strides, 
+                                 init=init, 
+                                 activation=None, 
+                                 pad=True, bias=False)(input)
+        r = C.layers.BatchNormalization(map_rank=1)(r)
+        r = r if activation is None else activation(r)    
+        return r
+
+    def resnet_basic(input, num_filters):
+        c1 = convolution_bn(input, (3,3), num_filters)
+        c2 = convolution_bn(c1, (3,3), num_filters, activation=None)
+        p  = c2 + input
+        return C.relu(p)
+
+    def resnet_basic_inc(input, num_filters):
+        c1 = convolution_bn(input, (3,3), num_filters, strides=(2,2))
+        c2 = convolution_bn(c1, (3,3), num_filters, activation=None)
+
+        s = convolution_bn(input, (1,1), num_filters, strides=(2,2), activation=None)
+    
+        p = c2 + s
+        return C.relu(p)
+
+    def resnet_basic_stack(input, num_filters, num_stack):
+        assert (num_stack > 0)
+    
+        r = input
+        for _ in range(num_stack):
+            r = resnet_basic(r, num_filters)
+        return r
+
+    def create_model(input):
+        conv = convolution_bn(input, (3,3), 16)
+        r1_1 = resnet_basic_stack(conv, 16, 3)
+
+        r2_1 = resnet_basic_inc(r1_1, 32)
+        r2_2 = resnet_basic_stack(r2_1, 32, 2)
+
+        r3_1 = resnet_basic_inc(r2_2, 64)
+        r3_2 = resnet_basic_stack(r3_1, 64, 2)
+
+        # Global average pooling
+        pool = C.layers.AveragePooling(filter_shape=(8,8), strides=(1,1))(r3_2)    
+        return C.layers.Dense(10, init=C.normal(0.01), activation=None)(pool)
+
+    img_shape = (3, 32, 32)
+    img = np.asarray(np.random.uniform(0, 1, img_shape), dtype=np.float32)
+
+    x = C.input_variable(img.shape)
+    root_node = create_model(x)
+
+    filename = os.path.join(str(tmpdir), R'resnet_model.onnx')
+    root_node.save(filename, format=C.ModelFormat.ONNX)
+
+    loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
+    x_ = loaded_node.arguments[0];
+    
+    assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
