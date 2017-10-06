@@ -95,6 +95,8 @@
     <None Include="cntk\metrics\tests\__init__.py" />
     <None Include="cntk\metrics\__init__.py" />
     <None Include="cntk\netopt\factorization.py" />
+    <None Include="cntk\netopt\test\factorization_test.py" />
+    <None Include="cntk\netopt\test\__init__.py" />
     <None Include="cntk\netopt\__init__.py" />
     <None Include="cntk\ops\tests\assign_test.py" />
     <None Include="cntk\ops\tests\block_test.py" />
