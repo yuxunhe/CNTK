@@ -1881,6 +1881,14 @@ namespace CNTK
         bool IsPlaceholder() const { return Kind() == VariableKind::Placeholder; }
 
         ///
+        /// Returns a boolean value indicating if 'this' variable has a batch axis or not.
+        ///
+        bool HasBatchAxis() const { 
+            return std::any_of(DynamicAxes().begin(), DynamicAxes().end(),
+                [](const Axis& axis) { return (axis == Axis::DefaultBatchAxis()); });
+        }
+
+        ///
         /// Returns the name of 'this' variable
         ///
         CNTK_API const std::wstring& Name() const;

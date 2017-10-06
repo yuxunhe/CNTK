@@ -239,7 +239,7 @@ ONNXIR::TypeProto CNTKToONNXHelper::ToTypeProto(const NDShape& shape, bool hasBa
     ONNXIR::TypeProto newShape;
 
     if (hasBatchAxis)
-        newShape.mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(-1);
+        newShape.mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(1);
 
     auto dimensions = reverse(shape.Dimensions());
     for (auto dimension : dimensions)
@@ -408,7 +408,7 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
 
         for (const auto& output : src->Outputs())
         {
-            auto outputArgType = ToTypeProto(output.Shape());
+            auto outputArgType = ToTypeProto(output.Shape(), output.HasBatchAxis());
             ToONNXType(output.GetDataType(), outputArgType);
 
             ONNXIR::NodeArg outputArg(ToString(output.Uid()), &outputArgType);
@@ -434,7 +434,7 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             if (inputItr != compositeOutputsMap.end())
                 inputName = ToString(inputItr->second.Uid());
 
-            auto inputArgType = ToTypeProto(input.Shape());
+            auto inputArgType = ToTypeProto(input.Shape(), input.HasBatchAxis());
             ToONNXType(input.GetDataType(), inputArgType);
             ONNXIR::NodeArg inputArg(inputName, &inputArgType);
 
