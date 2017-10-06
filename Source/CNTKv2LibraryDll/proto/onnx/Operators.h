@@ -62,6 +62,19 @@ namespace ONNX
             return _cntkToONNXInputIndices[opName];
         }
 
+        static inline bool IgnoreConstantAndParameter(const std::wstring& opName, size_t index)
+        {
+            if (_cntkToONNXInputIndices.find(opName) != _cntkToONNXInputIndices.end())
+            {
+                auto indexMap = _cntkToONNXInputIndices[opName];
+                assert (index < indexMap.size());
+
+                return (indexMap[index] < 0);
+            }
+
+            return false;
+        }
+
     private:
         static std::unordered_multimap<std::wstring, AttributesMapping> _cntkToONNXOpName;
         static std::unordered_map<std::wstring, std::set<size_t>> _cntkBlockOPInvalidIndices;

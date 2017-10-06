@@ -15,7 +15,6 @@
 using namespace CNTK::ONNX;
 using namespace CNTK;
 
-
 //
 // A helper function, to reverse any iterable container and return a copy
 // of the reversed container.
@@ -154,7 +153,7 @@ private:
 
 std::unique_ptr<LotusIR::Model> CNTKToONNX::CreateModel(const FunctionPtr& src)
 {
-    std::unique_ptr<LotusIR::Model> model(new LotusIR::Model("CNTKGraph"));
+    std::unique_ptr<LotusIR::Model> model(new LotusIR::Model("CNTKGraph", true));
     auto dstGraph = model->MainGraph();
     CNTKToONNXHelper::Copy(src, dstGraph);
     LotusIR::Status status = dstGraph->Resolve();
@@ -444,7 +443,8 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             //
             // Leaf nodes are data entry to the graph and need their own node with only output arg.
             //
-            if (input.IsParameter() || input.IsConstant())
+            if ((input.IsParameter() || input.IsConstant()) &&
+                !Operators::IgnoreConstantAndParameter(src->OpName(), inputIndex))
             {
                 if (variableNodes.find(input) == variableNodes.end())
                 {
@@ -477,16 +477,6 @@ LotusIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
         //
         // Finally add a new node to ONNX graph.
         //
-        /*
-        opName = ToString(src->OpName());
-        string inputName;
-        string outputName;
-
-        for (auto i : inputs)
-            inputName += i.Name() + ", ";
-        for (auto o : outputs)
-            outputName += o.Name() + ", ";
-        */
         functionNode = AddNode(src, graph, inputs, outputs);
     }
     else

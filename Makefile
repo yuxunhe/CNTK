@@ -496,14 +496,14 @@ CNTKLIBRARY_COMMON_SRC =\
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/protobuf/Data.pb.cc \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/protobuf/graph.pb.cc \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/protobuf/Type.pb.cc \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/experiments/defs.cc \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/generator/defs.cc \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/logical/defs.cc \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/math/defs.cc \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/nn/defs.cc \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/reduction/defs.cc \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/rnn/defs.cc \
-	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/tensor/defs.cc \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/experiments/defs.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/generator/defs.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/logical/defs.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/math/defs.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/nn/defs.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/reduction/defs.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/rnn/defs.cpp \
+	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/defs/tensor/defs.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/constants.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/status.cpp \
 	$(SOURCEDIR)/CNTKv2LibraryDll/proto/onnx/core/utils.cpp \
@@ -532,7 +532,6 @@ CNTKLIBRARY:=Cntk.Core-$(CNTK_COMPONENT_VERSION)
 CNTKLIBRARY_OBJ:=\
 	$(patsubst %.cu, $(OBJDIR)/%.o, $(filter %.cu, $(CNTKLIBRARY_SRC))) \
 	$(patsubst %.pb.cc, $(OBJDIR)/%.pb.o, $(filter %.pb.cc, $(CNTKLIBRARY_SRC))) \
-	$(patsubst %defs.cc, $(OBJDIR)/%defs.o, $(filter %defs.cc, $(CNTKLIBRARY_SRC))) \
 	$(patsubst %.cpp, $(OBJDIR)/%.o, $(filter %.cpp, $(CNTKLIBRARY_SRC)))
 
 CNTKLIBRARY_LIB:=$(LIBDIR)/lib$(CNTKLIBRARY).so

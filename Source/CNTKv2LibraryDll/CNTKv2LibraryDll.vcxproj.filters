@@ -58,30 +58,6 @@
     <ClCompile Include="proto\onnx\Operators.cpp">
       <Filter>proto\onnx</Filter>
     </ClCompile>
-    <ClCompile Include="proto\onnx\defs\experiments\defs.cc">
-      <Filter>proto\onnx\defs\experiments</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\defs\generator\defs.cc">
-      <Filter>proto\onnx\defs\generator</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\defs\logical\defs.cc">
-      <Filter>proto\onnx\defs\logical</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\defs\math\defs.cc">
-      <Filter>proto\onnx\defs\math</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\defs\tensor\defs.cc">
-      <Filter>proto\onnx\defs\tensor</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\defs\rnn\defs.cc">
-      <Filter>proto\onnx\defs\rnn</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\defs\reduction\defs.cc">
-      <Filter>proto\onnx\defs\reduction</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\defs\nn\defs.cc">
-      <Filter>proto\onnx\defs\nn</Filter>
-    </ClCompile>
     <ClCompile Include="proto\onnx\core\constants.cpp">
       <Filter>proto\onnx\core</Filter>
     </ClCompile>
@@ -105,6 +81,30 @@
     </ClCompile>
     <ClCompile Include="proto\onnx\core\utils.cpp">
       <Filter>proto\onnx\core</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\defs\experiments\defs.cpp">
+      <Filter>proto\onnx\defs\experiments</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\defs\generator\defs.cpp">
+      <Filter>proto\onnx\defs\generator</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\defs\logical\defs.cpp">
+      <Filter>proto\onnx\defs\logical</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\defs\math\defs.cpp">
+      <Filter>proto\onnx\defs\math</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\defs\nn\defs.cpp">
+      <Filter>proto\onnx\defs\nn</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\defs\reduction\defs.cpp">
+      <Filter>proto\onnx\defs\reduction</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\defs\rnn\defs.cpp">
+      <Filter>proto\onnx\defs\rnn</Filter>
+    </ClCompile>
+    <ClCompile Include="proto\onnx\defs\tensor\defs.cpp">
+      <Filter>proto\onnx\defs\tensor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

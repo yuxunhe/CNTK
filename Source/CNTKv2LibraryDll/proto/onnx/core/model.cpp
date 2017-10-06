@@ -5,9 +5,9 @@
 
 namespace LotusIR
 {
-    Model::Model(const std::string& p_graphName)
+    Model::Model(const std::string& p_graphName, bool p_isONNX)
     {
-        m_graph.reset(new Graph(p_graphName));
+        m_graph.reset(new Graph(p_graphName, p_isONNX));
     }
 
     Model::Model(const std::string& p_graphName,

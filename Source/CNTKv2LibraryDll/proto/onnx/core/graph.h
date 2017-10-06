@@ -367,7 +367,10 @@ namespace LotusIR
         };
 
         // Constructor from scratch.
-        Graph(const std::string& p_name);
+        // <p_isONNX> is a special flag to indicate whether it's
+        // going to construct a ONNX graph. With ONNX graph, strict
+        // type checking will be skiped.
+        Graph(const std::string& p_name, bool p_isONNX = false);
         Graph(const std::string& p_name, const std::string& p_docString);
 
         // Constructor: Given a <GraphProto> loaded from model file, construct
