@@ -80,7 +80,7 @@ def factor_dense(model, projection_function = None, filter_function = None,
             init=Ws,
             activation=None,
             init_bias=b,
-            name='factored_model')(model.inputs[2])
+            name='DenseFactored')(model.inputs[2])
         return dfl
 
     return cntk.misc.convert(model, dense_filter, dense_converter)
@@ -142,7 +142,7 @@ def dense_factored(shapes, #(shape1, shape2)
     b = Parameter(output_shape2, init=init_bias,    name='b') if bias else None
 
     # expression of this function
-    @BlockFunction('factored_model', name)
+    @BlockFunction('DenseFactored', name)
     def dense(x):
         r = times(x, W1)
         r = times(r, W2)
