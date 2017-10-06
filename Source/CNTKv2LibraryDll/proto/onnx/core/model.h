@@ -3,7 +3,7 @@
 
 #include "graph.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
     // A machine learning model representation class.
     // Besides a main <Graph>, it also holds basic information, say,

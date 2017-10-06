@@ -1,6 +1,6 @@
 #include "shape_inference.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
     InferenceContext::InferenceContext(Node* p_node,
         const OpSignature* p_opSchema)

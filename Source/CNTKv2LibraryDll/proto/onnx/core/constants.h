@@ -1,7 +1,7 @@
 #include <string>
 #include <unordered_set>
 
-namespace LotusIR
+namespace ONNXIR
 {
     static const std::string c_noOp = "NoOp";
     static const std::string c_constantOp = "Constant";

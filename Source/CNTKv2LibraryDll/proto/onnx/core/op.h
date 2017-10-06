@@ -7,7 +7,7 @@
 #include "opsignature.h"
 #include "shape_inference.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
     class OpSignature;
     class OperatorSchemaSetter;

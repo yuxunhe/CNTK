@@ -8,7 +8,7 @@
 #include "stdafx.h"
 #include "CNTKLibrary.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
     class Graph;
 }
@@ -18,6 +18,6 @@ namespace CNTK
     class ONNXToCNTK
     {
     public:
-        static FunctionPtr CreateGraph(LotusIR::Graph* src, const DeviceDescriptor& computeDevice);
+        static FunctionPtr CreateGraph(ONNXIR::Graph* src, const DeviceDescriptor& computeDevice);
     };
 }

@@ -4,9 +4,9 @@
 #include "proto/onnx/core/op.h"
 #include <functional>
 
-using AttrType = LotusIR::AttrType;
+using AttrType = ONNXIR::AttrType;
 
-namespace LotusIR {
+namespace ONNXIR {
 
     const char* kBroadcastDoc = R"DOC(
 If necessary the right-hand-side argument will be broadcasted to match the

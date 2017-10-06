@@ -4,7 +4,7 @@
 #include "graph.h"
 #include "opsignature.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
 
     // A context to contain information for shape inference function.

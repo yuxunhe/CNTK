@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <iostream>
 
-using namespace LotusIR;
+using namespace ONNXIR;
 using namespace CNTK;
 using namespace CNTK::ONNX;
 
@@ -34,11 +34,11 @@ private:
     static FunctionPtr CreateFunction(const Node *node, const std::vector<Variable> &inputs);
 
     static std::vector<Axis> FromINTSToAxes(const std::vector<int64_t> &ints);
-    static LotusIR::TypeProto FromINTS(const std::vector<int64_t> &shape);
-    static NDShape FromTypeProto(const LotusIR::TypeProto& tensorShape);
-    static NDShape FromTensorShapeProto(const LotusIR::TypeProto::TensorShapeProto& tensorShape);
-    static std::vector<bool> FromTypeProtoAsBool(const LotusIR::TypeProto& tensorShape);
-    static DataType FromONNXType(LotusIR::TypeProto type);
+    static ONNXIR::TypeProto FromINTS(const std::vector<int64_t> &shape);
+    static NDShape FromTypeProto(const ONNXIR::TypeProto& tensorShape);
+    static NDShape FromTensorShapeProto(const ONNXIR::TypeProto::TensorShapeProto& tensorShape);
+    static std::vector<bool> FromTypeProtoAsBool(const ONNXIR::TypeProto& tensorShape);
+    static DataType FromONNXType(ONNXIR::TypeProto type);
 
     static std::vector<Axis> GetNamedAttributeAsAxis(const Node *node, const string &attributeName);
     static NDShape GetNamedAttributeAsShape(const Node *node, const string &attributeName, bool hasBatchAxis = false);
@@ -61,9 +61,9 @@ std::vector<Axis> ONNXToCNTKHelper::FromINTSToAxes(const std::vector<int64_t> &i
     return axes;
 }
 
-LotusIR::TypeProto ONNXToCNTKHelper::FromINTS(const std::vector<int64_t> &shape)
+ONNXIR::TypeProto ONNXToCNTKHelper::FromINTS(const std::vector<int64_t> &shape)
 {
-    LotusIR::TypeProto newShape;
+    ONNXIR::TypeProto newShape;
 
     for (std::vector<int64_t>::const_iterator it = shape.begin(); it != shape.end(); it++)
     {
@@ -73,12 +73,12 @@ LotusIR::TypeProto ONNXToCNTKHelper::FromINTS(const std::vector<int64_t> &shape)
     return newShape;
 }
 
-NDShape ONNXToCNTKHelper::FromTypeProto(const LotusIR::TypeProto& tensorShape)
+NDShape ONNXToCNTKHelper::FromTypeProto(const ONNXIR::TypeProto& tensorShape)
 {
     return FromTensorShapeProto(tensorShape.tensor_type().shape());
 }
 
-NDShape ONNXToCNTKHelper::FromTensorShapeProto(const LotusIR::TypeProto::TensorShapeProto& tensorShape)
+NDShape ONNXToCNTKHelper::FromTensorShapeProto(const ONNXIR::TypeProto::TensorShapeProto& tensorShape)
 {
     std::vector<size_t> dimensions;
     for (int index = 0; index < tensorShape.dim_size(); index++)
@@ -98,7 +98,7 @@ NDShape ONNXToCNTKHelper::ReverseShape(const NDShape &shape)
     return dimensions;
 }
 
-std::vector<bool> ONNXToCNTKHelper::FromTypeProtoAsBool(const LotusIR::TypeProto& tensorShape)
+std::vector<bool> ONNXToCNTKHelper::FromTypeProtoAsBool(const ONNXIR::TypeProto& tensorShape)
 {
     std::vector<bool> dimensions;
     for (int index = 0; index < tensorShape.tensor_type().shape().dim_size(); index++)
@@ -109,13 +109,13 @@ std::vector<bool> ONNXToCNTKHelper::FromTypeProtoAsBool(const LotusIR::TypeProto
     return dimensions;
 }
 
-DataType ONNXToCNTKHelper::FromONNXType(LotusIR::TypeProto type)
+DataType ONNXToCNTKHelper::FromONNXType(ONNXIR::TypeProto type)
 {
     switch (type.tensor_type().elem_type())
     {
-    case LotusIR::TensorProto_DataType_FLOAT:
+    case ONNXIR::TensorProto_DataType_FLOAT:
         return DataType::Float;
-    case LotusIR::TensorProto_DataType_DOUBLE:
+    case ONNXIR::TensorProto_DataType_DOUBLE:
         return DataType::Double;
         break;
     default:
@@ -132,7 +132,7 @@ Constant ONNXToCNTKHelper::CreateConvKernelConstant(const Node *node)
 Constant ONNXToCNTKHelper::CreateConstant(const Node *node, const DeviceDescriptor& computeDevice)
 {
     NodeAttributes::const_iterator itValue = node->GetAttributes().find("value");
-    const LotusIR::TensorProto valueProto = itValue->second.t();
+    const ONNXIR::TensorProto valueProto = itValue->second.t();
     auto dataType = valueProto.data_type();
 
     NDShape shape(std::vector<size_t>(valueProto.dims().begin(), valueProto.dims().end()));
@@ -228,7 +228,7 @@ Variable ONNXToCNTKHelper::CreateVariable(const NodeArg *nodeArg)
 
 Variable ONNXToCNTKHelper::CreateVariable(const Node *node)
 {
-    LotusIR::NodeArg inputArg = node->OutputDefs()[0];
+    ONNXIR::NodeArg inputArg = node->OutputDefs()[0];
 
     auto dataType = FromONNXType(inputArg.ToProto().type());
     auto shapeProto = inputArg.Shape();
@@ -855,7 +855,7 @@ FunctionPtr ONNXToCNTKHelper::CreateCNTKNode(const Node *node, const std::vector
     }
 }
 
-FunctionPtr ONNXToCNTK::CreateGraph(LotusIR::Graph* src, const DeviceDescriptor& computeDevice)
+FunctionPtr ONNXToCNTK::CreateGraph(ONNXIR::Graph* src, const DeviceDescriptor& computeDevice)
 {
     FunctionPtr cntkModel;    
     ONNXToCNTKMap constructedFunctions;

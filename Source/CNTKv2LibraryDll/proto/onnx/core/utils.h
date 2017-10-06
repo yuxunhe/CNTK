@@ -1,5 +1,5 @@
-#ifndef LOTUSIR_UTILS_H
-#define LOTUSIR_UTILS_H
+#ifndef ONNXIR_UTILS_H
+#define ONNXIR_UTILS_H
 
 #include <unordered_map>
 #include <unordered_set>
@@ -8,7 +8,7 @@
 class TensorProto;
 class TypeProto;
 
-namespace LotusIR
+namespace ONNXIR
 {
     typedef const std::string* PTYPE;
 
@@ -61,4 +61,4 @@ namespace LotusIR
     }
 }
 
-#endif // ! LOTUSIR_UTILS_H
+#endif // ! ONNXIR_UTILS_H

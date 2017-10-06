@@ -3,7 +3,7 @@
 
 #include "proto/onnx/core/op.h"
 
-namespace LotusIR {
+namespace ONNXIR {
 
 std::function<void(OpSchema&)> BinaryLogicDocGenerator(const char* name) {
     return [=](OpSchema& schema) {
@@ -20,4 +20,4 @@ The result is a tensor of type integer in which `0` mean false and `1` mean true
     };
 }
 
-}  // namespace LotusIR
+}  // namespace ONNXIR

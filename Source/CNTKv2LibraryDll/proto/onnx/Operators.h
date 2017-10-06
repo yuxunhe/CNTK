@@ -10,7 +10,7 @@
 
 #include <set>
 
-namespace LotusIR
+namespace ONNXIR
 {
     class Graph;
 }

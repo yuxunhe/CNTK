@@ -9,9 +9,9 @@
 #include "op.h"
 #include "utils.h"
 
-using namespace LotusIR::Utils;
+using namespace ONNXIR::Utils;
 
-namespace LotusIR
+namespace ONNXIR
 {
     NodeArg::NodeArg(const std::string& p_name,
         const TypeProto* p_nodeArgType)
@@ -44,15 +44,15 @@ namespace LotusIR
         auto typeCase = m_nodeArgInfo.type().value_case();
         switch (typeCase)
         {
-        case LotusIR::TypeProto::kTensorType:
+        case ONNXIR::TypeProto::kTensorType:
             return &(m_nodeArgInfo.type().tensor_type().shape());
-        case LotusIR::TypeProto::kSparseTensorType:
+        case ONNXIR::TypeProto::kSparseTensorType:
             return &(m_nodeArgInfo.type().sparse_tensor_type().shape());
-        case LotusIR::TypeProto::kHandleType:
-        case LotusIR::TypeProto::kTupleType:
-        case LotusIR::TypeProto::kSeqType:
-        case LotusIR::TypeProto::kMapType:
-        case LotusIR::TypeProto::VALUE_NOT_SET:
+        case ONNXIR::TypeProto::kHandleType:
+        case ONNXIR::TypeProto::kTupleType:
+        case ONNXIR::TypeProto::kSeqType:
+        case ONNXIR::TypeProto::kMapType:
+        case ONNXIR::TypeProto::VALUE_NOT_SET:
         default:
             return nullptr;
         }
@@ -68,17 +68,17 @@ namespace LotusIR
         auto typeCase = m_nodeArgInfo.type().value_case();
         switch (typeCase)
         {
-        case LotusIR::TypeProto::kTensorType:
+        case ONNXIR::TypeProto::kTensorType:
             *(m_nodeArgInfo.mutable_type()->mutable_tensor_type()->mutable_shape()) = p_shape;
             break;
-        case LotusIR::TypeProto::kSparseTensorType:
+        case ONNXIR::TypeProto::kSparseTensorType:
             *(m_nodeArgInfo.mutable_type()->mutable_sparse_tensor_type()->mutable_shape()) = p_shape;
             break;
-        case LotusIR::TypeProto::kHandleType:
-        case LotusIR::TypeProto::kTupleType:
-        case LotusIR::TypeProto::kSeqType:
-        case LotusIR::TypeProto::kMapType:
-        case LotusIR::TypeProto::VALUE_NOT_SET:
+        case ONNXIR::TypeProto::kHandleType:
+        case ONNXIR::TypeProto::kTupleType:
+        case ONNXIR::TypeProto::kSeqType:
+        case ONNXIR::TypeProto::kMapType:
+        case ONNXIR::TypeProto::VALUE_NOT_SET:
         default:
             return;
         }
@@ -1067,7 +1067,7 @@ namespace LotusIR
                     Status status(false,
                         "For attribute " + c_constantValue + " , only Tensor type"
                         "is allowed. The attribute type in this model is "
-                        + LotusIR::c_attrTypeStr[(int)attrType] + ".");
+                        + ONNXIR::c_attrTypeStr[(int)attrType] + ".");
                     return status;
                 }
 

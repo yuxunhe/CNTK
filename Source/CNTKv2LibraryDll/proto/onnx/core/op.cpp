@@ -6,7 +6,7 @@
 #include "utils.h"
 #include <cstring>
 
-namespace LotusIR
+namespace ONNXIR
 {
     const std::string& OperatorSchema::GetName() const
     {

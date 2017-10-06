@@ -484,7 +484,7 @@ namespace CNTK
 
             case ModelFormat::ONNX:
             {
-                ONNX::Save(RootFunction(), filepath);
+                ONNXFormat::Save(RootFunction(), filepath);
                 break;
             }
         }
@@ -511,7 +511,7 @@ namespace CNTK
             }
 
             case ModelFormat::ONNX:
-                return ONNX::Load(filepath, computeDevice);
+                return ONNXFormat::Load(filepath, computeDevice);
                 break;
         }
 

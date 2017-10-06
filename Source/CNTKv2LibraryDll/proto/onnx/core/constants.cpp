@@ -1,6 +1,6 @@
 #include "constants.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
 
     TypesWrapper& TypesWrapper::GetTypesWrapper()

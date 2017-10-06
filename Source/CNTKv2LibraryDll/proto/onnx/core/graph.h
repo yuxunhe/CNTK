@@ -13,7 +13,7 @@
 #include "status.h"
 #include "utils.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
     typedef size_t NODEINDEX;
     typedef int64_t VERSION;

@@ -3,7 +3,7 @@
 
 #include "proto/onnx/core/op.h"
 
-namespace LotusIR {
+namespace ONNXIR {
     std::function<void(OpSchema&)> AveragePoolOpSchemaGenerator(const char* name) {
         return [=](OpSchema& schema) {
             std::string doc = R"DOC(

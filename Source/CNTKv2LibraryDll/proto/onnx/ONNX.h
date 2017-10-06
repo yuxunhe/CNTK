@@ -11,7 +11,7 @@
 
 namespace CNTK
 {
-    class ONNX
+    class ONNXFormat
     {
     public:
         static void Save(const FunctionPtr& src, const std::wstring& filepath);

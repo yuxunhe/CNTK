@@ -4,7 +4,7 @@
 #include "proto/onnx/core/op.h"
 #include <functional>
 
-namespace LotusIR {
+namespace ONNXIR {
 
 std::function<void(OpSchema&)> ReduceDocGenerator(const char* name) {
     return [=](OpSchema& schema) {
@@ -88,4 +88,4 @@ REGISTER_OPERATOR_SCHEMA(ArgMin)
     .NumOutputs(1)
     .FillUsing(ArgReduceDocGenerator("min"));
 
-}  // namespace LotusIR
+}  // namespace ONNXIR

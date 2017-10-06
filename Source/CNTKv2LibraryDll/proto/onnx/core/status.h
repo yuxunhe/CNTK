@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace LotusIR
+namespace ONNXIR
 {
 
 #define RETURN_IF_ERROR(expr)           \

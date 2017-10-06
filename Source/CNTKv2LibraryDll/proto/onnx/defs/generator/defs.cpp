@@ -3,7 +3,7 @@
 
 #include "proto/onnx/core/op.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
     REGISTER_OPERATOR_SCHEMA(Constant)
         .NumInputs(0)

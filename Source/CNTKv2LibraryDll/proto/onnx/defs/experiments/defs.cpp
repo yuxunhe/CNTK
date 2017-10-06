@@ -3,8 +3,8 @@
 
 #include "proto/onnx/core/op.h"
 
-using SupportType = LotusIR::OpSchema::SupportType;
-namespace LotusIR {
+using SupportType = ONNXIR::OpSchema::SupportType;
+namespace ONNXIR {
     REGISTER_OPERATOR_SCHEMA(ConstantFill)
         .SetSupportLevel(SupportType::EXPERIMENTAL)
         .NumInputs(0, 1)

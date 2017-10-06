@@ -10,7 +10,7 @@
 #include "proto/onnx/protobuf/graph.pb.h"
 #include "utils.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
     namespace Utils
     {

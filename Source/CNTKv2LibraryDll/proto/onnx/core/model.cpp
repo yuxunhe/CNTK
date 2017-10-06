@@ -54,7 +54,7 @@ namespace
     }
 }
 
-namespace LotusIR
+namespace ONNXIR
 {
     Model::Model(const std::string& p_graphName, bool p_isONNX)
     {

@@ -8,7 +8,7 @@
 #include "stdafx.h"
 #include "CNTKLibrary.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
     class Model;
 }
@@ -18,6 +18,6 @@ namespace CNTK
     class CNTKToONNX
     {
     public:
-        static std::unique_ptr<LotusIR::Model> CreateModel(const FunctionPtr& src);
+        static std::unique_ptr<ONNXIR::Model> CreateModel(const FunctionPtr& src);
     };
 }

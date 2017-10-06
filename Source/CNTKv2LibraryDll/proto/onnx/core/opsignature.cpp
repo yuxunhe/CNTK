@@ -1,6 +1,6 @@
 #include "opsignature.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
     OpSignature::FormalParameter::FormalParameter(
         const std::string& p_name, const std::string& p_type,

@@ -1,6 +1,6 @@
 #include "status.h"
 
-namespace LotusIR
+namespace ONNXIR
 {
     Status::Status(bool p_ok, const std::string& p_errMsg)
     {
