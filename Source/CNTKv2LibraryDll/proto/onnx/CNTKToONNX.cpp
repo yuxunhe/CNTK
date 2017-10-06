@@ -135,6 +135,11 @@ private:
     static std::string ToOPName(const FunctionPtr& src);
 
     //
+    // Check that the CNTK variable is compatible with ONNX.
+    //
+    static void ValidateVariable(const Variable& v);
+
+    //
     // Which input to ignore during converting a CNTK block to a primitive OP in ONNX.
     //
     static bool FilterInput(const FunctionPtr& src, const CNTK::Variable& input, size_t inputIndex);
@@ -237,6 +242,8 @@ int CNTKToONNXHelper::ToIndex(const Axis& axis)
 ONNXIR::TypeProto CNTKToONNXHelper::ToTypeProto(const NDShape& shape, bool hasBatchAxis)
 {
     ONNXIR::TypeProto newShape;
+    if (shape.HasUnboundDimension())
+        LogicError("Inferred and FreeDimension aren't currently supported.");
 
     if (hasBatchAxis)
         newShape.mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(1);
@@ -244,8 +251,6 @@ ONNXIR::TypeProto CNTKToONNXHelper::ToTypeProto(const NDShape& shape, bool hasBa
     auto dimensions = reverse(shape.Dimensions());
     for (auto dimension : dimensions)
     {
-        if (dimension == NDShape::InferredDimension)
-            LogicError("Incomplete graph isn't supported.");
         newShape.mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(dimension);
     }
 
@@ -360,6 +365,15 @@ std::string CNTKToONNXHelper::ToOPName(const FunctionPtr& src)
     return opName;
 }
 
+void CNTKToONNXHelper::ValidateVariable(const Variable& v)
+{
+    if ((v.HasBatchAxis() && (v.DynamicAxes().size() > 1)) ||
+        (!v.HasBatchAxis() && (v.DynamicAxes().size() > 0)))
+    {
+        LogicError("Sequence and user defined dynamic axis are currently not supported.");
+    }
+}
+
 bool CNTKToONNXHelper::FilterInput(const FunctionPtr& src, const CNTK::Variable& input, size_t inputIndex)
 {
     // In CNTK block functions, they expose all constants inside the block. For block functions that
@@ -408,6 +422,8 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
 
         for (const auto& output : src->Outputs())
         {
+            ValidateVariable(output);
+
             auto outputArgType = ToTypeProto(output.Shape(), output.HasBatchAxis());
             ToONNXType(output.GetDataType(), outputArgType);
 
@@ -425,6 +441,7 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 if (input.IsPlaceholder())
                     LogicError("Node '%S': Placeholder isn't supported currently.", src->AsString().c_str());
             }
+            ValidateVariable(input);
 
             if (src->IsBlock() && FilterInput(src, input, inputIndex))
                 continue;
