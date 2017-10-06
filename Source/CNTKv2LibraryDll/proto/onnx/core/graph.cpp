@@ -1345,11 +1345,11 @@ namespace LotusIR
 
         RETURN_IF_ERROR(CheckIsAcyclic(m_nodesInTopologicalOrder));
 
-        std::set<std::string> funcDefNames;
-        RETURN_IF_ERROR(VerifyNodeAndOpMatch(m_nodesInTopologicalOrder,
-            outputArgs,
-            funcDefNames));
-        CleanFunctionDefMap(funcDefNames);
+        //std::set<std::string> funcDefNames;
+        //RETURN_IF_ERROR(VerifyNodeAndOpMatch(m_nodesInTopologicalOrder,
+        //    outputArgs,
+        //    funcDefNames));
+        //CleanFunctionDefMap(funcDefNames);
 
         m_graphResolveNeeded = false;
         return Status::OK();

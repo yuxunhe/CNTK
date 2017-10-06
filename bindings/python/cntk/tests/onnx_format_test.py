@@ -64,6 +64,47 @@ def test_conv_model(tmpdir):
     x_ = loaded_node.arguments[0];
     assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
 
+def test_batch_norm_model(tmpdir):
+    image_height = 32
+    image_width  = 32
+    num_channels = 3
+    num_classes  = 10
+
+    input_var = C.input_variable((num_channels, image_height, image_width))
+    label_var = C.input_variable((num_classes))
+    def create_basic_model_with_batch_normalization(input, out_dims):
+        with C.layers.default_options(activation=C.relu, init=C.glorot_uniform()):
+            model = C.layers.Sequential([
+                C.layers.For(range(3), lambda i: [
+                    C.layers.Convolution((5,5), [image_width,image_height,64][i], pad=True),
+                    C.layers.BatchNormalization(map_rank=1),
+                    C.layers.MaxPooling((3,3), strides=(2,2))
+                ]),
+                C.layers.Dense(64),
+                C.layers.BatchNormalization(map_rank=1),
+                C.layers.Dense(out_dims, activation=None)
+            ])
+
+        return model(input)
+
+    feature_scale = 1.0 / 256.0
+    input_var_norm = C.element_times(feature_scale, input_var)
+    
+    # apply model to input
+    z = create_basic_model_with_batch_normalization(input_var_norm, out_dims=10)
+
+    filename = R"e:/test.onnx"
+    z.save(filename, format=C.ModelFormat.ONNX)
+
+    loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
+
+    img_shape = (num_channels, image_width, image_height)
+    img = np.asarray(np.random.uniform(-1, 1, img_shape), dtype=np.float32)
+
+    x = z.arguments[0];
+    x_ = loaded_node.arguments[0];
+    assert np.allclose(loaded_node.eval({x_:img}), z.eval({x:img}))
+
 def test_vgg9_model(tmpdir):
     def create_model(input):
         with C.layers.default_options(activation=C.relu, init=C.glorot_uniform()):
