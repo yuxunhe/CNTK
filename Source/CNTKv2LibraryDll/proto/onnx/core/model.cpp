@@ -1,7 +1,58 @@
+#pragma warning(push)
+#pragma warning(disable : 4800 4610 4512 4510 4267 4127 4125 4100 4456 4189 4996)
+
 #include <fcntl.h>
 #include <fstream>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#ifdef _WIN32
 #include <io.h>
+#else
+#include <sys/io.h>
+#include <unistd.h>
+#endif
 #include "model.h"
+
+namespace
+{
+#ifdef _WIN32
+    inline int FileOpenRd(const std::wstring& p_path)
+    {
+        int fd = -1;
+        bool err = _wsopen_s(&fd, p_path.c_str(), _O_RDONLY | _O_SEQUENTIAL | _O_BINARY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
+        return fd;
+    }
+
+    inline int FileOpenWr(const std::wstring& p_path)
+    {
+        int fd = -1;
+        _wsopen_s(&fd, p_path.c_str(), _O_CREAT | _O_SEQUENTIAL | _O_BINARY | _O_WRONLY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
+        return fd;
+    }
+#endif
+
+    inline int FileOpenRd(const std::string& p_path)
+    {
+#ifdef _WIN32
+        int fd = -1;
+        _sopen_s(&fd, p_path.c_str(), _O_RDONLY | _O_SEQUENTIAL | _O_BINARY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
+        return fd;
+#else
+        return open(p_path.c_str(), O_RDONLY);
+#endif
+    }
+
+    inline int FileOpenWr(const std::string& p_path)
+    {
+#ifdef _WIN32
+        int fd = -1;
+        _sopen_s(&fd, p_path.c_str(), _O_CREAT | _O_SEQUENTIAL | _O_BINARY | _O_WRONLY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
+        return fd;
+#else
+        return open(p_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+#endif
+    }
+}
 
 namespace LotusIR
 {
@@ -146,75 +197,92 @@ namespace LotusIR
         return m_modelProto;
     }
 
-    bool Model::Save(const ModelProto& p_modelProto, const std::wstring& p_filePath)
-    {
-#if NOT_SUPPORTS_IOSTREAMS
-        int fd;
-        errno_t err = _wsopen_s(&fd, p_filePath.c_str(), _O_CREAT | _O_SEQUENTIAL | _O_BINARY | _O_WRONLY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
-        if (err) return false;
-        bool result = p_modelProto.SerializeToFileDescriptor(fd);
-        _close(fd);
-#else
-        std::fstream outputFileStream(p_filePath, std::ios::out | std::ios::binary);
-        bool result = p_modelProto.SerializeToOstream(&outputFileStream);
-        outputFileStream.close();
-#endif
-        return result;
-    }
-
-    bool Model::Save(Model& p_model, const std::wstring& p_filePath)
-    {
-        Status status = p_model.MainGraph()->Resolve();
-        if (!status.Ok())
-        {
-            return false;
-        }
-
-        auto& modelProto = p_model.ToProto();
-        return Save(modelProto, p_filePath);
-    }
-
-    // Load a ModelProto from a file.
+#ifdef _WIN32
     bool Model::Load(const std::wstring& p_filePath, /*out*/ ModelProto* p_modelProto)
     {
-        if (nullptr == p_modelProto)
-        {
-            return false;
-        }
-#if NOT_SUPPORTS_IOSTREAMS
-        int fd;
-        errno_t err = _wsopen_s(&fd, p_filePath.c_str(), _O_RDONLY | _O_SEQUENTIAL | _O_BINARY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
-        if (err) return false;
-        bool result = p_modelProto->ParsePartialFromFileDescriptor(fd);
-        _close(fd);
-#else
-        std::fstream inputFileStream(p_filePath, std::ios::in | std::ios::binary);
-        if (!inputFileStream)
-        {
-            return false;
-        }
-
-        bool result = p_modelProto->ParsePartialFromIstream(&inputFileStream);
-        inputFileStream.close();
+        return Load(FileOpenRd(p_filePath), p_modelProto);
+    }
+    std::shared_ptr<Model> Model::Load(const std::wstring& p_filePath)
+    {
+        return Load(FileOpenRd(p_filePath));
+    }
+    bool Model::Save(Model& p_model, const std::wstring& p_filePath)
+    {
+        return Save(p_model.ToProto(), FileOpenWr(p_filePath));
+    }
+    bool Model::Save(const ModelProto& p_modelProto, const std::wstring& p_filePath)
+    {
+        return Save(p_modelProto, FileOpenWr(p_filePath));
+    }
 #endif
 
+    bool Model::Load(const std::string& p_filePath, /*out*/ ModelProto* p_modelProto)
+    {
+        return Load(FileOpenRd(p_filePath), p_modelProto);
+    }
+    std::shared_ptr<Model> Model::Load(const std::string& p_filePath)
+    {
+        return Load(FileOpenRd(p_filePath));
+    }
+    bool Model::Save(Model& p_model, const std::string& p_filePath)
+    {
+        return Save(p_model.ToProto(), FileOpenWr(p_filePath));
+    }
+    bool Model::Save(const ModelProto& p_modelProto, const std::string& p_filePath)
+    {
+        return Save(p_modelProto, FileOpenWr(p_filePath));
+    }
+
+    using ::google::protobuf::io::ZeroCopyInputStream;
+    using ::google::protobuf::io::FileInputStream;
+    using ::google::protobuf::io::CodedInputStream;
+    bool Model::Load(int p_fd, /*out*/ ModelProto* p_modelProto)
+    {
+        if (nullptr == p_modelProto || p_fd < 0)
+        {
+            return false;
+        }
+        std::unique_ptr<ZeroCopyInputStream> raw_input(new FileInputStream(p_fd));
+        std::unique_ptr<CodedInputStream> coded_input(
+            new CodedInputStream(raw_input.get()));
+        // Allows protobuf library versions < 3.2.0 to parse messages greater than 64MB.
+        coded_input->SetTotalBytesLimit(INT_MAX, INT_MAX);
+        bool result = p_modelProto->ParseFromCodedStream(coded_input.get());
+        coded_input.reset();
+        raw_input.reset();
+        close(p_fd);
         return result;
     }
 
-    std::shared_ptr<Model> Model::Load(const std::wstring& p_filePath)
+    std::shared_ptr<Model> Model::Load(int p_fd)
     {
         ModelProto modelProto;
-        bool result = Load(p_filePath, &modelProto);
-        if (!result)
+        bool result = Load(p_fd, &modelProto);
+        if (!result || p_fd < 0)
         {
             return nullptr;
         }
         auto model = std::shared_ptr<Model>(new Model(modelProto));
         auto status = model->MainGraph()->Resolve();
+
+        close(p_fd);
         if (status.Ok())
         {
             return model;
         }
         return nullptr;
     }
+
+    bool Model::Save(const ModelProto& p_modelProto, int p_fd)
+    {
+        if (p_fd < 0)
+        {
+            return false;
+        }
+        bool result = p_modelProto.SerializeToFileDescriptor(p_fd);
+        close(p_fd);
+        return result;
+    }
 }
+
+#pragma warning(pop)

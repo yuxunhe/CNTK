@@ -37,13 +37,7 @@
     <ClCompile Include="ProgressWriter.cpp" />
     <ClCompile Include="Evaluator.cpp" />
     <ClCompile Include="UserDefinedFunction.cpp" />
-    <ClCompile Include="proto\onnx\protobuf\Data.pb.cc.VS_wrapper.cpp">
-      <Filter>proto\onnx\protobuf</Filter>
-    </ClCompile>
     <ClCompile Include="proto\onnx\protobuf\graph.pb.cc.VS_wrapper.cpp">
-      <Filter>proto\onnx\protobuf</Filter>
-    </ClCompile>
-    <ClCompile Include="proto\onnx\protobuf\Type.pb.cc.VS_wrapper.cpp">
       <Filter>proto\onnx\protobuf</Filter>
     </ClCompile>
     <ClCompile Include="proto\onnx\CNTKToONNX.cpp">
@@ -229,13 +223,7 @@
     <Proto Include="tensorboard\tensorboard.proto">
       <Filter>tensorboard</Filter>
     </Proto>
-    <Proto Include="proto\onnx\protobuf\Data.proto">
-      <Filter>proto\onnx\protobuf</Filter>
-    </Proto>
     <Proto Include="proto\onnx\protobuf\graph.proto">
-      <Filter>proto\onnx\protobuf</Filter>
-    </Proto>
-    <Proto Include="proto\onnx\protobuf\Type.proto">
       <Filter>proto\onnx\protobuf</Filter>
     </Proto>
   </ItemGroup>

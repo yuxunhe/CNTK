@@ -220,7 +220,6 @@ namespace LotusIR
                     OpSignature::FormalParameter(name, "", desc, opSignature.m_typeConstraintMap));
             }
         }
-
         OperatorSchemaRegistry::Get()->Register(p_opSchemaSetter.m_opSchema);
     }
 

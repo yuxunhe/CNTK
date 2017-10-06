@@ -1,4 +1,4 @@
-#include "Status.h"
+#include "status.h"
 
 namespace LotusIR
 {

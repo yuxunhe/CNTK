@@ -7,9 +7,7 @@
 #include <sstream>
 
 #include "constants.h"
-#include "proto/onnx/protobuf/Data.pb.h"
 #include "proto/onnx/protobuf/graph.pb.h"
-#include "proto/onnx/protobuf/Type.pb.h"
 #include "utils.h"
 
 namespace LotusIR
