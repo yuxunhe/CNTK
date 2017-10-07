@@ -707,13 +707,13 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ONNXIR::Node* node
                  (src->OpName() == L"ElementTimes") || (src->OpName() == L"ElementDivide"))
         {
             node->AddAttribute("broadcast", (int64_t)1);
-            node->AddAttribute("axis", (int64_t)1);
+            // node->AddAttribute("axis", (int64_t)1);
         }
         else if (src->OpName() == L"Times")
         {
             size_t outputRank = src->Attributes()[L"outputRank"].Value<size_t>();
             if (outputRank > 1)
-                LogicError("Output ranke other than 1 is not supported.");
+                LogicError("Output rank other than 1 is not supported.");
         }
     }
     else
