@@ -64,6 +64,13 @@ namespace ONNX
             { L"epsilon", "epsilon" },
             // { L"", "momentum" },
         } } },
+        { L"LocalResponseNormalization",{ {
+            { L"LocalResponseNormalization", "LRN" },
+            { L"depthRadius", "size" },
+            { L"bias", "bias" },
+            { L"alpha", "alpha" },
+            { L"beta", "beta" },
+        } } },
         { L"Dropout", { {
             { L"Dropout", "Dropout" },
             { L"dropoutRate", "ratio" },

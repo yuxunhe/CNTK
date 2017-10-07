@@ -583,6 +583,18 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ONNXIR::Node* node
             node->AddAttribute(attributesMap[L"epsilon"], epsilon);
             node->AddAttribute("momentum", 0.9f);
         }
+        else if (src->OpName() == L"LocalResponseNormalization")
+        {
+            auto depthRadius = (int64_t)src->Attributes()[L"depthRadius"].Value<size_t>();
+            auto bias = (float)src->Attributes()[L"bias"].Value<double>();
+            auto alpha = (float)src->Attributes()[L"alpha"].Value<double>();
+            auto beta = (float)src->Attributes()[L"beta"].Value<double>();
+
+            node->AddAttribute(attributesMap[L"depthRadius"], depthRadius);
+            node->AddAttribute(attributesMap[L"bias"], bias);
+            node->AddAttribute(attributesMap[L"alpha"], alpha);
+            node->AddAttribute(attributesMap[L"beta"], beta);
+        }
         else if ((src->OpName() == L"LeakyReLU") || (src->OpName() == L"ELU"))
         {
             auto alpha = 0.01f;
