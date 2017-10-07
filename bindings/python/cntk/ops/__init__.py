@@ -517,6 +517,30 @@ def batch_normalization(operand, scale, bias, running_mean, running_inv_std, spa
                                normalization_time_constant, blend_time_constant,
                                epsilon, use_cudnn_engine, name)
 
+@typemap
+def local_response_normalization(operand, depth_radius, bias, alpha, beta, name=''):
+    '''
+    Local Response Normalization layer. See Section 3.3 of the paper:
+    https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
+    The mathematical equation is:
+      ``b_{x,y}^i=a_{x,y}^i/(bias+\alpha\sum_{j=max(0,i-depth_radius)}^{min(N-1, i+depth_radius)}(a_{x,y}^j)^2)^\beta``
+    where a_{x,y}^i is the activity of a neuron comoputed by applying kernel i at position (x,y)
+    N is the total number of kernels, depth_radius is half normalization width.
+
+    Args:
+        operand: input of the Local Response Normalization
+        depth_radius (int): the radius on the channel dimension to apply the normalization.
+        bias (double): a bias term to avoid divide by zero.
+        alpha (double): the alpha term of the above equation.
+        beta (double): the beta term of the above equation.
+        name (str, optional): the name of the Function instance in the network
+    Returns:
+        :class:`~cntk.ops.functions.Function`
+    '''
+    from cntk.cntk_py import local_response_normalization
+    operand = sanitize_input(operand)
+    return local_response_normalization(operand, depth_radius, bias, alpha, beta, name)
+
 ##########################################################################
 # comparison ops
 ##########################################################################

@@ -73,6 +73,13 @@ namespace ONNX
             { L"epsilon", "epsilon" },
             // { L"", "momentum" },
             } } },
+        { L"LocalResponseNormalization",{ {
+            { L"LocalResponseNormalization", "LRN" },
+            { L"depthRadius", "size" },
+            { L"bias", "bias" },
+            { L"alpha", "alpha" },
+            { L"beta", "beta" },
+        } } },
         { L"Dropout", { {
             { L"Dropout", "Dropout" },
             { L"dropoutRate", "ratio" },
@@ -260,12 +267,13 @@ namespace ONNX
     };
 
     std::unordered_map<std::wstring, std::set<size_t>> Operators::_cntkBlockOPInvalidIndices = {
-        { L"LeakyReLU", {0, 1} },
-        { L"SELU", {0, 1, 2} },
-        { L"PReLU", {0} },
+        { L"LeakyReLU", { 0, 1 } },
+        { L"SELU", { 0, 1, 2 } },
+        { L"PReLU", { 0 } },
         { L"ElementMax", {} },
         { L"ElementMin", {} },
-        { L"Softmax",{} },
+        { L"Softmax", {} },
+        { L"LocalResponseNormalization", { 0, 1, 2 } }
     };
 
     std::unordered_map<std::wstring, std::vector<int>> Operators::_cntkToONNXInputIndices = {

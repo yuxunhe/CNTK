@@ -2027,6 +2027,26 @@ namespace CNTK
                                          name);
     }
 
+    FunctionPtr LocalResponseNormalization(const Variable& operand, size_t depthRadius, double bias, double alpha, double beta, const std::wstring& name)
+    {
+        auto additionalProperties = Dictionary();
+        additionalProperties[PrimitiveFunction::AttributeNameDepthRadius] = depthRadius;
+        additionalProperties[PrimitiveFunction::AttributeNameBias] = bias;
+        additionalProperties[PrimitiveFunction::AttributeNameAlpha] = alpha;
+        additionalProperties[PrimitiveFunction::AttributeNameBeta] = beta;
+
+        auto operandPlaceholder = PlaceholderVariable();
+        auto operandSquare = Square(operandPlaceholder);
+        operandSquare = Reshape(operandSquare, { NDShape::InferredDimension, 1 }, Axis(2), Axis(3));
+        auto weights = Constant({ 1, 1, 2 * depthRadius + 1, 1 }, operand.GetDataType(), alpha / (2 * depthRadius + 1));
+        auto convResult = Convolution(weights, operandSquare);
+        convResult = Reshape(convResult, { NDShape::InferredDimension }, Axis(2), Axis(4));
+        auto denom = Exp(ElementTimes(Constant::Scalar(operand.GetDataType(), beta), Log(Plus(Constant::Scalar(operand.GetDataType(), bias), convResult))));
+
+        auto result = ElementDivide(operandPlaceholder, denom);
+        return AsBlock(std::move(result), { { operandPlaceholder, operand } }, std::move(additionalProperties), L"LocalResponseNormalization", name);
+    }
+
     FunctionPtr Clip(const Variable& operand, const Variable& min, const Variable& max, const std::wstring& name)
     {
         std::vector<Variable> operands = { operand, min, max };

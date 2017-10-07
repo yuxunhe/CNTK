@@ -4320,7 +4320,6 @@ namespace CNTK
     ///
     /// TODO:
     ///
-    // TODO: Do we need a separate "spatial" parameter or can it be inferred from the tensor dimensions
     CNTK_API FunctionPtr BatchNormalization(const Variable& operand,
                                             const Variable& scale,
                                             const Variable& bias,
@@ -4334,6 +4333,17 @@ namespace CNTK
                                             bool useCuDNNEngine = true,
                                             const std::wstring& name = L"");
 
+    //
+    // Local response normalization as described in http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks 
+    //
+    CNTK_API FunctionPtr LocalResponseNormalization(const Variable& operand, 
+                                                    size_t depthRadius, 
+                                                    double bias, 
+                                                    double alpha, 
+                                                    double beta, 
+                                                    const std::wstring& name = L"");
+
+    ///
     /// Create an instance of the CNTK built-in OptimizedRNNStack operation on specified input operands
     ///
     CNTK_API FunctionPtr OptimizedRNNStack(const Variable& operand, const Variable& weights, size_t hiddenSize, size_t numLayers, bool bidirectional = false, const std::wstring& recurrentOp = L"lstm", const std::wstring& name = L"");

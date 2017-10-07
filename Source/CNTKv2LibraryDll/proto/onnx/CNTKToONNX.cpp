@@ -125,14 +125,19 @@ private:
     static std::vector<int64_t> ToINTS(const std::vector<Axis>& axes);
 
     //
-    // Convert data types.
+    // Convert data types from CNTK to ONNX.
     //
-    static void ToONNXType(DataType dataType, ONNXIR::TypeProto& type);
+    static void UpdateONNXType(DataType dataType, ONNXIR::TypeProto& type);
 
     //
     // Map CNTK OP names to ONNX OP Names.
     //
     static std::string ToOPName(const FunctionPtr& src);
+
+    //
+    // Check that the CNTK variable is compatible with ONNX.
+    //
+    static void ValidateVariable(const Variable& v);
 
     //
     // Which input to ignore during converting a CNTK block to a primitive OP in ONNX.
@@ -237,6 +242,8 @@ int CNTKToONNXHelper::ToIndex(const Axis& axis)
 ONNXIR::TypeProto CNTKToONNXHelper::ToTypeProto(const NDShape& shape, bool hasBatchAxis)
 {
     ONNXIR::TypeProto newShape;
+    if (shape.HasUnboundDimension())
+        LogicError("Inferred and FreeDimension aren't currently supported.");
 
     if (hasBatchAxis)
         newShape.mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(1);
@@ -244,8 +251,6 @@ ONNXIR::TypeProto CNTKToONNXHelper::ToTypeProto(const NDShape& shape, bool hasBa
     auto dimensions = reverse(shape.Dimensions());
     for (auto dimension : dimensions)
     {
-        if (dimension == NDShape::InferredDimension)
-            LogicError("Incomplete graph isn't supported.");
         newShape.mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(dimension);
     }
 
@@ -318,7 +323,7 @@ std::vector<int64_t> CNTKToONNXHelper::ToINTS(const std::vector<Axis>& axes)
     return ToINTS(ToTypeProto(axes));
 }
 
-void CNTKToONNXHelper::ToONNXType(DataType dataType, ONNXIR::TypeProto& type)
+void CNTKToONNXHelper::UpdateONNXType(DataType dataType, ONNXIR::TypeProto& type)
 {
     switch (dataType)
     {
@@ -360,6 +365,15 @@ std::string CNTKToONNXHelper::ToOPName(const FunctionPtr& src)
     return opName;
 }
 
+void CNTKToONNXHelper::ValidateVariable(const Variable& v)
+{
+    if ((v.HasBatchAxis() && (v.DynamicAxes().size() > 1)) ||
+        (!v.HasBatchAxis() && (v.DynamicAxes().size() > 0)))
+    {
+        LogicError("Sequence and user defined dynamic axis are currently not supported.");
+    }
+}
+
 bool CNTKToONNXHelper::FilterInput(const FunctionPtr& src, const CNTK::Variable& input, size_t inputIndex)
 {
     // In CNTK block functions, they expose all constants inside the block. For block functions that
@@ -390,12 +404,10 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
     // If this block node equivalent to a primitive ONNX OP, then treated as such.
     // And just maps its argument to ONNX node.
     //
-    if (src->IsBlock())
+    if (src->IsBlock() && 
+        (!Operators::IsSupportedCNTKOP(src->OpName()) || Operators::IsLayerCNTKOP(src->OpName())))
     {
-        if (!Operators::IsSupportedCNTKOP(src->OpName()) || Operators::IsLayerCNTKOP(src->OpName()))
-        {
-            functionNode = CreateNode(src->BlockRoot(), graph, functionNodes, variableNodes, compositeOutputsMap);
-        }
+        functionNode = CreateNode(src->BlockRoot(), graph, functionNodes, variableNodes, compositeOutputsMap);
     }
     //
     // For compatibility of other framework that support ONNX, we will limit the list of OPs to the one
@@ -408,8 +420,10 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
 
         for (const auto& output : src->Outputs())
         {
+            ValidateVariable(output);
+
             auto outputArgType = ToTypeProto(output.Shape(), output.HasBatchAxis());
-            ToONNXType(output.GetDataType(), outputArgType);
+            UpdateONNXType(output.GetDataType(), outputArgType);
 
             ONNXIR::NodeArg outputArg(ToString(output.Uid()), &outputArgType);
             outputs.push_back(outputArg);
@@ -425,6 +439,7 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 if (input.IsPlaceholder())
                     LogicError("Node '%S': Placeholder isn't supported currently.", src->AsString().c_str());
             }
+            ValidateVariable(input);
 
             if (src->IsBlock() && FilterInput(src, input, inputIndex))
                 continue;
@@ -435,7 +450,7 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 inputName = ToString(inputItr->second.Uid());
 
             auto inputArgType = ToTypeProto(input.Shape(), input.HasBatchAxis());
-            ToONNXType(input.GetDataType(), inputArgType);
+            UpdateONNXType(input.GetDataType(), inputArgType);
             ONNXIR::NodeArg inputArg(inputName, &inputArgType);
 
             inputs.push_back(inputArg);
@@ -566,6 +581,18 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ONNXIR::Node* node
             node->AddAttribute(attributesMap[L"epsilon"], epsilon);
             node->AddAttribute("momentum", 0.9f);
         }
+        else if (src->OpName() == L"LocalResponseNormalization")
+        {
+            auto depthRadius = (int64_t)src->Attributes()[L"depthRadius"].Value<size_t>();
+            auto bias = (float)src->Attributes()[L"bias"].Value<double>();
+            auto alpha = (float)src->Attributes()[L"alpha"].Value<double>();
+            auto beta = (float)src->Attributes()[L"beta"].Value<double>();
+
+            node->AddAttribute(attributesMap[L"depthRadius"], depthRadius);
+            node->AddAttribute(attributesMap[L"bias"], bias);
+            node->AddAttribute(attributesMap[L"alpha"], alpha);
+            node->AddAttribute(attributesMap[L"beta"], beta);
+        }
         else if ((src->OpName() == L"LeakyReLU") || (src->OpName() == L"ELU"))
         {
             auto alpha = 0.01f;
@@ -680,13 +707,13 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ONNXIR::Node* node
                  (src->OpName() == L"ElementTimes") || (src->OpName() == L"ElementDivide"))
         {
             node->AddAttribute("broadcast", (int64_t)1);
-            node->AddAttribute("axis", (int64_t)1);
+            // node->AddAttribute("axis", (int64_t)1);
         }
         else if (src->OpName() == L"Times")
         {
             size_t outputRank = src->Attributes()[L"outputRank"].Value<size_t>();
             if (outputRank > 1)
-                LogicError("Output ranke other than 1 is not supported.");
+                LogicError("Output rank other than 1 is not supported.");
         }
     }
     else
@@ -753,8 +780,8 @@ ONNXIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, ONNXIR::Graph* g
             auto input1Reshape = ReduceRank(input1Shape, reductionRank, true);
             auto input2Reshape = ReduceRank(input2Shape, reductionRank, false);
 
-            ToONNXType(src->Inputs()[1].GetDataType(), input1Reshape);
-            ToONNXType(src->Inputs()[0].GetDataType(), input2Reshape);
+            UpdateONNXType(src->Inputs()[1].GetDataType(), input1Reshape);
+            UpdateONNXType(src->Inputs()[0].GetDataType(), input2Reshape);
 
             ONNXIR::NodeArg inputOutput1Arg(orderedInputs[0].Name() + string("_reshape0"), &input1Reshape);
             ONNXIR::NodeArg inputOutput2Arg(orderedInputs[1].Name() + string("_reshape1"), &input2Reshape);
