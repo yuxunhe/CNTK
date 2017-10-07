@@ -125,9 +125,9 @@ private:
     static std::vector<int64_t> ToINTS(const std::vector<Axis>& axes);
 
     //
-    // Convert data types.
+    // Convert data types from CNTK to ONNX.
     //
-    static void ToONNXType(DataType dataType, ONNXIR::TypeProto& type);
+    static void UpdateONNXType(DataType dataType, ONNXIR::TypeProto& type);
 
     //
     // Map CNTK OP names to ONNX OP Names.
@@ -323,7 +323,7 @@ std::vector<int64_t> CNTKToONNXHelper::ToINTS(const std::vector<Axis>& axes)
     return ToINTS(ToTypeProto(axes));
 }
 
-void CNTKToONNXHelper::ToONNXType(DataType dataType, ONNXIR::TypeProto& type)
+void CNTKToONNXHelper::UpdateONNXType(DataType dataType, ONNXIR::TypeProto& type)
 {
     switch (dataType)
     {
@@ -423,7 +423,7 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             ValidateVariable(output);
 
             auto outputArgType = ToTypeProto(output.Shape(), output.HasBatchAxis());
-            ToONNXType(output.GetDataType(), outputArgType);
+            UpdateONNXType(output.GetDataType(), outputArgType);
 
             ONNXIR::NodeArg outputArg(ToString(output.Uid()), &outputArgType);
             outputs.push_back(outputArg);
@@ -450,7 +450,7 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                 inputName = ToString(inputItr->second.Uid());
 
             auto inputArgType = ToTypeProto(input.Shape(), input.HasBatchAxis());
-            ToONNXType(input.GetDataType(), inputArgType);
+            UpdateONNXType(input.GetDataType(), inputArgType);
             ONNXIR::NodeArg inputArg(inputName, &inputArgType);
 
             inputs.push_back(inputArg);
@@ -780,8 +780,8 @@ ONNXIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, ONNXIR::Graph* g
             auto input1Reshape = ReduceRank(input1Shape, reductionRank, true);
             auto input2Reshape = ReduceRank(input2Shape, reductionRank, false);
 
-            ToONNXType(src->Inputs()[1].GetDataType(), input1Reshape);
-            ToONNXType(src->Inputs()[0].GetDataType(), input2Reshape);
+            UpdateONNXType(src->Inputs()[1].GetDataType(), input1Reshape);
+            UpdateONNXType(src->Inputs()[0].GetDataType(), input2Reshape);
 
             ONNXIR::NodeArg inputOutput1Arg(orderedInputs[0].Name() + string("_reshape0"), &input1Reshape);
             ONNXIR::NodeArg inputOutput2Arg(orderedInputs[1].Name() + string("_reshape1"), &input2Reshape);
