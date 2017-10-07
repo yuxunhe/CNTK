@@ -70,6 +70,5 @@ FunctionPtr ONNXFormat::Load(const std::wstring& filepath, const DeviceDescripto
         LogicError("%s", status.ErrorMsg().c_str());
 
     FunctionPtr cntkFunction = ONNXToCNTK::CreateGraph(model.MainGraph(), computeDevice);    
-    PrintGraph(cntkFunction->RootFunction(), 0, false);
     return cntkFunction;
 }

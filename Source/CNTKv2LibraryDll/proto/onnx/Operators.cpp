@@ -64,6 +64,15 @@ namespace ONNX
             { L"epsilon", "epsilon" },
             // { L"", "momentum" },
         } } },
+        // from ONNX experiament, added to test Caffe models
+        // TODO: set key as BatchNormalization instead of BatchNormalizationCaffe
+        { L"BatchNormalizationCaffe",{ {
+            { L"BatchNormalization", "SpatialBN" },
+            { L"spatial", "spatial" },
+            // { L"", "is_test" },
+            { L"epsilon", "epsilon" },
+            // { L"", "momentum" },
+            } } },
         { L"Dropout", { {
             { L"Dropout", "Dropout" },
             { L"dropoutRate", "ratio" },
