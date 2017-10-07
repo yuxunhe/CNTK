@@ -2041,7 +2041,7 @@ namespace CNTK
         auto weights = Constant({ 1, 1, 2 * depthRadius + 1, 1 }, operand.GetDataType(), alpha / (2 * depthRadius + 1));
         auto convResult = Convolution(weights, operandSquare);
         convResult = Reshape(convResult, { NDShape::InferredDimension }, Axis(2), Axis(4));
-        auto denom = Exp(ElementTimes(Constant::Scalar(operand.GetDataType(), beta), Log(Plus(Constant::Scalar(bias), convResult))));
+        auto denom = Exp(ElementTimes(Constant::Scalar(operand.GetDataType(), beta), Log(Plus(Constant::Scalar(operand.GetDataType(), bias), convResult))));
 
         auto result = ElementDivide(operandPlaceholder, denom);
         return AsBlock(std::move(result), { { operandPlaceholder, operand } }, std::move(additionalProperties), L"LocalResponseNormalization", name);

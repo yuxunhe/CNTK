@@ -517,6 +517,12 @@ def batch_normalization(operand, scale, bias, running_mean, running_inv_std, spa
                                normalization_time_constant, blend_time_constant,
                                epsilon, use_cudnn_engine, name)
 
+@typemap
+def local_response_normalization(operand, depth_radius, bias, alpha, beta, name=''):
+    from cntk.cntk_py import local_response_normalization
+    operand = sanitize_input(operand)
+    return local_response_normalization(operand, depth_radius, bias, alpha, beta, name)
+
 ##########################################################################
 # comparison ops
 ##########################################################################
