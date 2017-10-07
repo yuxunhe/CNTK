@@ -112,8 +112,12 @@ namespace CNTK
     /*static*/ const std::wstring PrimitiveFunction::AttributeNamePaddingMode = L"paddingMode";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNamePaddingConstantValue = L"paddingConstantValue";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameAlpha = L"alpha";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameBeta = L"beta";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameGamma = L"gamma";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameKernelShape = L"kernelShape";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameBias = L"bias";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameDepthRadius = L"depthRadius";
+
 
     /*static*/ DataType PrimitiveFunction::GetOutputDataType(PrimitiveOpType op, std::vector<Variable>& inputs, bool inferDimensions)
     {
