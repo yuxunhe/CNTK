@@ -557,6 +557,14 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ONNXIR::Node* node
             auto autoPadding = AsVector<bool>(src->Attributes()[L"autoPadding"].Value<std::vector<DictionaryValue>>());
             auto dilations = (NDShape)src->Attributes()[L"dilation"].Value<NDShape>();
 
+            //
+            // Remove the channel part for ONNX.
+            //
+            kernelShape = kernelShape.SubShape(0, kernelShape.Rank() - 1);
+            strides = strides.SubShape(0, strides.Rank() - 1);
+            autoPadding.pop_back();
+            dilations = dilations.SubShape(0, dilations.Rank() - 1);
+
             node->AddAttribute(attributesMap[L"kernelShape"], ToINTS(kernelShape));
             node->AddAttribute("strides", ToINTS(strides));
             node->AddAttribute("pads", ToINTS(autoPadding));
