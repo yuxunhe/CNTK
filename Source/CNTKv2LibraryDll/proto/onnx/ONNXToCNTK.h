@@ -18,6 +18,10 @@ namespace CNTK
     class ONNXToCNTK
     {
     public:
+        //
+        // Create a CNTK graph (Function) given an ONNX graph. The function is created to use the 
+        // specified computing device.
+        //
         static FunctionPtr CreateGraph(ONNXIR::Graph* src, const DeviceDescriptor& computeDevice);
     };
 }

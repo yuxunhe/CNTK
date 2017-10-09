@@ -21,10 +21,14 @@ typedef std::unordered_map<const Node *, FunctionPtr> ONNXToCNTKMap;
 class ONNXToCNTKHelper
 {
 public:
+    //
+    // Convert an ONNX graph to a CNTK graph (Function).
+    // 
     static FunctionPtr FromONNXNode(const Node *node, ONNXToCNTKMap &constructedNodeMap,
         Graph* graph, const DeviceDescriptor& computeDevice);
 
 private:
+
     static FunctionPtr CreateCNTKNode(const Node *node, const std::vector<Variable> &inputs,
         const DeviceDescriptor& computeDevice);
     static Constant CreateConstant(const Node *node, const DeviceDescriptor& computeDevice);
@@ -34,31 +38,58 @@ private:
         const DeviceDescriptor& computeDevice);
     static FunctionPtr CreateFunction(const Node *node, const std::vector<Variable> &inputs);
 
-    static std::vector<Axis> FromINTSToAxes(const std::vector<int64_t> &ints);
+    static std::vector<Axis> AttributeProtoToAxes(const AttributeProto &attributeProto);
     static ONNXIR::TypeProto FromINTS(const std::vector<int64_t> &shape);
     static NDShape FromTypeProto(const ONNXIR::TypeProto& tensorShape);
     static NDShape FromTensorShapeProto(const ONNXIR::TypeProto::TensorShapeProto& tensorShape);
     static std::vector<bool> FromTypeProtoAsBool(const ONNXIR::TypeProto& tensorShape);
     static DataType FromONNXType(ONNXIR::TypeProto type);
 
+    static NodeAttributes::const_iterator FindAttributeIterator(const Node *node,
+        const string &attributeName, bool required);
     static bool HasNamedAttribute(const Node *node, const string &attributeName);
-    static std::vector<Axis> GetNamedAttributeAsAxis(const Node *node, const string &attributeName);
-    static NDShape GetNamedAttributeAsShape(const Node *node, const string &attributeName, bool hasBatchAxis = false);
-    static std::vector<bool> GetNamedAttributeAsShapeBool(const Node *node, const string &attributeName);
-    static size_t GetNamedAttributeAsInt64(const Node *node, const string &attributeName, size_t defaultValue = 0);
-    static float GetNamedAttributeAsFloat(const Node *node, const string &attributeName);
 
-    static std::vector<bool> GetAutoPaddingWithSysmetricConversion(const Node *node, int strideRank,
-        const string &onnxAutoPaddingAttributeName);
+    // Regarding following pairs of attribute getters. One of each pair takes not default value. It is
+    // for attributes for which CNTK operators do not have a default value. In this case
+    // we raise an error if an attribute is missing.
+    // For attributes that CNTK operators do have default values, we tolerate 
+    // missing attributes by using CNTK default values.
+    // We could require all ONNX attributes to be present and log an error if one is missing.
+    // However this is the responsibility of onnx core. We want to avoid runtime error and assume
+    // onnx core has already checked for this.
+    static std::vector<Axis> GetNamedAttributeAsAxis(const Node *node, const string &attributeName);
+    static std::vector<Axis> GetNamedAttributeAsAxis(const Node *node, const string &attributeName,
+        const std::vector<Axis> &defaultAxes);
+
+    static NDShape GetNamedAttributeAsShape(const Node *node, const string &attributeName, 
+        bool hasBatchAxis);
+    static NDShape GetNamedAttributeAsShape(const Node *node, const string &attributeName, 
+        const NDShape defaultShape, bool hasBatchAxis);
+
+    static std::vector<bool> GetNamedAttributeAsShapeBool(const Node *node, const string &attributeName);
+    static std::vector<bool> GetNamedAttributeAsShapeBool(const Node *node, const string &attributeName,
+        const std::vector<bool> &defaultShape);
+
+    static size_t GetNamedAttributeAsInt64(const Node *node, const string &attributeName);
+    static size_t GetNamedAttributeAsInt64(const Node *node, const string &attributeName, size_t defaultValue);
+
+    static float GetNamedAttributeAsFloat(const Node *node, const string &attributeName);
+    static float GetNamedAttributeAsFloat(const Node *node, const string &attributeName, float defaultValue);
+
+    static std::vector<bool> GetAutoPaddingWithSymmetryConversion(const Node *node, int strideRank,
+        const string &onnxAutoPaddingAttributeName, const std::vector<bool> &defaultValue);
+    static void AdjustAutoPaddingAndStrideForCNTKSpecialCases(const Variable &operand, 
+        std::vector<bool> &autoPadding, NDShape &strides);
     static NDShape ReverseShape(const NDShape &shape);
 
-    static std::pair<Variable, Variable> BoardcastElementWiseInput(const Node *node, Variable input0, Variable input1);
+    static std::pair<Variable, Variable> BroadcastElementWiseInput(const Node *node, Variable input0, Variable input1);
 };
 
 }
 
-std::vector<Axis> ONNXToCNTKHelper::FromINTSToAxes(const std::vector<int64_t> &ints)
+std::vector<Axis> ONNXToCNTKHelper::AttributeProtoToAxes(const AttributeProto &attributeProto)
 {
+    std::vector<int64_t> ints(attributeProto.ints().begin(), attributeProto.ints().end());
     std::vector<Axis> axes;
     for (std::vector<int64_t>::const_iterator it = ints.begin(); it != ints.end(); it++)
     {
@@ -129,7 +160,8 @@ DataType ONNXToCNTKHelper::FromONNXType(ONNXIR::TypeProto type)
     }
 }
 
-// helpers copied from Lotus (Converter.cc)
+// helpers copied from Lotus (Converter.cc). These functions will eventually 
+// be replaced with functionalities of onnx core.
 bool IsLittleEndianOrder()
 {
     int n = 1;
@@ -155,7 +187,7 @@ float UnpackFloat(const char *buf, int i)
     return temp;
 }
 
-void RetrieveRawData(const ONNXIR::TensorProto &valueProto)
+void RetrieveRawDataAsFloat(const ONNXIR::TensorProto &valueProto)
 {
     if (!valueProto.float_data().empty())
         return;
@@ -201,10 +233,9 @@ Constant ONNXToCNTKHelper::CreateConstant(const ONNXIR::TensorProto &valueProto,
         float *data = new float[totalSize];
         if (valueProto.float_data().empty())
         {
-            RetrieveRawData(valueProto);
+            RetrieveRawDataAsFloat(valueProto);
         }
 
-        // TODO: for onnx tensfor the first 1 or 2 are probably batch and channel. the last 2 are kernal size
         if (shape.Rank() <= 2)
         {
             for (size_t index = 0; index < totalSize; index++)
@@ -218,7 +249,6 @@ Constant ONNXToCNTKHelper::CreateConstant(const ONNXIR::TensorProto &valueProto,
             NDShape channelKernelShape(std::vector<size_t>(shape.Dimensions().begin() + 2, shape.Dimensions().end()));
             NDShape channelReversedShape = ReverseShape(channelKernelShape);
             int channelKernelSize = channelKernelShape.TotalSize();
-            // int nonChannelKernelSize = outputChannels * inputChanndels;
             for (int oC = 0; oC < outputChannels; oC++)
             {
                 for (int iC = 0; iC < inputChanndels; iC++)
@@ -243,6 +273,8 @@ Constant ONNXToCNTKHelper::CreateConstant(const ONNXIR::TensorProto &valueProto,
         }
         else
         {
+            // this is the way to load values into GPU: 
+            // Create a GPU NDArrayView and CopyFrom a CPU NDArrayView that holding the data.
             NDArrayViewPtr dstFinalGPU(new NDArrayView(DataType::Float, StorageFormat::Dense, reversedShape, computeDevice));
             dstFinalGPU->CopyFrom(*dstFinal);
             Constant constantVariable(dstFinalGPU, ToWString(nodeName));
@@ -251,14 +283,12 @@ Constant ONNXToCNTKHelper::CreateConstant(const ONNXIR::TensorProto &valueProto,
     }
     break;
     case TensorProto_DataType_DOUBLE:
-        // TODO:
+        // TODO: waiting for onnx core to have raw for double support.
         NOT_IMPLEMENTED;
     break;
     default:
         NOT_IMPLEMENTED;
     }
-
-    // do transpose and reshape
 }
 
 Variable ONNXToCNTKHelper::CreateLeafVariableOrConstant(const NodeArg *nodeArg, Graph* graph,
@@ -277,7 +307,7 @@ Variable ONNXToCNTKHelper::CreateLeafVariableOrConstant(const NodeArg *nodeArg, 
 
     // in CNTK constants are created as Node (not a leaf) with values. 
     // in ONNX constants may also be a leaf with values saved in initializer
-    // here we know it is not a constant so reshape the variable to trim off last dim;
+    // here we know it is not an ONNX constant so reshape the variable to trim off last dim;
     NDShape shape = FromTensorShapeProto(*shapeProto);
     // if (shape[shape.Rank() - 1] == NDShape::FreeDimension)
     {
@@ -314,17 +344,60 @@ bool ONNXToCNTKHelper::HasNamedAttribute(const Node *node, const string &attribu
     return itValue != node->GetAttributes().end();
 }
 
-std::vector<Axis> ONNXToCNTKHelper::GetNamedAttributeAsAxis(const Node *node, const string &attributeName)
+NodeAttributes::const_iterator ONNXToCNTKHelper::FindAttributeIterator(const Node *node,
+    const string &attributeName, bool required)
 {
     NodeAttributes::const_iterator itValue = node->GetAttributes().find(attributeName);
-    const AttributeProto &attributeProto = itValue->second;
-    std::vector<int64_t> axes(attributeProto.ints().begin(), attributeProto.ints().end());
-    return FromINTSToAxes(axes);
+    if (itValue == node->GetAttributes().end())
+    {
+        if (required)
+        {
+            LogicError("Node %s operator %s is missing attribute %s.", 
+                node->Name().c_str(), node->OpType(), attributeName.c_str());
+        }
+    }
+    return itValue;
+}
+
+std::vector<Axis> ONNXToCNTKHelper::GetNamedAttributeAsAxis(const Node *node, const string &attributeName)
+{
+    NodeAttributes::const_iterator itValue = FindAttributeIterator(node, attributeName, true);
+    return AttributeProtoToAxes(itValue->second);
+}
+
+std::vector<Axis> ONNXToCNTKHelper::GetNamedAttributeAsAxis(const Node *node, const string &attributeName,
+    const std::vector<Axis> &defaultAxes)
+{
+    NodeAttributes::const_iterator itValue = FindAttributeIterator(node, attributeName, true);
+    if (itValue == node->GetAttributes().end())
+    {
+        return defaultAxes;
+    }
+
+    return AttributeProtoToAxes(itValue->second);
 }
 
 NDShape ONNXToCNTKHelper::GetNamedAttributeAsShape(const Node *node, const string &attributeName, bool hasBatchAxis)
 {
-    NodeAttributes::const_iterator itValue = node->GetAttributes().find(attributeName);
+    NodeAttributes::const_iterator itValue = FindAttributeIterator(node, attributeName, true);
+    const AttributeProto &attributeProto = itValue->second;
+    ::google::protobuf::RepeatedField<::google::protobuf::int64>::const_iterator itBegin =
+        attributeProto.ints().begin();
+    if (hasBatchAxis)
+        itBegin++;
+    std::vector<int64_t> shape(itBegin, attributeProto.ints().end());
+    return FromTypeProto(FromINTS(shape));
+}
+
+NDShape ONNXToCNTKHelper::GetNamedAttributeAsShape(const Node *node, const string &attributeName,
+    const NDShape defaultShape, bool hasBatchAxis)
+{
+    NodeAttributes::const_iterator itValue = FindAttributeIterator(node, attributeName, false);
+    if (itValue == node->GetAttributes().end())
+    {
+        return defaultShape;
+    }
+
     const AttributeProto &attributeProto = itValue->second;
     ::google::protobuf::RepeatedField<::google::protobuf::int64>::const_iterator itBegin =
         attributeProto.ints().begin();
@@ -336,16 +409,37 @@ NDShape ONNXToCNTKHelper::GetNamedAttributeAsShape(const Node *node, const strin
 
 std::vector<bool> ONNXToCNTKHelper::GetNamedAttributeAsShapeBool(const Node *node, const string &attributeName)
 {
-    NodeAttributes::const_iterator itValue = node->GetAttributes().find(attributeName);
+    NodeAttributes::const_iterator itValue = FindAttributeIterator(node, attributeName, true);
     const AttributeProto &attributeProto = itValue->second;
     std::vector<int64_t> shape(attributeProto.ints().begin(), attributeProto.ints().end());
     return FromTypeProtoAsBool(FromINTS(shape));
 }
 
+std::vector<bool> ONNXToCNTKHelper::GetNamedAttributeAsShapeBool(const Node *node, const string &attributeName,
+    const std::vector<bool> &defaultValue)
+{
+    NodeAttributes::const_iterator itValue = FindAttributeIterator(node, attributeName, false);
+    if (itValue == node->GetAttributes().end())
+    {
+        return defaultValue;
+    }
+    const AttributeProto &attributeProto = itValue->second;
+    std::vector<int64_t> shape(attributeProto.ints().begin(), attributeProto.ints().end());
+    return FromTypeProtoAsBool(FromINTS(shape));
+}
+
+size_t ONNXToCNTKHelper::GetNamedAttributeAsInt64(const Node *node, const string &attributeName)
+{
+    NodeAttributes::const_iterator itValue = FindAttributeIterator(node, attributeName, true);
+    const AttributeProto &attributeProto = itValue->second;
+    int64_t size64 = attributeProto.i();
+    return size64;
+}
+
 size_t ONNXToCNTKHelper::GetNamedAttributeAsInt64(const Node *node, const string &attributeName,
     size_t defaultValue)
 {
-    NodeAttributes::const_iterator itValue = node->GetAttributes().find(attributeName);
+    NodeAttributes::const_iterator itValue = FindAttributeIterator(node, attributeName, false);
     if (itValue == node->GetAttributes().end())
     {
         return defaultValue;
@@ -357,91 +451,22 @@ size_t ONNXToCNTKHelper::GetNamedAttributeAsInt64(const Node *node, const string
 
 float ONNXToCNTKHelper::GetNamedAttributeAsFloat(const Node *node, const string &attributeName)
 {
-    NodeAttributes::const_iterator itValue = node->GetAttributes().find(attributeName);
+    NodeAttributes::const_iterator itValue = FindAttributeIterator(node, attributeName, true);
     const AttributeProto &attributeProto = itValue->second;
     float floatValue = attributeProto.f();
     return floatValue;
 }
 
-const AttributesMapping &ONNXToCNTKAttributeNameMapping(const string &onnxOpName)
+float ONNXToCNTKHelper::GetNamedAttributeAsFloat(const Node *node, const string &attributeName, float defaultValue)
 {
-    const std::unordered_multimap<std::wstring, AttributesMapping>& lookup = 
-        Operators::CntkToONNXLookup();
-
-    std::unordered_multimap<std::wstring, AttributesMapping>::const_iterator it =
-        std::find_if(lookup.begin(), lookup.end(), [&onnxOpName]
-        (const std::unordered_multimap<std::wstring, AttributesMapping>::value_type &opMap)
+    NodeAttributes::const_iterator itValue = FindAttributeIterator(node, attributeName, false);
+    if (itValue == node->GetAttributes().end())
     {
-        const AttributesMapping &attributesMapping = opMap.second;
-        return std::any_of(attributesMapping.map.begin(), attributesMapping.map.end(), 
-            [&onnxOpName](const std::unordered_map<std::wstring, std::string>::value_type &attributesMap)
-        {
-            return attributesMap.second == onnxOpName;
-        });
-    });
-
-    if (it == lookup.end())
-    {
-        CNTK::LogicError("Ops %s is not supported.", onnxOpName);
+        return defaultValue;
     }
-
-    return it->second;
-}
-
-//const std::wstring &LookUpCNTKAttributeName(
-//    const AttributesMapping &cntkToONNXAttributesMapping, const string &onnxAttributeName)
-//{
-//    std::unordered_map<std::wstring, std::string>::const_iterator it = 
-//        std::find_if(cntkToONNXAttributesMapping.map.begin(), cntkToONNXAttributesMapping.map.end(),
-//            [&onnxAttributeName](std::unordered_map<std::wstring, std::string>::iterator it) 
-//    {
-//        return it->second == onnxAttributeName;
-//    });
-
-//    assert(it != cntkToONNXAttributesMapping.map.end()); 
-//    return it->first;
-//}
-
-std::string ShapeToString(const NDShape &shape)
-{
-    string s = "[";
-    for (int i = 0; i < shape.Rank(); i++)
-    {
-        s += std::to_string(shape[i]) + " ";
-    }
-    s += "]";
-    return s;
-}
-
-void Trace0(const string &onnxOpName, const Variable& variable)
-{
-    std::string shape = ShapeToString(variable.Shape());
-    std::cout << endl;
-    std::cout << onnxOpName << endl;
-    std::cout << ToString(variable.Name()) << shape << endl;
-    std::cout << endl;
-}
-
-void Trace1(const string &onnxOpName, const FunctionPtr cntkFunction, const Variable &input0)
-{
-    std::string outShape = ShapeToString(cntkFunction->Output().Shape());
-    std::string input0Shape = ShapeToString(input0.Shape());
-    std::cout << endl;
-    std::cout << onnxOpName << endl;
-    std::cout << ToString(cntkFunction->Name()) << outShape << " -> " << ToString(input0.Name()) << input0Shape << endl;
-    std::cout << endl;
-}
-
-void Trace2(const string &onnxOpName, const FunctionPtr cntkFunction, const Variable &input0, const Variable &input1)
-{
-    std::string outShape = ShapeToString(cntkFunction->Output().Shape());
-    std::string input0Shape = ShapeToString(input0.Shape());
-    std::string input1Shape = ShapeToString(input1.Shape());
-    std::cout << endl;
-    std::cout << onnxOpName << endl;
-    std::cout << ToString(cntkFunction->Name()) << outShape << " -> " << ToString(input0.Name()) << input0Shape << endl;
-    std::cout << ToString(cntkFunction->Name()) << outShape << " -> " << ToString(input1.Name()) << input1Shape << endl;
-    std::cout << endl;
+    const AttributeProto &attributeProto = itValue->second;
+    float floatValue = attributeProto.f();
+    return floatValue;
 }
 
 namespace CNTK
@@ -471,7 +496,7 @@ namespace CNTK
     }
 }
 
-std::pair<Variable, Variable> ONNXToCNTKHelper::BoardcastElementWiseInput(
+std::pair<Variable, Variable> ONNXToCNTKHelper::BroadcastElementWiseInput(
     const Node *node, Variable input0, Variable input1)
 {
     auto shape0 = input0.Shape();
@@ -479,10 +504,10 @@ std::pair<Variable, Variable> ONNXToCNTKHelper::BoardcastElementWiseInput(
     NDShape newShape;
 
     // set doThisAfterBoardcastInCNTKFix = true when loading FB models
-    bool doThisAfterBoardcastInCNTKFix = false;
+    bool doThisAfterBoardcastInCNTKFix = true;
     if (doThisAfterBoardcastInCNTKFix)
     {
-        if (bool broadcast = GetNamedAttributeAsInt64(node, "broadcast", 0) == 1)
+        if (bool broadcast = GetNamedAttributeAsInt64(node, "broadcast", 0) == 1 && HasNamedAttribute(node, "axis"))
         {
             if ((shape0.Rank() == 1) && ((shape1.Rank() > 1)))
             {
@@ -514,111 +539,156 @@ std::pair<Variable, Variable> ONNXToCNTKHelper::BoardcastElementWiseInput(
     return{ input0 , input1 };
 }
 
-std::vector<bool> ONNXToCNTKHelper::GetAutoPaddingWithSysmetricConversion(const Node *node, int strideRank,
-    const string &onnxAutoPaddingAttributeName)
+std::vector<bool> ONNXToCNTKHelper::GetAutoPaddingWithSymmetryConversion(const Node *node, int strideRank,
+    const string &onnxAutoPaddingAttributeName, const std::vector<bool> &defaultValue)
 {
-    std::vector<bool> autoPadding = { true };
-    if (HasNamedAttribute(node, onnxAutoPaddingAttributeName))
+    std::vector<bool> autoPadding = GetNamedAttributeAsShapeBool(node, onnxAutoPaddingAttributeName, defaultValue);
+
+    // This may happen if the node has asymetric padding. CNTK only support symetric padding so we pick on side
+    if (autoPadding.size() == 2 * strideRank)
     {
-        autoPadding = GetNamedAttributeAsShapeBool(node, onnxAutoPaddingAttributeName);
+        // TODO: it seems that in asymetric case - one side pad he other not, we got dim mismatch, 
+        autoPadding.resize(strideRank);
 
-        // This may happen if the node has asymetric padding. CNTK only support symetric padding so we pick on side
-        if (autoPadding.size() == 2 * strideRank)
-        {
-            // TODO: it seems that in asymetric case - one side pad he other not, we got dim mismatch, 
-            autoPadding.resize(strideRank);
-
-            //std::vector<bool> newPadding;
-            //for (std::vector<bool>::const_iterator it = autoPadding.begin(); it != autoPadding.end(); it++, it++)
-            //    newPadding.push_back(*it);
-            //autoPadding = newPadding;
-        }
+        //std::vector<bool> newPadding;
+        //for (std::vector<bool>::const_iterator it = autoPadding.begin(); it != autoPadding.end(); it++, it++)
+        //    newPadding.push_back(*it);
+        //autoPadding = newPadding;
     }
 
     return autoPadding;
 }
 
+void ONNXToCNTKHelper::AdjustAutoPaddingAndStrideForCNTKSpecialCases(const Variable &operand, std::vector<bool> &autoPadding, NDShape &strides)
+{
+    if ((operand.Shape().Rank() == (1 + autoPadding.size())))
+    {
+        autoPadding.push_back(false);
+    }
+
+    if ((operand.Shape().Rank() == (1 + strides.Rank())))
+    {
+        strides = strides.AppendShape({ 1 });
+    }
+}
+
 FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector<Variable> &inputs)
 {
     string onnxOpName = node->OpType();
-    // TODO: this is experimenting code for load Caffe models. "FC" is not in ONNX standard
+    
     if (onnxOpName == "FC")
     {
+        // TODO: this is experimental code to load Facebook Caffe models. 
+        // "FC" is not in ONNX standard. Two cases need to be handled with 
+        // this type of Caffe model. 
+        // 1. Make trailing dimensions of operand 1 matches the heading dimensions of operant 2.
+        //  For example, with shape [1, dim0, dim1] * [dim2, dim3], we need to reshape 
+        //  first operand to [1, dim0 * dim1] In this case dim0 * dim1 has to be equal to dim2.
+        // 2. Broadcase bias if needed.
         Variable input0 = inputs[0], input1 = inputs[1];
-        NDShape shape0 = input0.Shape();
-        NDShape shape1 = input1.Shape();
-        NDShape newShape({ shape0[1] });
-        newShape = newShape.AppendShape(shape1);
-        input1 = Reshape(input1, newShape);
-
-        FunctionPtr cntkFunction = Times(input0, input1, ToWString(node->Name()));
-        Trace2(onnxOpName, cntkFunction, input0, input1);
-        cntkFunction = Plus(cntkFunction, inputs[2], ToWString(node->Name()));
-
-        return cntkFunction;
-    }
-
-    auto attributesCNTKToONNXMap = ONNXToCNTKAttributeNameMapping(onnxOpName);
-
-    if (onnxOpName == "AveragePool" || onnxOpName == "MaxPool")
-    {
-        NDShape poolingWindowShape = GetNamedAttributeAsShape(node, "kernel_shape");
-        NDShape strides = GetNamedAttributeAsShape(node, "strides");
-
-        std::vector<bool> autoPadding = GetNamedAttributeAsShapeBool(node, attributesCNTKToONNXMap.map[L"autoPadding"]);
-        if (autoPadding.size() > strides.Rank())
+        if (input0.Shape().Rank() != input1.Shape().Rank())
         {
-            // workaround for FB models that has wrong size of pads
-            autoPadding.resize(strides.Rank());
+            NDShape shape0 = input0.Shape();
+            NDShape shape1 = input1.Shape();
+            NDShape newShape({ 1, shape0.TotalSize() });
+            input0 = Reshape(input0, newShape);
         }
 
-        // TODO: get from node's attributes
+        FunctionPtr cntkFunction = Times(input0, input1, ToWString(node->Name()));
+        
+        if (cntkFunction->Output().Shape().Rank() == 2 && inputs[2].Shape().Rank() == 1)
+        {
+            NDShape newShape;
+            Variable input2 = inputs[2];
+            int appendRank = cntkFunction->Output().Shape().Rank() - 1;
+            if (cntkFunction->Output().Shape()[0] == input2.Shape()[0])
+            {
+                newShape = input2.Shape();
+                newShape = newShape.AppendShape(std::vector<size_t>(appendRank, 1));
+                input2 = Reshape(input2, newShape);
+            }
+            else if (cntkFunction->Output().Shape()[cntkFunction->Output().Shape().Rank() - 1] == input2.Shape()[0])
+            {
+                newShape = std::vector<size_t>(appendRank, 1);
+                newShape = newShape.AppendShape({ input2.Shape() });
+                input2 = Reshape(input2, newShape);
+            }
+            cntkFunction = Plus(cntkFunction, input2, ToWString(node->Name()));
+            return cntkFunction;
+        }
+        else
+        {
+            cntkFunction = Plus(cntkFunction, inputs[2], ToWString(node->Name()));
+            return cntkFunction;
+        }
+    }
+    else if (onnxOpName == "Sum")
+    {
+        // TODO: this is experimental code to load Facebook Caffe models.
+        // Need to investigate cases here operands' dimensions do not match.
+        // For example we have seen cases: [56, 56, 256] + [56, 56, 16384]. with resnet50.
+        FunctionPtr cntkFunction = inputs[0];
+        for (int i = 1; i < inputs.size(); i++)
+        {
+            cntkFunction = Plus(cntkFunction, inputs[i]);
+        }
+        cntkFunction->SetName(ToWString(node->Name()));
+        return cntkFunction;
+    }
+    else if (onnxOpName == "LRN")
+    {
+        // TODO: this is experimental code to load Facebook Caffe models. 
+        // Operators are added so hopefully there is not further work needed.
+        size_t depthRadius = GetNamedAttributeAsInt64(node, "size");
+        double bias = GetNamedAttributeAsFloat(node, "bias");
+        double alpha = GetNamedAttributeAsFloat(node, "alpha");
+        double beta = GetNamedAttributeAsFloat(node, "beta");
+        FunctionPtr cntkFunction = LocalResponseNormalization(inputs[0],
+            depthRadius, bias, alpha, beta, ToWString(node->Name()));
+        return cntkFunction;
+    }
+    else if (onnxOpName == "AveragePool" || onnxOpName == "MaxPool")
+    {
+        NDShape poolingWindowShape = GetNamedAttributeAsShape(node, "kernel_shape", false);
+        NDShape strides = GetNamedAttributeAsShape(node, "strides", false);
+        std::vector<bool> autoPadding = GetAutoPaddingWithSymmetryConversion(node, strides.Rank(), "pads", { false });
+
         bool ceilOutDim = false;
         bool includePad = false;
         FunctionPtr cntkFunction = Pooling(inputs[0],
             onnxOpName == "AveragePool" ? PoolingType::Average : PoolingType::Max,
             poolingWindowShape, strides, autoPadding, ceilOutDim, includePad, ToWString(node->Name()));
-        Trace1(onnxOpName, cntkFunction, inputs[0]);
+        return cntkFunction;
+    }
+    else if (onnxOpName == "GlobalAveragePool" || onnxOpName == "GlobalMaxPool")
+    {
+        NDShape strides = { 1 };
+        std::vector<bool> autoPadding = { false };
+        bool ceilOutDim = false;
+        bool includePad = false;
+
+        FunctionPtr cntkFunction = Pooling(inputs[0],
+            onnxOpName == "GlobalAveragePool" ? PoolingType::Average : PoolingType::Max, 
+            NDShape::Unknown(), strides, autoPadding, ceilOutDim, includePad, ToWString(node->Name()));
         return cntkFunction;
     }
     else if (onnxOpName == "Conv")
     {
-        NDShape strides = GetNamedAttributeAsShape(node, "strides");
-        NDShape dilation = { 1 };
-        if (HasNamedAttribute(node, attributesCNTKToONNXMap.map[L"dilation"]))
-        {
-            dilation = GetNamedAttributeAsShape(node, attributesCNTKToONNXMap.map[L"dilation"]);
-        }
-
-        std::vector<bool> autoPadding = GetAutoPaddingWithSysmetricConversion(node, strides.Rank(),
-            attributesCNTKToONNXMap.map[L"autoPadding"]);
+        NDShape strides = GetNamedAttributeAsShape(node, "strides", false);
+        NDShape dilation = GetNamedAttributeAsShape(node, "dilations", { 1 }, false);
+        std::vector<bool> autoPadding = GetAutoPaddingWithSymmetryConversion(node, strides.Rank(), "pads", { false });
 
         size_t groups = GetNamedAttributeAsInt64(node, "group", 1);
 
-        // TODO: get from node's attributes
+        // TODO: avoid hardcoded values
         std::vector<bool> sharing({ true });
         size_t reductionRank = 1;
         size_t maxTempMemSizeInSamples = 0;
 
-        // TODO: create the kernel node from an ONNX input if it is available.
-        // otherwise build from attribute and onnx initialization list.
+        
         Variable convolutionMap = inputs[1];
         Variable operand = inputs[0];
-        
-        if ((operand.Shape().Rank() == (1 + autoPadding.size())))
-        {
-            autoPadding.push_back(false);
-        }
-
-        if ((operand.Shape().Rank() == (1 + strides.Rank())))
-        {
-            strides = strides.AppendShape({1});
-        }
-
-        if (operand.Shape().Rank() == 3 && operand.Shape()[2] == 0)
-        {
-            PrintGraph(operand.Owner(), 0, true);
-        }
+        AdjustAutoPaddingAndStrideForCNTKSpecialCases(operand, autoPadding, strides);
 
         FunctionPtr cntkFunction = Convolution(
             convolutionMap,
@@ -631,31 +701,30 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
             groups,
             maxTempMemSizeInSamples,
             ToWString(node->Name()));
-        if (inputs.size() == 1)
-            Trace1(onnxOpName, cntkFunction, inputs[0]);
-        else if (inputs.size() == 2)
-            Trace2(onnxOpName, cntkFunction, inputs[0], inputs[1]);
         return cntkFunction;
     }
     else if (onnxOpName == "ConvTranspose")
     {
-        NDShape strides = GetNamedAttributeAsShape(node, "strides");
-        NDShape dilation = GetNamedAttributeAsShape(node, attributesCNTKToONNXMap.map[L"dilation"]);
-        std::vector<bool> autoPadding = GetAutoPaddingWithSysmetricConversion(node, strides.Rank(),
-            attributesCNTKToONNXMap.map[L"autoPadding"]);
+        NDShape strides = GetNamedAttributeAsShape(node, "strides", false);
+        NDShape dilation = GetNamedAttributeAsShape(node, "dilations", false);
+        std::vector<bool> autoPadding = GetAutoPaddingWithSymmetryConversion(
+            node, strides.Rank(), "pads", { false });
 
-        // TODO: "outputShape" attribute may be missing
-        NDShape outputShape = GetNamedAttributeAsShape(node, "outputShape");
+        NDShape outputShape = GetNamedAttributeAsShape(node, "outputShape", false);
 
-        // TODO: get from node's attributes
+        // TODO: avoid hardcoded values
         std::vector<bool> sharing({ true });
         size_t reductionRank = 1;
         size_t maxTempMemSizeInSamples = 0;
 
+        const Variable& convolutionMap = inputs[1];
+        const Variable& operand = inputs[0];
+        AdjustAutoPaddingAndStrideForCNTKSpecialCases(operand, autoPadding, strides);
+
         // TODO: are we sure that convolutionMap and operand are in inputs[1], inputs[0] order?
         FunctionPtr cntkFunction = ConvolutionTranspose(
-            inputs[1],
-            inputs[0],
+            convolutionMap,
+            operand,
             strides,
             sharing,
             autoPadding,
@@ -664,18 +733,7 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
             reductionRank,
             maxTempMemSizeInSamples,
             ToWString(node->Name()));
-        Trace2(onnxOpName, cntkFunction, inputs[0], inputs[1]);
         return cntkFunction;
-    }
-    else if (onnxOpName == "GlobalAveragePool")
-    {
-        // TODO: operators.cpp may have reversed mapping
-        // seems that we do not have Global pooling in CNTK?
-        return nullptr;
-    }
-    else if (onnxOpName == "GlobalMaxPool")
-    {
-        return nullptr;
     }
     else if (onnxOpName == "BatchNormalization" || onnxOpName == "SpatialBN")
     {
@@ -686,7 +744,10 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         const Variable& runningMean = inputs[3];
         const Variable& runningInvStd = inputs[4];
         const Variable& runningCount = Constant::Scalar(0.0F);
-        bool spatial = GetNamedAttributeAsInt64(node, "spatial") != 0 || onnxOpName == "SpatialBN";
+
+        bool spatial = onnxOpName == "SpatialBN" || GetNamedAttributeAsInt64(node, "spatial") != 0;
+
+        // TODO: avoid hardcoded values
         double normalizationTimeConstant = 0;
         double blendTimeConstant = 0;
         double epsilon = 0.00001;
@@ -708,31 +769,32 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     else if (onnxOpName == "Dropout")
     {
         const Variable& operand = inputs[0];
-        double dropoutRate = GetNamedAttributeAsFloat(node, attributesCNTKToONNXMap.map[L"dropoutRate"]);
+        double dropoutRate = GetNamedAttributeAsFloat(node, "ratio");
+
         unsigned long seed = SentinelValueForAutoSelectRandomSeed;
         FunctionPtr cntkFunction = Dropout(operand, dropoutRate, seed, ToWString(node->Name()));
         return cntkFunction;
     }
     else if (onnxOpName == "RandomUniform")
     {
-        const NDShape &shape = GetNamedAttributeAsShape(node, attributesCNTKToONNXMap.map[L"newShape"]);
+        const NDShape &shape = GetNamedAttributeAsShape(node, "shape", false);
 
-        // TODO get from node's attributes
+        // TODO get from node's attributes, same for following ops
         DataType dataType = DataType::Float;
 
         double low = GetNamedAttributeAsFloat(node, "low");
         double high = GetNamedAttributeAsFloat(node, "high");
-        unsigned long seed = GetNamedAttributeAsInt64(node, attributesCNTKToONNXMap.map[L"rngSeed"]);
+        unsigned long seed = GetNamedAttributeAsInt64(node, "seed");
         FunctionPtr cntkFunction = UniformRandom(shape, dataType, low, high, seed, ToWString(node->Name()));
         return cntkFunction;
     }
     else if (onnxOpName == "RandomNormal")
     {
-        const NDShape& shape = GetNamedAttributeAsShape(node, attributesCNTKToONNXMap.map[L"newShape"]);
+        const NDShape& shape = GetNamedAttributeAsShape(node, "shape", false);
         DataType dataType = DataType::Float;
         double mean = GetNamedAttributeAsFloat(node, "mean");
         double scale = GetNamedAttributeAsFloat(node, "scale");
-        unsigned long seed = GetNamedAttributeAsInt64(node, attributesCNTKToONNXMap.map[L"rngSeed"]);
+        unsigned long seed = GetNamedAttributeAsInt64(node, "seed");
         FunctionPtr cntkFunction = NormalRandom(shape, dataType, mean, scale, seed, ToWString(node->Name()));
         return cntkFunction;
     }
@@ -741,7 +803,7 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         const Variable& operand = inputs[0];
         double low = GetNamedAttributeAsFloat(node, "low");
         double high = GetNamedAttributeAsFloat(node, "high");
-        unsigned long seed = GetNamedAttributeAsInt64(node, attributesCNTKToONNXMap.map[L"rngSeed"]);
+        unsigned long seed = GetNamedAttributeAsInt64(node, "seed");
         FunctionPtr cntkFunction = UniformRandomLike(operand, low, high, seed, ToWString(node->Name()));
         return cntkFunction;
     }
@@ -750,37 +812,35 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         const Variable& operand = inputs[0];
         double mean = GetNamedAttributeAsFloat(node, "mean");
         double scale = GetNamedAttributeAsFloat(node, "scale");
-        unsigned long seed = GetNamedAttributeAsInt64(node, attributesCNTKToONNXMap.map[L"rngSeed"]);
+        unsigned long seed = GetNamedAttributeAsInt64(node, "seed");
         FunctionPtr cntkFunction = NormalRandomLike(operand, mean, scale, seed, ToWString(node->Name()));
         return cntkFunction;
     }
     else if (onnxOpName == "Add")
     {
         Variable input0, input1;
-        std::tie<Variable, Variable>(input0, input1) = BoardcastElementWiseInput(node, inputs[0], inputs[1]);
+        std::tie<Variable, Variable>(input0, input1) = BroadcastElementWiseInput(node, inputs[0], inputs[1]);
         FunctionPtr cntkFunction = Plus(input0, input1, ToWString(node->Name()));
-        Trace2(onnxOpName, cntkFunction, input0, input1);
         return cntkFunction;
     }
     else if (onnxOpName == "Sub")
     {
         Variable input0, input1;
-        std::tie<Variable, Variable>(input0, input1) = BoardcastElementWiseInput(node, inputs[0], inputs[1]);
+        std::tie<Variable, Variable>(input0, input1) = BroadcastElementWiseInput(node, inputs[0], inputs[1]);
         FunctionPtr cntkFunction = Minus(input0, input1, ToWString(node->Name()));
         return cntkFunction;
     }
     else if (onnxOpName == "Mul")
     {
         Variable input0, input1;
-        std::tie<Variable, Variable>(input0, input1) = BoardcastElementWiseInput(node, inputs[0], inputs[1]);
+        std::tie<Variable, Variable>(input0, input1) = BroadcastElementWiseInput(node, inputs[0], inputs[1]);
         FunctionPtr cntkFunction = ElementTimes(input0, input1, ToWString(node->Name()));
-        Trace2(onnxOpName, cntkFunction, input0, input1);
         return cntkFunction;
     }
     else if (onnxOpName == "Div")
     {
         Variable input0, input1;
-        std::tie<Variable, Variable>(input0, input1) = BoardcastElementWiseInput(node, inputs[0], inputs[1]);
+        std::tie<Variable, Variable>(input0, input1) = BroadcastElementWiseInput(node, inputs[0], inputs[1]);
         FunctionPtr cntkFunction = ElementDivide(input0, input1, ToWString(node->Name()));
         return cntkFunction;
     }
@@ -817,7 +877,6 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     else if (onnxOpName == "Relu")
     {
         FunctionPtr cntkFunction = ReLU(inputs[0], ToWString(node->Name()));
-        Trace1(onnxOpName, cntkFunction, inputs[0]);
         return cntkFunction;
     }
     else if (onnxOpName == "LeakyRelu")
@@ -861,7 +920,6 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     {
         // TODO: why order have to be reversed
         FunctionPtr cntkFunction = Times(inputs[1], inputs[0], ToWString(node->Name()));
-        Trace2(onnxOpName, cntkFunction, inputs[0], inputs[1]);
         return cntkFunction;
     }
     else if (onnxOpName == "PRelu")
@@ -892,7 +950,6 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     else if (onnxOpName == "Softmax")
     {
         FunctionPtr cntkFunction = Softmax(inputs[0], ToWString(node->Name()));
-        Trace1(onnxOpName, cntkFunction, inputs[0]);
         return cntkFunction;
     }
     else if (onnxOpName == "ReduceMax")
@@ -953,9 +1010,8 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     }
     else if (onnxOpName == "Reshape")
     {
-        NDShape newShape = GetNamedAttributeAsShape(node, attributesCNTKToONNXMap.map[L"newShape"]);
+        NDShape newShape = GetNamedAttributeAsShape(node, "shape", false);
         FunctionPtr cntkFunction = Reshape(inputs[0], newShape, ToWString(node->Name()));
-        Trace1(onnxOpName, cntkFunction, inputs[0]);
         return cntkFunction;
     }
     else if (onnxOpName == "Concat")
@@ -1034,7 +1090,6 @@ FunctionPtr ONNXToCNTKHelper::FromONNXNode(const Node *node, ONNXToCNTKMap &cons
         else
         {
             Variable inputVariable = CreateLeafVariableOrConstant(nodeArg, graph, computeDevice);
-            Trace0(node->OpType(), inputVariable);
             inputs.push_back(inputVariable);
         }
     }
@@ -1060,7 +1115,6 @@ FunctionPtr ONNXToCNTKHelper::CreateCNTKNode(const Node *node, const std::vector
     else if (onnxOpName == "Constant")
     {
         Constant constant = CreateConstant(node, computeDevice);
-        Trace0(onnxOpName, constant);
         return constant;
     }
     else
@@ -1072,6 +1126,8 @@ FunctionPtr ONNXToCNTKHelper::CreateCNTKNode(const Node *node, const std::vector
 FunctionPtr ONNXToCNTK::CreateGraph(ONNXIR::Graph* src, const DeviceDescriptor& computeDevice)
 {
     FunctionPtr cntkModel;
+
+    // To use depth-first-traversal, keeps a collection of visited nodes.
     ONNXToCNTKMap constructedFunctions;
     for (Graph::NodeIterator it = src->Nodes_begin(); it != src->Nodes_end(); ++it)
     {
@@ -1083,6 +1139,7 @@ FunctionPtr ONNXToCNTK::CreateGraph(ONNXIR::Graph* src, const DeviceDescriptor& 
         }
     }
 
+    // ONNX puts all outputs in an graph as input to the "_Graph_Sink" node.
     ONNXToCNTKMap::iterator itNodeFn = std::find_if(constructedFunctions.begin(), constructedFunctions.end(),
         [](ONNXToCNTKMap::value_type nodeFn) {return nodeFn.first->Name() == "_Graph_Sink"; });
     if (itNodeFn == constructedFunctions.end())
@@ -1106,6 +1163,7 @@ FunctionPtr ONNXToCNTK::CreateGraph(ONNXIR::Graph* src, const DeviceDescriptor& 
     }
     else
     {
+        // in case multiple outputs are in a graph, combine them into one CNTK graph.
         return Combine(std::vector<Variable>(functions.begin(), functions.end()));
     }
 }
