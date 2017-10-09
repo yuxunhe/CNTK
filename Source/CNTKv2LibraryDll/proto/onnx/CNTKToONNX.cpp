@@ -577,20 +577,30 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ONNXIR::Node* node
             if (src->OpName() == L"ConvolutionTranspose")
             {
                 auto outputShape = (NDShape)src->Attributes()[L"outputShape"].Value<NDShape>();
-                node->AddAttribute(attributesMap[L"outputShape"], ToINTS(outputShape));
+                node->AddAttribute(attributesMap[L"outputShape"], ToINTS(outputShape, src->Inputs()[1].HasBatchAxis()));
             }
         }
         else if (src->OpName() == L"BatchNormalization")
         {
             auto spatial = (int64_t)((bool)src->Attributes()[L"spatial"].Value<bool>() ? 1 : 0);
-            // auto normalizationTimeConstant = (float)src->Attributes()[L"normalizationTimeConstant"].Value<double>();
+            auto normalizationTimeConstant = (float)src->Attributes()[L"normalizationTimeConstant"].Value<double>();
             // auto blendTimeConstant = (float)src->Attributes()[L"blendTimeConstant"].Value<double>();
             auto epsilon = (float)src->Attributes()[L"epsilon"].Value<double>();
+
+            //
+            // onnx: running_mean = running_mean * momentum + mean * (1 - momentum)
+            // cntk: expAvgFactor * MB stats + (1-expAvgFactor) * prev running stats
+            //
+            auto momentum = 0.0f;
+            if (!isfinite(normalizationTimeConstant))
+                momentum = 1.0f;
+            else if (normalizationTimeConstant > 0)
+                momentum = 1.0f + expm1(-48.0f / normalizationTimeConstant);
 
             node->AddAttribute(attributesMap[L"spatial"], spatial);
             node->AddAttribute("is_test", (int64_t)1);
             node->AddAttribute(attributesMap[L"epsilon"], epsilon);
-            node->AddAttribute("momentum", 0.9f);
+            node->AddAttribute("momentum", momentum);
         }
         else if (src->OpName() == L"LocalResponseNormalization")
         {
