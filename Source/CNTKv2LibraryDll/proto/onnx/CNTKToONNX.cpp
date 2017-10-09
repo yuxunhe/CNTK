@@ -444,6 +444,9 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             if (src->IsBlock() && FilterInput(src, input, inputIndex))
                 continue;
 
+            //
+            // Use user defined name if available otherwise use our internel unique name ID.
+            //
             std::string inputName = ToString(input.Uid());
             auto inputItr = compositeOutputsMap.find(input);
             if (inputItr != compositeOutputsMap.end())
@@ -470,7 +473,7 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                     ONNXIR::Node* variableNode = nullptr;
                     if (input.IsParameter() || input.IsConstant())
                     {
-                        variableNode = graph->AddNode(ToString(input.Uid()), "Constant", "", varInputs, varOutputs);
+                        variableNode = graph->AddNode(inputName, "Constant", "", varInputs, varOutputs);
                         auto srcTensor = input.IsParameter() ? Parameter(input).Value() : Constant(input).Value();
                         
                         ONNXIR::TensorProto dstTensor;
@@ -767,6 +770,7 @@ ONNXIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, ONNXIR::Graph* g
 {
     ONNXIR::Node* node = nullptr;
     auto orderedInputs = MapInputsOrderToONNX(src, inputs);
+    auto nodeName = src->Name().empty() ? ToString(src->Uid()) : ToString(src->Name());
 
     //
     // CNTK Times OP is way more flexible for ONNX, so depend on the inputs and output shape,
@@ -794,19 +798,19 @@ ONNXIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, ONNXIR::Graph* g
             ONNXIR::NodeArg inputOutput1Arg(orderedInputs[0].Name() + string("_reshape0"), &input1Reshape);
             ONNXIR::NodeArg inputOutput2Arg(orderedInputs[1].Name() + string("_reshape1"), &input2Reshape);
 
-            auto reshapeNode1 = graph->AddNode(ToString(src->Uid()) + string("_reshape0"), "Reshape", "", { orderedInputs[0] }, { inputOutput1Arg });
-            auto reshapeNode2 = graph->AddNode(ToString(src->Uid()) + string("_reshape1"), "Reshape", "", { orderedInputs[1] }, { inputOutput2Arg });
+            auto reshapeNode1 = graph->AddNode(nodeName + string("_reshape0"), "Reshape", "", { orderedInputs[0] }, { inputOutput1Arg });
+            auto reshapeNode2 = graph->AddNode(nodeName + string("_reshape1"), "Reshape", "", { orderedInputs[1] }, { inputOutput2Arg });
 
             reshapeNode1->AddAttribute("shape", ToINTS(input1Reshape));
             reshapeNode2->AddAttribute("shape", ToINTS(input2Reshape));
 
-            node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", { inputOutput1Arg , inputOutput2Arg }, outputs);
+            node = graph->AddNode(nodeName, ToOPName(src), "", { inputOutput1Arg , inputOutput2Arg }, outputs);
         }
         else
-            node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", orderedInputs, outputs);
+            node = graph->AddNode(nodeName, ToOPName(src), "", orderedInputs, outputs);
     }
     else
-        node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", orderedInputs, outputs);
+        node = graph->AddNode(nodeName, ToOPName(src), "", orderedInputs, outputs);
 
     //
     // Copy and validate attributes.
