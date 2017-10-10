@@ -207,6 +207,41 @@ void RetrieveRawDataAsFloat(const ONNXIR::TensorProto &valueProto)
     }
 }
 
+double UnpackDouble(const char *buf, int i)
+{
+    double temp = 0;
+
+    if (IsLittleEndianOrder())
+    {
+        memcpy((void*)&temp, (void*)buf, sizeof(char) * 8);
+    }
+    else
+    {
+        // this is temperal code that will soon be replaced by onnx core.
+        NOT_IMPLEMENTED;
+    }
+    return temp;
+}
+
+void RetrieveRawDataAsDouble(const ONNXIR::TensorProto &valueProto)
+{
+    if (!valueProto.double_data().empty())
+        return;
+
+    auto raw_data = valueProto.raw_data();
+    ONNXIR::TensorProto &mutableProto = const_cast<ONNXIR::TensorProto &>(valueProto);
+    ::google::protobuf::RepeatedField< double >* p_mutable_double_data = mutableProto.mutable_double_data();
+    if (!raw_data.empty())
+    {
+        auto buff = raw_data.c_str();
+        for (int i = 0; i < raw_data.size(); i += 4)
+        {
+            double v = UnpackDouble(buff + i, i);
+            p_mutable_double_data->Add(v);
+        }
+    }
+}
+
 Constant ONNXToCNTKHelper::CreateConstant(const Node *node, const DeviceDescriptor& computeDevice)
 {
     NodeAttributes::const_iterator itValue = node->GetAttributes().find("value");
@@ -284,8 +319,59 @@ Constant ONNXToCNTKHelper::CreateConstant(const ONNXIR::TensorProto &valueProto,
     }
     break;
     case TensorProto_DataType_DOUBLE:
-        // TODO: waiting for onnx core to have raw to double support.
-        NOT_IMPLEMENTED;
+    {
+        // TODO: refactore commom code for float and double
+        double *data = new double[totalSize];
+        if (valueProto.double_data().empty())
+        {
+            RetrieveRawDataAsDouble(valueProto);
+        }
+
+        if (shape.Rank() <= 2)
+        {
+            for (size_t index = 0; index < totalSize; index++)
+            {
+                data[index] = valueProto.double_data()[index];
+            }
+        }
+        else
+        {
+            int outputChannels = shape[0], inputChanndels = shape[1];
+            NDShape channelKernelShape(std::vector<size_t>(shape.Dimensions().begin() + 2, shape.Dimensions().end()));
+            NDShape channelReversedShape = ReverseShape(channelKernelShape);
+            int channelKernelSize = channelKernelShape.TotalSize();
+            for (int oC = 0; oC < outputChannels; oC++)
+            {
+                for (int iC = 0; iC < inputChanndels; iC++)
+                {
+                    int channelIndex = (oC * inputChanndels + iC);
+                    for (int pixel = 0; pixel < channelKernelSize; pixel++)
+                    {
+                        data[channelIndex * channelKernelSize + pixel] =
+                            valueProto.double_data()[channelIndex * channelKernelSize + pixel];
+                    }
+                }
+            }
+        }
+
+        NDArrayViewPtr dstFinal(new NDArrayView(DataType::Double, reversedShape, &data[0],
+            totalSize * sizeof(double), computeDevice.CPUDevice()));
+
+        if (computeDevice.Type() == DeviceKind::CPU)
+        {
+            Constant constantVariable(dstFinal, ToWString(nodeName));
+            return constantVariable;
+        }
+        else
+        {
+            // this is the way to load values into GPU: 
+            // Create a GPU NDArrayView and CopyFrom a CPU NDArrayView that holding the data.
+            NDArrayViewPtr dstFinalGPU(new NDArrayView(DataType::Double, StorageFormat::Dense, reversedShape, computeDevice));
+            dstFinalGPU->CopyFrom(*dstFinal);
+            Constant constantVariable(dstFinalGPU, ToWString(nodeName));
+            return constantVariable;
+        }
+    }
     break;
     default:
         NOT_IMPLEMENTED;
@@ -706,7 +792,7 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     else if (onnxOpName == "ConvTranspose")
     {
         NDShape strides = GetNamedAttributeAsShape(node, "strides", false);
-        NDShape dilation = GetNamedAttributeAsShape(node, "dilations", { 1 }, false);
+        NDShape dilation = GetNamedAttributeAsShape(node, "dilations", false, { 1 } );
         std::vector<bool> autoPadding = GetAutoPaddingWithSymmetryConversion(node, strides.Rank(), "pads", { false });
 
         NDShape outputShape = GetNamedAttributeAsShape(node, "output_shape", true);
@@ -787,7 +873,7 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     {
         const NDShape &shape = GetNamedAttributeAsShape(node, "shape", false);
 
-        // TODO get from node's attributes, same for following ops
+        // ONNX only has float type for random generators
         DataType dataType = DataType::Float;
 
         double low = GetNamedAttributeAsFloat(node, "low");
@@ -926,7 +1012,6 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     }
     else if (onnxOpName == "Dot")
     {
-        // TODO: why order have to be reversed
         FunctionPtr cntkFunction = Times(inputs[1], inputs[0], ToWString(node->Name()));
         return cntkFunction;
     }
