@@ -352,7 +352,15 @@ std::string CNTKToONNXHelper::ToOPName(const FunctionPtr& src)
     else
     {
         // Some nodes map one to many.
-        if (src->OpName() == L"Pooling")
+        if (src->OpName() == L"Convolution")
+        {
+            auto transpose = (bool)src->Attributes()[L"transpose"].Value<bool>();
+            if (transpose)
+                opName = "ConvTranspose";
+            else
+                opName = "Conv";
+        }
+        else if (src->OpName() == L"Pooling")
         {
             PoolingType poolingType = (PoolingType)src->Attributes()[L"poolingType"].Value<size_t>();
             if (poolingType == PoolingType::Max)
@@ -553,34 +561,7 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ONNXIR::Node* node
         auto attributesMap = lookup.find(src->OpName())->second.map;
         opName = attributesMap[src->OpName()];
 
-        if ((src->OpName() == L"Convolution") || (src->OpName() == L"ConvolutionTranspose"))
-        {
-            auto kernelShape = (NDShape)src->Attributes()[L"kernelShape"].Value<NDShape>();
-            auto strides = (NDShape)src->Attributes()[L"strides"].Value<NDShape>();
-            auto autoPadding = AsVector<bool>(src->Attributes()[L"autoPadding"].Value<std::vector<DictionaryValue>>());
-            auto dilations = (NDShape)src->Attributes()[L"dilation"].Value<NDShape>();
-
-            //
-            // Remove the channel part for ONNX.
-            //
-            kernelShape = kernelShape.SubShape(0, kernelShape.Rank() - 1);
-            strides = strides.SubShape(0, strides.Rank() - 1);
-            autoPadding.pop_back();
-            dilations = dilations.SubShape(0, dilations.Rank() - 1);
-
-            node->AddAttribute(attributesMap[L"kernelShape"], ToINTS(kernelShape));
-            node->AddAttribute("strides", ToINTS(strides));
-            node->AddAttribute("pads", ToINTS(autoPadding));
-            node->AddAttribute(attributesMap[L"dilation"], ToINTS(dilations));
-            node->AddAttribute("group", (int64_t)1);
-
-            if (src->OpName() == L"ConvolutionTranspose")
-            {
-                auto outputShape = (NDShape)src->Attributes()[L"outputShape"].Value<NDShape>();
-                node->AddAttribute(attributesMap[L"outputShape"], ToINTS(outputShape, src->Inputs()[1].HasBatchAxis()));
-            }
-        }
-        else if (src->OpName() == L"BatchNormalization")
+        if (src->OpName() == L"BatchNormalization")
         {
             auto spatial = (int64_t)((bool)src->Attributes()[L"spatial"].Value<bool>() ? 1 : 0);
             auto normalizationTimeConstant = (float)src->Attributes()[L"normalizationTimeConstant"].Value<double>();
@@ -740,7 +721,35 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ONNXIR::Node* node
     else
     {
         // Some nodes map one to many.
-        if (src->OpName() == L"Pooling")
+        if (src->OpName() == L"Convolution")
+        {
+            auto kernelShape = (NDShape)src->Attributes()[L"kernelShape"].Value<NDShape>();
+            auto strides = (NDShape)src->Attributes()[L"strides"].Value<NDShape>();
+            auto autoPadding = AsVector<bool>(src->Attributes()[L"autoPadding"].Value<std::vector<DictionaryValue>>());
+            auto dilations = (NDShape)src->Attributes()[L"dilation"].Value<NDShape>();
+            auto transpose = (bool)src->Attributes()[L"transpose"].Value<bool>();
+
+            //
+            // Remove the channel part for ONNX.
+            //
+            kernelShape = kernelShape.SubShape(0, kernelShape.Rank() - 1);
+            strides = strides.SubShape(0, strides.Rank() - 1);
+            autoPadding.pop_back();
+            dilations = dilations.SubShape(0, dilations.Rank() - 1);
+
+            node->AddAttribute("kernel_shape", ToINTS(kernelShape));
+            node->AddAttribute("strides", ToINTS(strides));
+            node->AddAttribute("pads", ToINTS(autoPadding));
+            node->AddAttribute("dilations", ToINTS(dilations));
+            node->AddAttribute("group", (int64_t)1);
+
+            if (transpose)
+            {
+                auto outputShape = (NDShape)src->Attributes()[L"outputShape"].Value<NDShape>();
+                node->AddAttribute("output_shape", ToINTS(outputShape, src->Inputs()[1].HasBatchAxis()));
+            }
+        }
+        else if (src->OpName() == L"Pooling")
         {
             auto kernelShape = (NDShape)src->Attributes()[L"poolingWindowShape"].Value<NDShape>();
             auto strides = (NDShape)src->Attributes()[L"strides"].Value<NDShape>();

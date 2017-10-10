@@ -43,7 +43,7 @@ namespace ONNX
             { L"dilation", "dilations" },
             // { L"", "group" },
         } } },
-        { L"ConvolutionTranspose", { {
+        { L"Convolution", { {
             { L"ConvolutionTranspose", "ConvTranspose" },
             { L"kernelShape", "kernel_shape" },
             { L"strides", "strides" },

@@ -684,7 +684,6 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         std::vector<bool> sharing({ true });
         size_t reductionRank = 1;
         size_t maxTempMemSizeInSamples = 0;
-
         
         Variable convolutionMap = inputs[1];
         Variable operand = inputs[0];
@@ -706,11 +705,10 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     else if (onnxOpName == "ConvTranspose")
     {
         NDShape strides = GetNamedAttributeAsShape(node, "strides", false);
-        NDShape dilation = GetNamedAttributeAsShape(node, "dilations", false);
-        std::vector<bool> autoPadding = GetAutoPaddingWithSymmetryConversion(
-            node, strides.Rank(), "pads", { false });
+        NDShape dilation = GetNamedAttributeAsShape(node, "dilations", { 1 }, false);
+        std::vector<bool> autoPadding = GetAutoPaddingWithSymmetryConversion(node, strides.Rank(), "pads", { false });
 
-        NDShape outputShape = GetNamedAttributeAsShape(node, "outputShape", false);
+        NDShape outputShape = GetNamedAttributeAsShape(node, "output_shape", true);
 
         // TODO: avoid hardcoded values
         std::vector<bool> sharing({ true });
