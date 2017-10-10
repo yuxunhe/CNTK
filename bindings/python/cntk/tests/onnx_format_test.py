@@ -60,7 +60,7 @@ def test_convolution_transpose(tmpdir):
     x = C.input_variable(img.shape)
     filter = np.reshape(np.array([2, -1, -1, 2], dtype = np.float32), (1, 2, 2))
     kernel = C.constant(value = filter)
-    root_node = C.convolution_transpose(kernel, x, auto_padding=[False]) #, output_shape=(1, 4, 4))
+    root_node = C.convolution_transpose(kernel, x, auto_padding=[False], output_shape=(1, 4, 4))
     
     filename = os.path.join(str(tmpdir), R'conv_transpose.onnx')
     root_node.save(filename, format=C.ModelFormat.ONNX)

@@ -745,8 +745,17 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
 
         bool spatial = onnxOpName == "SpatialBN" || GetNamedAttributeAsInt64(node, "spatial") != 0;
 
+        double normalizationTimeConstant = 0.0;
+        float momentum = GetNamedAttributeAsFloat(node, "momentum");
+        if ((momentum > (1.0f - std::numeric_limits<float>::epsilon())) && 
+            (momentum < (1.0f + std::numeric_limits<float>::epsilon())))
+            normalizationTimeConstant = INFINITY;
+        else if (momentum > 0.0f)
+            normalizationTimeConstant = -48.0f / log1p(momentum - 1.0f);
+        else
+            normalizationTimeConstant = 0.0;
+
         // TODO: avoid hardcoded values
-        double normalizationTimeConstant = 0;
         double blendTimeConstant = 0;
         double epsilon = 0.00001;
         bool useCuDNNEngine = true;
