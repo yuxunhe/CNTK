@@ -685,7 +685,6 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         std::vector<bool> sharing({ true });
         size_t reductionRank = 1;
         size_t maxTempMemSizeInSamples = 0;
-
         
         Variable convolutionMap = inputs[1];
         Variable operand = inputs[0];
@@ -707,11 +706,10 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     else if (onnxOpName == "ConvTranspose")
     {
         NDShape strides = GetNamedAttributeAsShape(node, "strides", false);
-        NDShape dilation = GetNamedAttributeAsShape(node, "dilations", false);
-        std::vector<bool> autoPadding = GetAutoPaddingWithSymmetryConversion(
-            node, strides.Rank(), "pads", { false });
+        NDShape dilation = GetNamedAttributeAsShape(node, "dilations", { 1 }, false);
+        std::vector<bool> autoPadding = GetAutoPaddingWithSymmetryConversion(node, strides.Rank(), "pads", { false });
 
-        NDShape outputShape = GetNamedAttributeAsShape(node, "outputShape", false);
+        NDShape outputShape = GetNamedAttributeAsShape(node, "output_shape", true);
 
         // TODO: avoid hardcoded values
         std::vector<bool> sharing({ true });
@@ -748,8 +746,17 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
 
         bool spatial = onnxOpName == "SpatialBN" || GetNamedAttributeAsInt64(node, "spatial") != 0;
 
+        double normalizationTimeConstant = 0.0;
+        float momentum = GetNamedAttributeAsFloat(node, "momentum");
+        if ((momentum > (1.0f - std::numeric_limits<float>::epsilon())) && 
+            (momentum < (1.0f + std::numeric_limits<float>::epsilon())))
+            normalizationTimeConstant = INFINITY;
+        else if (momentum > 0.0f)
+            normalizationTimeConstant = -48.0f / log1p(momentum - 1.0f);
+        else
+            normalizationTimeConstant = 0.0;
+
         // TODO: avoid hardcoded values
-        double normalizationTimeConstant = 0;
         double blendTimeConstant = 0;
         double epsilon = 0.00001;
         bool useCuDNNEngine = true;

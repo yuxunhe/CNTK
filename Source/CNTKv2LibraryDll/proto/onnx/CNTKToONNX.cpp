@@ -352,7 +352,15 @@ std::string CNTKToONNXHelper::ToOPName(const FunctionPtr& src)
     else
     {
         // Some nodes map one to many.
-        if (src->OpName() == L"Pooling")
+        if (src->OpName() == L"Convolution")
+        {
+            auto transpose = (bool)src->Attributes()[L"transpose"].Value<bool>();
+            if (transpose)
+                opName = "ConvTranspose";
+            else
+                opName = "Conv";
+        }
+        else if (src->OpName() == L"Pooling")
         {
             PoolingType poolingType = (PoolingType)src->Attributes()[L"poolingType"].Value<size_t>();
             if (poolingType == PoolingType::Max)
@@ -444,6 +452,9 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
             if (src->IsBlock() && FilterInput(src, input, inputIndex))
                 continue;
 
+            //
+            // Use user defined name if available otherwise use our internel unique name ID.
+            //
             std::string inputName = ToString(input.Uid());
             auto inputItr = compositeOutputsMap.find(input);
             if (inputItr != compositeOutputsMap.end())
@@ -470,7 +481,7 @@ ONNXIR::Node* CNTKToONNXHelper::CreateNode(const FunctionPtr& src,
                     ONNXIR::Node* variableNode = nullptr;
                     if (input.IsParameter() || input.IsConstant())
                     {
-                        variableNode = graph->AddNode(ToString(input.Uid()), "Constant", "", varInputs, varOutputs);
+                        variableNode = graph->AddNode(inputName, "Constant", "", varInputs, varOutputs);
                         auto srcTensor = input.IsParameter() ? Parameter(input).Value() : Constant(input).Value();
                         
                         ONNXIR::TensorProto dstTensor;
@@ -550,44 +561,27 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ONNXIR::Node* node
         auto attributesMap = lookup.find(src->OpName())->second.map;
         opName = attributesMap[src->OpName()];
 
-        if ((src->OpName() == L"Convolution") || (src->OpName() == L"ConvolutionTranspose"))
-        {
-            auto kernelShape = (NDShape)src->Attributes()[L"kernelShape"].Value<NDShape>();
-            auto strides = (NDShape)src->Attributes()[L"strides"].Value<NDShape>();
-            auto autoPadding = AsVector<bool>(src->Attributes()[L"autoPadding"].Value<std::vector<DictionaryValue>>());
-            auto dilations = (NDShape)src->Attributes()[L"dilation"].Value<NDShape>();
-
-            //
-            // Remove the channel part for ONNX.
-            //
-            kernelShape = kernelShape.SubShape(0, kernelShape.Rank() - 1);
-            strides = strides.SubShape(0, strides.Rank() - 1);
-            autoPadding.pop_back();
-            dilations = dilations.SubShape(0, dilations.Rank() - 1);
-
-            node->AddAttribute(attributesMap[L"kernelShape"], ToINTS(kernelShape));
-            node->AddAttribute("strides", ToINTS(strides));
-            node->AddAttribute("pads", ToINTS(autoPadding));
-            node->AddAttribute(attributesMap[L"dilation"], ToINTS(dilations));
-            node->AddAttribute("group", (int64_t)1);
-
-            if (src->OpName() == L"ConvolutionTranspose")
-            {
-                auto outputShape = (NDShape)src->Attributes()[L"outputShape"].Value<NDShape>();
-                node->AddAttribute(attributesMap[L"outputShape"], ToINTS(outputShape));
-            }
-        }
-        else if (src->OpName() == L"BatchNormalization")
+        if (src->OpName() == L"BatchNormalization")
         {
             auto spatial = (int64_t)((bool)src->Attributes()[L"spatial"].Value<bool>() ? 1 : 0);
-            // auto normalizationTimeConstant = (float)src->Attributes()[L"normalizationTimeConstant"].Value<double>();
+            auto normalizationTimeConstant = (float)src->Attributes()[L"normalizationTimeConstant"].Value<double>();
             // auto blendTimeConstant = (float)src->Attributes()[L"blendTimeConstant"].Value<double>();
             auto epsilon = (float)src->Attributes()[L"epsilon"].Value<double>();
+
+            //
+            // onnx: running_mean = running_mean * momentum + mean * (1 - momentum)
+            // cntk: expAvgFactor * MB stats + (1-expAvgFactor) * prev running stats
+            //
+            auto momentum = 0.0f;
+            if (!isfinite(normalizationTimeConstant))
+                momentum = 1.0f;
+            else if (normalizationTimeConstant > 0)
+                momentum = 1.0f + expm1(-48.0f / normalizationTimeConstant);
 
             node->AddAttribute(attributesMap[L"spatial"], spatial);
             node->AddAttribute("is_test", (int64_t)1);
             node->AddAttribute(attributesMap[L"epsilon"], epsilon);
-            node->AddAttribute("momentum", 0.9f);
+            node->AddAttribute("momentum", momentum);
         }
         else if (src->OpName() == L"LocalResponseNormalization")
         {
@@ -727,7 +721,35 @@ void CNTKToONNXHelper::CopyAttributes(const FunctionPtr& src, ONNXIR::Node* node
     else
     {
         // Some nodes map one to many.
-        if (src->OpName() == L"Pooling")
+        if (src->OpName() == L"Convolution")
+        {
+            auto kernelShape = (NDShape)src->Attributes()[L"kernelShape"].Value<NDShape>();
+            auto strides = (NDShape)src->Attributes()[L"strides"].Value<NDShape>();
+            auto autoPadding = AsVector<bool>(src->Attributes()[L"autoPadding"].Value<std::vector<DictionaryValue>>());
+            auto dilations = (NDShape)src->Attributes()[L"dilation"].Value<NDShape>();
+            auto transpose = (bool)src->Attributes()[L"transpose"].Value<bool>();
+
+            //
+            // Remove the channel part for ONNX.
+            //
+            kernelShape = kernelShape.SubShape(0, kernelShape.Rank() - 1);
+            strides = strides.SubShape(0, strides.Rank() - 1);
+            autoPadding.pop_back();
+            dilations = dilations.SubShape(0, dilations.Rank() - 1);
+
+            node->AddAttribute("kernel_shape", ToINTS(kernelShape));
+            node->AddAttribute("strides", ToINTS(strides));
+            node->AddAttribute("pads", ToINTS(autoPadding));
+            node->AddAttribute("dilations", ToINTS(dilations));
+            node->AddAttribute("group", (int64_t)1);
+
+            if (transpose)
+            {
+                auto outputShape = (NDShape)src->Attributes()[L"outputShape"].Value<NDShape>();
+                node->AddAttribute("output_shape", ToINTS(outputShape, src->Inputs()[1].HasBatchAxis()));
+            }
+        }
+        else if (src->OpName() == L"Pooling")
         {
             auto kernelShape = (NDShape)src->Attributes()[L"poolingWindowShape"].Value<NDShape>();
             auto strides = (NDShape)src->Attributes()[L"strides"].Value<NDShape>();
@@ -767,6 +789,7 @@ ONNXIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, ONNXIR::Graph* g
 {
     ONNXIR::Node* node = nullptr;
     auto orderedInputs = MapInputsOrderToONNX(src, inputs);
+    auto nodeName = src->Name().empty() ? ToString(src->Uid()) : ToString(src->Name());
 
     //
     // CNTK Times OP is way more flexible for ONNX, so depend on the inputs and output shape,
@@ -794,19 +817,19 @@ ONNXIR::Node* CNTKToONNXHelper::AddNode(const FunctionPtr& src, ONNXIR::Graph* g
             ONNXIR::NodeArg inputOutput1Arg(orderedInputs[0].Name() + string("_reshape0"), &input1Reshape);
             ONNXIR::NodeArg inputOutput2Arg(orderedInputs[1].Name() + string("_reshape1"), &input2Reshape);
 
-            auto reshapeNode1 = graph->AddNode(ToString(src->Uid()) + string("_reshape0"), "Reshape", "", { orderedInputs[0] }, { inputOutput1Arg });
-            auto reshapeNode2 = graph->AddNode(ToString(src->Uid()) + string("_reshape1"), "Reshape", "", { orderedInputs[1] }, { inputOutput2Arg });
+            auto reshapeNode1 = graph->AddNode(nodeName + string("_reshape0"), "Reshape", "", { orderedInputs[0] }, { inputOutput1Arg });
+            auto reshapeNode2 = graph->AddNode(nodeName + string("_reshape1"), "Reshape", "", { orderedInputs[1] }, { inputOutput2Arg });
 
             reshapeNode1->AddAttribute("shape", ToINTS(input1Reshape));
             reshapeNode2->AddAttribute("shape", ToINTS(input2Reshape));
 
-            node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", { inputOutput1Arg , inputOutput2Arg }, outputs);
+            node = graph->AddNode(nodeName, ToOPName(src), "", { inputOutput1Arg , inputOutput2Arg }, outputs);
         }
         else
-            node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", orderedInputs, outputs);
+            node = graph->AddNode(nodeName, ToOPName(src), "", orderedInputs, outputs);
     }
     else
-        node = graph->AddNode(ToString(src->Uid()), ToOPName(src), "", orderedInputs, outputs);
+        node = graph->AddNode(nodeName, ToOPName(src), "", orderedInputs, outputs);
 
     //
     // Copy and validate attributes.
