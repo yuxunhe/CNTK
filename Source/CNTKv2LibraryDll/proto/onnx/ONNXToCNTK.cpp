@@ -1104,6 +1104,9 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
     else if (onnxOpName == "Reshape")
     {
         NDShape newShape = GetNamedAttributeAsShape(node, "shape", false);
+        if (inputs[0].HasBatchAxis())
+            newShape = newShape.SubShape(0, newShape.Rank() - 1);
+
         FunctionPtr cntkFunction = Reshape(inputs[0], newShape, ToWString(node->Name()));
         return cntkFunction;
     }
