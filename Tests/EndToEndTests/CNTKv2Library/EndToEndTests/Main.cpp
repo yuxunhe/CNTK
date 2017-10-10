@@ -25,6 +25,44 @@ void TestDistributedCheckpointing();
 
 int main(int argc, char *argv[])
 {
+    std::wstring file;
+    FunctionPtr f;
+
+    // Error: two output args with same name (conv1/bn).
+    //file = L"E:/LiqunWA/CNTK/ONNX/densenet121/model.pb";
+    //f = Function::Load(file, DeviceDescriptor::GPUDevice(0), ModelFormat::ONNX);
+
+    // pass
+    file = L"E:/LiqunWA/CNTK/ONNX/bvlc_alexnet/model.pb";
+    f = Function::Load(file, DeviceDescriptor::GPUDevice(0), ModelFormat::ONNX);
+
+    // About to throw exception 'Convolution operation requires that kernel dim 7 <= input dim 6.'
+    //file = L"E:/LiqunWA/CNTK/ONNX/inception_v1/model.pb";
+    //f = Function::Load(file, DeviceDescriptor::GPUDevice(0), ModelFormat::ONNX);
+
+    // pass
+    file = L"E:/LiqunWA/CNTK/ONNX/inception_v2/model.pb";
+    f = Function::Load(file, DeviceDescriptor::GPUDevice(0), ModelFormat::ONNX);
+
+    // Sum dim mismatch: [56, 56, 256] + [56, 56, 16384]
+    //file = L"E:/LiqunWA/CNTK/ONNX/resnet50/model.pb";
+    //f = Function::Load(file, DeviceDescriptor::GPUDevice(0), ModelFormat::ONNX);
+
+    // About to throw exception 'groups: number of output channels must be divisble by groups.'
+    //file = L"E:/LiqunWA/CNTK/ONNX/shufflenet/model.pb";
+    //f = Function::Load(file, DeviceDescriptor::GPUDevice(0), ModelFormat::ONNX);
+
+    // pass
+    file = L"E:/LiqunWA/CNTK/ONNX/squeezenet/model.pb";
+    f = Function::Load(file, DeviceDescriptor::GPUDevice(0), ModelFormat::ONNX);
+
+    // passed
+    file = L"E:/LiqunWA/CNTK/ONNX/vgg16/model.pb";
+    f = Function::Load(file, DeviceDescriptor::GPUDevice(0), ModelFormat::ONNX);
+
+    // passed
+    file = L"E:/LiqunWA/CNTK/ONNX/vgg19/model.pb";
+    f = Function::Load(file, DeviceDescriptor::GPUDevice(0), ModelFormat::ONNX);
 #if defined(_MSC_VER)
     // in case of asserts in debug mode, print the message into stderr and throw exception
     if (_CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, HandleDebugAssert) == -1) {
