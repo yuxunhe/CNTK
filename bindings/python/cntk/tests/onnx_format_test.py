@@ -34,7 +34,7 @@ def test_dense_layer(tmpdir):
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
-    x_ = loaded_node.arguments[0];
+    x_ = loaded_node.arguments[0]
     assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
 
 def test_convolution(tmpdir):
@@ -50,7 +50,7 @@ def test_convolution(tmpdir):
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
-    x_ = loaded_node.arguments[0];
+    x_ = loaded_node.arguments[0]
     assert np.allclose(loaded_node.eval({x_:[img]}), root_node.eval({x:[img]}))
 
 def test_convolution_transpose(tmpdir):
@@ -66,7 +66,7 @@ def test_convolution_transpose(tmpdir):
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
-    x_ = loaded_node.arguments[0];
+    x_ = loaded_node.arguments[0]
     assert np.allclose(loaded_node.eval({x_:[img]}), root_node.eval({x:[img]}))
 
 def test_conv_model(tmpdir):
@@ -93,7 +93,7 @@ def test_conv_model(tmpdir):
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
-    x_ = loaded_node.arguments[0];
+    x_ = loaded_node.arguments[0]
     assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
 
 def test_batch_norm_model(tmpdir):
@@ -134,7 +134,7 @@ def test_batch_norm_model(tmpdir):
     img = np.asarray(np.random.uniform(-1, 1, img_shape), dtype=np.float32)
 
     x = z.arguments[0];
-    x_ = loaded_node.arguments[0];
+    x_ = loaded_node.arguments[0]
     assert np.allclose(loaded_node.eval({x_:img}), z.eval({x:img}))
 
 def test_vgg9_model(tmpdir):
@@ -164,7 +164,7 @@ def test_vgg9_model(tmpdir):
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
-    x_ = loaded_node.arguments[0];
+    x_ = loaded_node.arguments[0]
     assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
 
 def test_conv3d_model(tmpdir):
@@ -197,7 +197,7 @@ def test_conv3d_model(tmpdir):
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
-    x_ = loaded_node.arguments[0];
+    x_ = loaded_node.arguments[0]
 
     assert np.allclose(loaded_node.eval({x_:video}), root_node.eval({x:video}))
 
@@ -260,6 +260,6 @@ def test_resnet_model(tmpdir):
     root_node.save(filename, format=C.ModelFormat.ONNX)
 
     loaded_node = C.Function.load(filename, format=C.ModelFormat.ONNX)
-    x_ = loaded_node.arguments[0];
+    x_ = loaded_node.arguments[0]
     
     assert np.allclose(loaded_node.eval({x_:img}), root_node.eval({x:img}))
