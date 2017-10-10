@@ -61,8 +61,9 @@ FunctionPtr ONNXFormat::Load(const std::wstring& filepath, const DeviceDescripto
 #else
     bool loadStatus = ONNXIR::Model::Load(ToString(filepath), &modelProto);
 #endif
-    if (!loadStatus)
-        LogicError("Failed to load the model.");
+    loadStatus;
+    //if (!loadStatus)
+    //    LogicError("Failed to load the model.");
 
     ONNXIR::Model model(modelProto);
     auto status = model.MainGraph()->Resolve();

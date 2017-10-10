@@ -634,13 +634,10 @@ std::vector<bool> ONNXToCNTKHelper::GetAutoPaddingWithSymmetryConversion(const N
     // This may happen if the node has asymetric padding. CNTK only support symetric padding so we pick on side
     if (autoPadding.size() == 2 * strideRank)
     {
-        // TODO: it seems that in asymetric case - one side pad he other not, we got dim mismatch, 
-        autoPadding.resize(strideRank);
-
-        //std::vector<bool> newPadding;
-        //for (std::vector<bool>::const_iterator it = autoPadding.begin(); it != autoPadding.end(); it++, it++)
-        //    newPadding.push_back(*it);
-        //autoPadding = newPadding;
+        std::vector<bool> newPadding;
+        for (size_t index = 0; index < autoPadding.size() / 2; ++index)
+            newPadding.push_back(autoPadding[index]);
+        autoPadding = newPadding;
     }
 
     return autoPadding;
@@ -673,41 +670,11 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         //  first operand to [1, dim0 * dim1] In this case dim0 * dim1 has to be equal to dim2.
         // 2. Broadcase bias if needed.
         Variable input0 = inputs[0], input1 = inputs[1];
-        if (input0.Shape().Rank() != input1.Shape().Rank())
-        {
-            NDShape shape0 = input0.Shape();
-            NDShape shape1 = input1.Shape();
-            NDShape newShape({ 1, shape0.TotalSize() });
-            input0 = Reshape(input0, newShape);
-        }
+        input0 = Reshape(input0, {1, NDShape::InferredDimension});
 
-        FunctionPtr cntkFunction = Times(input0, input1, ToWString(node->Name()));
-        
-        if (cntkFunction->Output().Shape().Rank() == 2 && inputs[2].Shape().Rank() == 1)
-        {
-            NDShape newShape;
-            Variable input2 = inputs[2];
-            int appendRank = cntkFunction->Output().Shape().Rank() - 1;
-            if (cntkFunction->Output().Shape()[0] == input2.Shape()[0])
-            {
-                newShape = input2.Shape();
-                newShape = newShape.AppendShape(std::vector<size_t>(appendRank, 1));
-                input2 = Reshape(input2, newShape);
-            }
-            else if (cntkFunction->Output().Shape()[cntkFunction->Output().Shape().Rank() - 1] == input2.Shape()[0])
-            {
-                newShape = std::vector<size_t>(appendRank, 1);
-                newShape = newShape.AppendShape({ input2.Shape() });
-                input2 = Reshape(input2, newShape);
-            }
-            cntkFunction = Plus(cntkFunction, input2, ToWString(node->Name()));
-            return cntkFunction;
-        }
-        else
-        {
-            cntkFunction = Plus(cntkFunction, inputs[2], ToWString(node->Name()));
-            return cntkFunction;
-        }
+        FunctionPtr cntkFunction = Reshape(Times(input0, input1, ToWString(node->Name())), { NDShape::InferredDimension });
+        cntkFunction = Plus(cntkFunction, inputs[2], ToWString(node->Name()));
+        return cntkFunction;
     }
     else if (onnxOpName == "Sum")
     {
@@ -739,6 +706,8 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         NDShape poolingWindowShape = GetNamedAttributeAsShape(node, "kernel_shape", false);
         NDShape strides = GetNamedAttributeAsShape(node, "strides", false);
         std::vector<bool> autoPadding = GetAutoPaddingWithSymmetryConversion(node, strides.Rank(), "pads", { false });
+
+        AdjustAutoPaddingAndStrideForCNTKSpecialCases(inputs[0], autoPadding, strides);
 
         bool ceilOutDim = false;
         bool includePad = false;
@@ -833,14 +802,17 @@ FunctionPtr ONNXToCNTKHelper::CreateFunction(const Node *node, const std::vector
         bool spatial = onnxOpName == "SpatialBN" || GetNamedAttributeAsInt64(node, "spatial") != 0;
 
         double normalizationTimeConstant = 0.0;
-        float momentum = GetNamedAttributeAsFloat(node, "momentum");
-        if ((momentum > (1.0f - std::numeric_limits<float>::epsilon())) && 
-            (momentum < (1.0f + std::numeric_limits<float>::epsilon())))
-            normalizationTimeConstant = INFINITY;
-        else if (momentum > 0.0f)
-            normalizationTimeConstant = -48.0f / log1p(momentum - 1.0f);
-        else
-            normalizationTimeConstant = 0.0;
+        if (HasNamedAttribute(node, "momentum"))
+        {
+            float momentum = GetNamedAttributeAsFloat(node, "momentum");
+            if ((momentum > (1.0f - std::numeric_limits<float>::epsilon())) &&
+                (momentum < (1.0f + std::numeric_limits<float>::epsilon())))
+                normalizationTimeConstant = INFINITY;
+            else if (momentum > 0.0f)
+                normalizationTimeConstant = -48.0f / log1p(momentum - 1.0f);
+            else
+                normalizationTimeConstant = 0.0;
+        }
 
         // TODO: avoid hardcoded values
         double blendTimeConstant = 0;
