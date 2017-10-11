@@ -111,10 +111,6 @@ def create_trainer(network, minibatch_size, epoch_size, num_quantization_bits, b
     lr_per_mb = [1.0]*30+[0.1]*30+[0.01]*20+[0.001]
     l2_reg_weight = 0.0001
 
-    if minibatch_size != 256:
-        for i in range(0, len(lr_per_mb)):
-            lr_per_mb[i] *= minibatch_size / 256
-
     # Set learning parameters
     lr_schedule = learning_rate_schedule(lr_per_mb, epoch_size=epoch_size, unit=UnitType.minibatch)
     mm_schedule = momentum_schedule(0.9)

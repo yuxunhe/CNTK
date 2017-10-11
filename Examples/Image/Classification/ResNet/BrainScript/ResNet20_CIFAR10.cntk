@@ -2,7 +2,7 @@
 
 command = TrainConvNet:Eval
 
-precision = "float"; traceLevel = 1 ; deviceId = "auto"
+precision = "float"; traceLevel = 1; deviceId = "auto"
 
 RootDir = "."
 ConfigDir = "$RootDir$"
@@ -18,7 +18,7 @@ TrainConvNet = {
     action = "train"
 
     BrainScriptNetworkBuilder = {
-        include "$configDir$/Macros.bs"
+        include "$ConfigDir$/Macros.bs"
 
         imageShape = 32:32:3
         labelDim = 10
@@ -46,7 +46,7 @@ TrainConvNet = {
             AveragePoolingLayer {(8: 8), stride = 1} :
 
             # FC
-            LinearLayer {labelDim, init = 'normal', initValueScale=0.01}
+            LinearLayer {labelDim, init = 'normal', initValueScale = 0.01}
         )
 
         # inputs
@@ -54,12 +54,12 @@ TrainConvNet = {
         labels   = Input {labelDim}
 
         # apply model to features
-        z = model (features)
+        z        = model (features)
 
         # connect to system
-        ce       = CrossEntropyWithSoftmax     (labels, z)
-        errs     = ClassificationError         (labels, z)
-        top5Errs = ClassificationError         (labels, z, topN=5)  # only used in Eval action
+        ce       = CrossEntropyWithSoftmax (labels, z)
+        errs     = ClassificationError (labels, z)
+        top5Errs = ClassificationError (labels, z, topN = 5)
 
         featureNodes    = (features)
         labelNodes      = (labels)
@@ -74,7 +74,7 @@ TrainConvNet = {
 
         # Note that learning rates are 10x more than in the paper due to a different 
         # momentum update rule in CNTK: v{t + 1} = lr*(1 - momentum)*g{t + 1} + momentum*v{t} 
-        learningRatesPerMB = 1.0*80:0.1*40:0.01
+        learningRatesPerMB = 1.0*80: 0.1*40: 0.01
         momentumPerMB = 0.9
         maxEpochs = 160
         L2RegWeight = 0.0001
@@ -86,12 +86,12 @@ TrainConvNet = {
         verbosity = 0 ; randomize = true
         deserializers = ({
             type = "ImageDeserializer" ; module = "ImageReader"
-            file = "$dataDir$/train_map.txt"
+            file = "$DataDir$/train_map.txt"
             input = {
                 features = { transforms = (
                     { type = "Crop" ; cropType = "RandomSide" ; sideRatio = 0.8:1.0 ; jitterType = "UniRatio" } :
                     { type = "Scale" ; width = 32 ; height = 32 ; channels = 3 ; interpolations = "linear" } :
-                    { type = "Mean" ; meanFile = "$MeanDir$/CIFAR-10_mean.xml" } : 
+                    { type = "Mean" ; meanFile = "$MeanDir$/CIFAR-10_mean.xml" } :
                     { type = "Transpose" }
                 )}
                 labels = { labelDim = 10 }
@@ -103,12 +103,12 @@ TrainConvNet = {
         verbosity = 0 ; randomize = false
         deserializers = ({
             type = "ImageDeserializer" ; module = "ImageReader"
-            file = "$dataDir$/test_map.txt"
+            file = "$DataDir$/test_map.txt"
             input = {
                 features = { transforms = (
-                    { type = "Crop" ; cropType = "Center" ; sideRatio = 0.8} :
+                    { type = "Crop" ; cropType = "Center" ; sideRatio = 0.8 } :
                     { type = "Scale" ; width = 32 ; height = 32 ; channels = 3 ; interpolations = "linear" } :
-                    { type = "Mean"; meanFile = "$MeanDir$/CIFAR-10_mean.xml" } : 
+                    { type = "Mean"; meanFile = "$MeanDir$/CIFAR-10_mean.xml" } :
                     { type = "Transpose" }
                 )}
                 labels = { labelDim = 10 }
@@ -128,12 +128,12 @@ Eval = {
         verbosity = 0 ; randomize = false
         deserializers = ({
             type = "ImageDeserializer" ; module = "ImageReader"
-            file = "$dataDir$/test_map.txt"
+            file = "$DataDir$/test_map.txt"
             input = {
                 features = { transforms = (
-                    { type = "Crop" ; cropType = "Center" ; sideRatio = 0.8} :
+                    { type = "Crop" ; cropType = "Center" ; sideRatio = 0.8 } :
                     { type = "Scale" ; width = 32 ; height = 32 ; channels = 3 ; interpolations = "linear" } :
-                    { type = "Mean"; meanFile = "$MeanDir$/CIFAR-10_mean.xml" } : 
+                    { type = "Mean"; meanFile = "$MeanDir$/CIFAR-10_mean.xml" } :
                     { type = "Transpose" }
                 )}
                 labels = { labelDim = 10 }
