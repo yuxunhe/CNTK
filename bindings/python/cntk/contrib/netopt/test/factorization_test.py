@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import cntk as C
-import cntk.netopt.factorization as nc
+import cntk.contrib.netopt.factorization as nc
 C.cntk_py.set_fixed_random_seed(1)
 
 # create a dense network for the tests
@@ -83,7 +83,7 @@ def test_factor_dense():
     newblocks = C.logging.graph.depth_first_search(
                     newz, lambda x : type(x) == C.Function and x.root_function.is_block, depth = 0)
     
-    assert(newblocks[1].op_name == "factored_model")    
+    assert(newblocks[1].op_name == "DenseFactored")    
     block_root = C.as_composite(newblocks[1].block_root)
     # no reduction, same size but factored.
     assert(block_root.W1.value.shape == (50, 50))
@@ -91,7 +91,7 @@ def test_factor_dense():
     newz = nc.factor_dense(z, projection_function=_get_rank_reduced_size, filter_function = _filter)
     newblocks = C.logging.graph.depth_first_search(
                     newz, lambda x : type(x) == C.Function and x.root_function.is_block, depth = 0)
-    assert(newblocks[1].op_name == "factored_model")    
+    assert(newblocks[1].op_name == "DenseFactored")    
     block_root = C.as_composite(newblocks[1].block_root)
     # the reduction has taken place now.
     assert(block_root.W1.value.shape == (50, 40))
