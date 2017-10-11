@@ -7,18 +7,17 @@
 from __future__ import print_function
 import os
 import argparse
-
-import numpy as np
 import cntk as C
+import numpy as np
+
 from cntk import cross_entropy_with_softmax, classification_error, reduce_mean
-from cntk.io import MinibatchSource, ImageDeserializer, StreamDef, StreamDefs
-import cntk.io.transforms as xforms
 from cntk import Trainer, cntk_py
+from cntk.io import MinibatchSource, ImageDeserializer, StreamDef, StreamDefs
 from cntk.learners import momentum_sgd, learning_rate_schedule, momentum_as_time_constant_schedule, UnitType
 from cntk.debugging import set_computation_network_trace_level
 from cntk.logging import *
-from cntk.debugging import *
 from resnet_models import *
+import cntk.io.transforms as xforms
 
 # Paths relative to current python file.
 abs_path   = os.path.dirname(os.path.abspath(__file__))
@@ -27,7 +26,7 @@ data_path  = os.path.join(abs_path, "..", "..", "..", "DataSets", "CIFAR-10")
 # model dimensions
 image_height = 32
 image_width  = 32
-num_channels = 3  # RGB
+num_channels = 3 # RGB
 num_classes  = 10
 
 # Define the reader for both training and evaluation action.
@@ -65,10 +64,10 @@ def train_and_evaluate(reader_train, reader_test, network_name, epoch_size, max_
     # create model, and configure learning parameters
     if network_name == 'resnet20':
         z = create_cifar10_model(input_var, 3, num_classes)
-        lr_per_mb = [1.0]*80+[0.1]*40+[0.01]
+        lr_per_mb = [1.0]*80 + [0.1]*40 + [0.01]
     elif network_name == 'resnet110':
         z = create_cifar10_model(input_var, 18, num_classes)
-        lr_per_mb = [0.1]*1+[1.0]*80+[0.1]*40+[0.01]
+        lr_per_mb = [1.0]*80 + [0.1]*40 + [0.01]
     else:
         return RuntimeError("Unknown model name!")
 
@@ -95,7 +94,7 @@ def train_and_evaluate(reader_train, reader_test, network_name, epoch_size, max_
 
     # trainer object
     learner = momentum_sgd(z.parameters, lr_schedule, mm_schedule,
-                           l2_regularization_weight = l2_reg_weight)
+                           l2_regularization_weight=l2_reg_weight)
     trainer = Trainer(z, (ce, pe), learner, progress_writers)
 
     # define mapping from reader streams to network inputs
@@ -132,13 +131,13 @@ def train_and_evaluate(reader_train, reader_test, network_name, epoch_size, max_
         stop_profiler()
 
     # Evaluation parameters
-    test_epoch_size     = 10000
+    test_epoch_size = 10000
     minibatch_size = 16
 
     # process minibatches and evaluate the model
-    metric_numer    = 0
-    metric_denom    = 0
-    sample_count    = 0
+    metric_numer = 0
+    metric_denom = 0
+    sample_count = 0
 
     while sample_count < test_epoch_size:
         current_minibatch = min(minibatch_size, test_epoch_size - sample_count)
@@ -178,8 +177,8 @@ if __name__=='__main__':
     data_path = args['datadir']
 
     reader_train = create_reader(os.path.join(data_path, 'train_map.txt'), os.path.join(data_path, 'CIFAR-10_mean.xml'), True)
-    reader_test  = create_reader(os.path.join(data_path, 'test_map.txt'), os.path.join(data_path, 'CIFAR-10_mean.xml'), False)
+    reader_test = create_reader(os.path.join(data_path, 'test_map.txt'), os.path.join(data_path, 'CIFAR-10_mean.xml'), False)
 
     epoch_size = 50000
     train_and_evaluate(reader_train, reader_test, network_name, epoch_size, epochs, args['profiler_dir'], model_dir,
-                       args['logdir'], args['tensorboard_logdir'], gen_heartbeat = args['genheartbeat'])
+                       args['logdir'], args['tensorboard_logdir'], gen_heartbeat=args['genheartbeat'])
