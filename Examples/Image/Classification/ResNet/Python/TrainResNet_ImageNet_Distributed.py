@@ -13,9 +13,9 @@ import numpy as np
 from cntk import input, cross_entropy_with_softmax, classification_error, Trainer, cntk_py
 from cntk import data_parallel_distributed_learner, block_momentum_distributed_learner, Communicator
 from cntk.learners import nesterov, learning_rate_schedule, momentum_schedule, UnitType
-from cntk.debugging import set_computation_network_trace_level
 from cntk.device import try_set_default_device, gpu
 from cntk.train.training_session import *
+from cntk.debugging import *
 from cntk.logging import *
 from resnet_models import *
 import cntk.io.transforms as xforms
@@ -177,7 +177,7 @@ def resnet_imagenet(train_data, test_data, mean_data, network_name, epoch_size, 
     network = create_resnet_network(network_name)
     trainer = create_trainer(network, minibatch_size, epoch_size, num_quantization_bits, block_size, warm_up, progress_printer)
     train_source = create_image_mb_source(train_data, mean_data, train=True, total_number_of_samples=max_epochs * epoch_size)
-    test_source = create_image_mb_source(test_data, mean_data, train=False, total_number_of_samples=cntk.io.FULL_DATA_SWEEP)
+    test_source = create_image_mb_source(test_data, mean_data, train=False, total_number_of_samples=C.io.FULL_DATA_SWEEP)
     train_and_test(network, trainer, train_source, test_source, minibatch_size, epoch_size, restore, profiling)
 
 
@@ -191,7 +191,7 @@ if __name__=='__main__':
     parser.add_argument('-outputdir', '--outputdir', help='Output directory for checkpoints and models', required=False, default=None)
     parser.add_argument('-logdir', '--logdir', help='Log file', required=False, default=None)
     parser.add_argument('-e', '--epochs', help='Total number of epochs to train', type=int, required=False, default='90')
-    parser.add_argument('-es', '--epoch_size', help='Size of epoch in samples', type=int, required=False, default=None)
+    parser.add_argument('-es', '--epoch_size', help='Size of epoch in samples', type=int, required=False, default='1281167')
     parser.add_argument('-q', '--quantized_bits', help='Number of quantized bits used for gradient aggregation', type=int, required=False, default='32')
     parser.add_argument('-b', '--block_samples', type=int, help="Number of samples per block for block momentum (BM) distributed learner (if 0 BM learner is not used)", required=False, default=None)
     parser.add_argument('-a', '--distributed_after', help='Number of samples to train with before running distributed', type=int, required=False, default='0')
@@ -201,7 +201,6 @@ if __name__=='__main__':
 
     args = vars(parser.parse_args())
 
-    epoch_size = 1281167
     if args['outputdir'] != None:
         model_path = args['outputdir'] + "/models"
     if args['device'] != None:

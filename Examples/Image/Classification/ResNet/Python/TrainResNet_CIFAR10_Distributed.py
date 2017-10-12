@@ -13,9 +13,9 @@ import numpy as np
 from cntk import input, cross_entropy_with_softmax, classification_error, Trainer, cntk_py
 from cntk import data_parallel_distributed_learner, block_momentum_distributed_learner, Communicator
 from cntk.learners import momentum_sgd, learning_rate_schedule, momentum_as_time_constant_schedule, UnitType
-from cntk.debugging import set_computation_network_trace_level
 from cntk.device import try_set_default_device, gpu
 from cntk.train.training_session import *
+from cntk.debugging import *
 from cntk.logging import *
 from resnet_models import *
 
@@ -24,9 +24,8 @@ abs_path   = os.path.dirname(os.path.abspath(__file__))
 data_path  = os.path.join(abs_path, "..", "..", "..", "DataSets", "CIFAR-10")
 model_path = os.path.join(abs_path, "Models")
 
-# For this example we are using the same data source as for conv net - CIFAR
-sys.path.append(os.path.join(abs_path, "..", "..", "ConvNet", "Python"))
-from ConvNet_CIFAR10_DataAug_Distributed import create_image_mb_source
+# For this example we are using the same data source as TrainResNet_CIFAR10.py
+from TrainResNet_CIFAR10 import create_image_mb_source
 
 # model dimensions - these match the ones from convnet_cifar10_dataaug
 # so we can use the same data source
@@ -122,8 +121,8 @@ def train_and_test(network, trainer, train_source, test_source, minibatch_size, 
         stop_profiler()
 
 # Train and evaluate the network.
-def resnet_cifar10(train_data, test_data, mean_data, network_name, epoch_size, num_quantization_bits=32, block_size=3200, warm_up=0, 
-                   max_epochs=5, restore=True, log_to_file=None, num_mbs_per_log=None, gen_heartbeat=False, scale_up=False, profiling=False):
+def resnet_cifar10(train_data, test_data, mean_data, network_name, epoch_size, num_quantization_bits=32, block_size=None, warm_up=0, 
+                   max_epochs=160, restore=True, log_to_file=None, num_mbs_per_log=None, gen_heartbeat=False, scale_up=False, profiling=False):
 
     set_computation_network_trace_level(0)
 
@@ -144,7 +143,7 @@ def resnet_cifar10(train_data, test_data, mean_data, network_name, epoch_size, n
     network = create_resnet_network(network_name)
     trainer = create_trainer(network, minibatch_size, epoch_size, num_quantization_bits, block_size, warm_up, progress_printer)
     train_source = create_image_mb_source(train_data, mean_data, train=True, total_number_of_samples=max_epochs * epoch_size)
-    test_source = create_image_mb_source(test_data, mean_data, train=False, total_number_of_samples=cntk.io.FULL_DATA_SWEEP)
+    test_source = create_image_mb_source(test_data, mean_data, train=False, total_number_of_samples=C.io.FULL_DATA_SWEEP)
     train_and_test(network, trainer, train_source, test_source, minibatch_size, epoch_size, restore, profiling)
 
 
@@ -158,7 +157,7 @@ if __name__=='__main__':
     parser.add_argument('-outputdir', '--outputdir', help='Output directory for checkpoints and models', required=False, default=None)
     parser.add_argument('-logdir', '--logdir', help='Log file', required=False, default=None)
     parser.add_argument('-e', '--epochs', help='Total number of epochs to train', type=int, required=False, default='160')
-    parser.add_argument('-es', '--epoch_size', help='Size of epoch in samples', type=int, required=False, default=None)
+    parser.add_argument('-es', '--epoch_size', help='Size of epoch in samples', type=int, required=False, default='50000')
     parser.add_argument('-q', '--quantized_bits', help='Number of quantized bits used for gradient aggregation', type=int, required=False, default='32')
     parser.add_argument('-b', '--block_samples', type=int, help="Number of samples per block for block momentum (BM) distributed learner (if 0 BM learner is not used)", required=False, default=None)
     parser.add_argument('-a', '--distributed_after', help='Number of samples to train with before running distributed', type=int, required=False, default='0')
@@ -168,7 +167,6 @@ if __name__=='__main__':
 
     args = vars(parser.parse_args())
 
-    epoch_size = 50000
     if args['outputdir'] != None:
         model_path = args['outputdir'] + "/models"
     if args['device'] != None:
